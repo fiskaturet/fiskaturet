@@ -1591,7 +1591,8 @@ export default function App() {
     if (!midiOut) { inst = getInstrument(soundType); if (soundType === "piano") await Tone.loaded(); }
 
     const slotSec   = (60 / bpm) * 2;
-    const totalSec  = TIMELINE_SLOTS * slotSec;
+    const loopSlots = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
+    const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
 
     const doSchedule = (offsetNow) => {
@@ -1639,8 +1640,9 @@ export default function App() {
     setLooping(true);
     const wallStart = performance.now();
     const animate = () => {
-      const pct = ((performance.now() - wallStart) % totalMs) / totalMs;
-      setPlayheadPct(pct);
+      const raw = ((performance.now() - wallStart) % totalMs) / totalMs;
+      // Scale playhead so it only sweeps the filled portion of the track
+      setPlayheadPct(raw * (loopSlots / TIMELINE_SLOTS));
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
@@ -2086,6 +2088,19 @@ export default function App() {
                     {timelineItems.map(item => (
                       <div key={item.id}
                         onMouseDown={e => { if(e.target.dataset.resize) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                        onDoubleClick={e => {
+                          e.preventDefault(); e.stopPropagation();
+                          dragRef.current = null;
+                          setTimelineItems(prev => {
+                            const origEnd = item.startSlot + item.lengthSlots;
+                            const maxLen = Math.min(item.lengthSlots, TIMELINE_SLOTS - origEnd);
+                            if (maxLen < 1) return prev;
+                            if (isSlotFree(prev, origEnd, maxLen)) {
+                              return [...prev, { id: Date.now()+Math.random(), chord: item.chord, startSlot: origEnd, lengthSlots: maxLen }];
+                            }
+                            return prev;
+                          });
+                        }}
                         style={{
                           position:"absolute",
                           left:`${(item.startSlot/8)*100}%`,
