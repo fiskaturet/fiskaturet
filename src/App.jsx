@@ -50,37 +50,37 @@ function getInstrument(soundType) {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
-  pageBg:"#1C1A22", cardBg:"#252230", elevatedBg:"#2E2A38",
-  textPrimary:"#E8E3EC", textSecondary:"#9A93A8", textTertiary:"#5A5465",
-  labelColor:"#A88ACB", border:"rgba(255,255,255,0.07)",
-  inputBorder:"rgba(255,255,255,0.1)", inputBg:"#15131B", inputColor:"#E8E3EC", colorScheme:"dark",
-  cardShadow:"0 2px 0 rgba(0,0,0,0.6),0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)",
-  accent:"#B89CDA", accentBg:"rgba(184,156,218,0.13)", accentBgHover:"rgba(184,156,218,0.20)",
-  accentBorder:"rgba(184,156,218,0.45)", accentCardBg:"rgba(184,156,218,0.08)", accentCardHover:"rgba(184,156,218,0.15)",
-  degreeColor:"#5A5465", chordNameColor:"#E8E3EC", chordCardBg:"#2E2A38",
-  chordHoverShadow:"0 6px 24px rgba(184,156,218,0.25)",
-  segBg:"rgba(0,0,0,0.45)", segActiveBg:"#3A3548", segActiveColor:"#E8E3EC",
-  segInactiveColor:"#6B6575", segShadow:"inset 0 1px 3px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.04)",
-  pianoRailBg:"#0E0C14", pianoRailShadow:"inset 0 3px 10px rgba(0,0,0,0.9)", pianoKeysBg:"#1A1822",
-  whiteKeyBg:"#D4CFDC", whiteKeyScaleBg:"rgba(184,156,218,0.22)",
-  whiteKeyHlBg:"linear-gradient(180deg,#C9A8E0 0%,#7A5BAF 100%)",
-  whiteKeyAllScaleBg:"linear-gradient(180deg,#C9A8E0 0%,#7A5BAF 100%)",
-  whiteKeyBorder:"rgba(0,0,0,0.35)", whiteKeyLabel:"rgba(0,0,0,0.28)", whiteKeyLabelHl:"#3E1E60",
-  blackKeyBg:"#0E0C14", blackKeyScaleBg:"#4A3870",
-  blackKeyHlBg:"#7A5BAF", blackKeyAllScaleBg:"#7A5BAF",
-  legendChord:"linear-gradient(180deg,#C9A8E0,#7A5BAF)", legendScale:"rgba(184,156,218,0.18)", legendScaleBdr:"rgba(184,156,218,0.35)",
-  slotBg:"#15131B", slotBorder:"rgba(255,255,255,0.04)",
-  tokenBg:"#2E2A38", tokenBgHover:"rgba(184,156,218,0.20)", tokenBorder:"rgba(184,156,218,0.5)", tokenColor:"#B89CDA",
-  playActiveBg:"#B89CDA", playDisabledBg:"#201E28", playDisabledClr:"#3F3B48",
-  btnBg:"#2E2A38", btnColor:"#C8C0D4", btnBorder:"rgba(255,255,255,0.09)",
-  presetBg:"#2E2A38", presetColor:"#C8C0D4",
-  toggleBg:"#2E2A38", toggleColor:"#C8C0D4", toggleBorder:"rgba(255,255,255,0.09)",
-  stepBg:"#252230", stepColor:"#6B6575",
-  stepWholeBg:"rgba(184,156,218,0.13)", stepWholeColor:"#B89CDA", stepWholeBorder:"rgba(184,156,218,0.3)",
-  stepHalfBg:"#2E2A38", stepHalfColor:"#6B6575", stepHalfBorder:"rgba(255,255,255,0.07)",
-  infoBg:"#201E28", infoBorder:"rgba(255,255,255,0.04)",
-  modeBtnActiveBg:"#3A3548", modeBtnActiveBorder:"rgba(255,255,255,0.14)", modeBtnActiveColor:"#E8E3EC",
-  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(200,192,212,0.32)",
+  pageBg:"#EDEAF0", cardBg:"#FFFFFF", elevatedBg:"#F8F6FA",
+  textPrimary:"#1C1820", textSecondary:"#6B6674", textTertiary:"#9A93A8",
+  labelColor:"#7A5BAF", border:"rgba(28,24,32,0.08)",
+  inputBorder:"rgba(28,24,32,0.12)", inputBg:"#FFFFFF", inputColor:"#1C1820", colorScheme:"light",
+  cardShadow:"0 1px 2px rgba(28,24,32,0.04),0 4px 16px rgba(28,24,32,0.06)",
+  accent:"#7A5BAF", accentBg:"rgba(122,91,175,0.10)", accentBgHover:"rgba(122,91,175,0.16)",
+  accentBorder:"rgba(122,91,175,0.45)", accentCardBg:"rgba(122,91,175,0.06)", accentCardHover:"rgba(122,91,175,0.12)",
+  degreeColor:"#9A93A8", chordNameColor:"#1C1820", chordCardBg:"#FFFFFF",
+  chordHoverShadow:"0 6px 20px rgba(122,91,175,0.20)",
+  segBg:"#EDEAF0", segActiveBg:"#FFFFFF", segActiveColor:"#1C1820",
+  segInactiveColor:"#9A93A8", segShadow:"inset 0 1px 2px rgba(28,24,32,0.05)",
+  pianoRailBg:"#DDD7E5", pianoRailShadow:"inset 0 2px 6px rgba(28,24,32,0.10)", pianoKeysBg:"#EDEAF0",
+  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(122,91,175,0.14)",
+  whiteKeyHlBg:"linear-gradient(180deg,#B89CDA 0%,#7A5BAF 100%)",
+  whiteKeyAllScaleBg:"linear-gradient(180deg,#B89CDA 0%,#7A5BAF 100%)",
+  whiteKeyBorder:"rgba(28,24,32,0.15)", whiteKeyLabel:"rgba(28,24,32,0.30)", whiteKeyLabelHl:"#FFFFFF",
+  blackKeyBg:"#2A2530", blackKeyScaleBg:"#7A5BAF",
+  blackKeyHlBg:"#5B3F8A", blackKeyAllScaleBg:"#5B3F8A",
+  legendChord:"linear-gradient(180deg,#B89CDA,#7A5BAF)", legendScale:"rgba(122,91,175,0.15)", legendScaleBdr:"rgba(122,91,175,0.35)",
+  slotBg:"#F1EEF4", slotBorder:"rgba(28,24,32,0.06)",
+  tokenBg:"#FFFFFF", tokenBgHover:"rgba(122,91,175,0.10)", tokenBorder:"rgba(122,91,175,0.40)", tokenColor:"#7A5BAF",
+  playActiveBg:"#7A5BAF", playDisabledBg:"#EDEAF0", playDisabledClr:"#BDB5C7",
+  btnBg:"#FFFFFF", btnColor:"#1C1820", btnBorder:"rgba(28,24,32,0.10)",
+  presetBg:"#FFFFFF", presetColor:"#1C1820",
+  toggleBg:"#FFFFFF", toggleColor:"#1C1820", toggleBorder:"rgba(28,24,32,0.10)",
+  stepBg:"#F8F6FA", stepColor:"#9A93A8",
+  stepWholeBg:"rgba(122,91,175,0.13)", stepWholeColor:"#7A5BAF", stepWholeBorder:"rgba(122,91,175,0.3)",
+  stepHalfBg:"#FFFFFF", stepHalfColor:"#9A93A8", stepHalfBorder:"rgba(28,24,32,0.08)",
+  infoBg:"#F8F6FA", infoBorder:"rgba(28,24,32,0.06)",
+  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(28,24,32,0.10)", modeBtnActiveColor:"#1C1820",
+  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(28,24,32,0.40)",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -1660,7 +1660,7 @@ export default function App() {
         select:focus,button:focus{outline:none}
         option{background:${t.inputBg};color:${t.inputColor}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-        @keyframes led-glow{0%,100%{box-shadow:0 0 4px #B89CDA,0 0 8px rgba(184,156,218,0.5)}50%{box-shadow:0 0 8px #B89CDA,0 0 16px rgba(184,156,218,0.7)}}
+        @keyframes led-glow{0%,100%{box-shadow:0 0 4px #7A5BAF,0 0 8px rgba(122,91,175,0.5)}50%{box-shadow:0 0 8px #7A5BAF,0 0 16px rgba(122,91,175,0.7)}}
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
         ::-webkit-scrollbar{width:6px;height:6px}
         ::-webkit-scrollbar-track{background:${t.pageBg}}
@@ -1684,7 +1684,7 @@ export default function App() {
               <h1 style={{
                 fontSize:28, fontWeight:700, letterSpacing:"0.18em",
                 textTransform:"uppercase", color:"#E8E2D4", margin:0,
-                fontFamily:SF, textShadow:"0 0 20px rgba(184,156,218,0.15)",
+                fontFamily:SF, textShadow:"0 0 20px rgba(122,91,175,0.15)",
               }}>
                 Fiskaturet
               </h1>
@@ -1696,8 +1696,8 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:"#B89CDA",
-                boxShadow:"0 0 6px #B89CDA,0 0 12px rgba(184,156,218,0.6)",
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#7A5BAF",
+                boxShadow:"0 0 6px #7A5BAF,0 0 12px rgba(122,91,175,0.6)",
                 animation:"led-glow 2s ease-in-out infinite" }} />
               <span style={{ fontSize:10, color:t.textTertiary, fontWeight:600,
                 letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
@@ -1964,17 +1964,17 @@ export default function App() {
                         onMouseEnter={() => setHoveredChord(c)}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1px solid rgba(184,156,218,0.6)` : `1px solid rgba(255,255,255,0.07)`,
+                          border: accent ? `1px solid rgba(122,91,175,0.6)` : `1px solid rgba(255,255,255,0.07)`,
                           borderRadius:10, padding:"13px 6px 11px",
                           background: isActive
-                            ? "linear-gradient(180deg,rgba(184,156,218,0.18) 0%,rgba(184,156,218,0.08) 100%)"
+                            ? "linear-gradient(180deg,rgba(122,91,175,0.18) 0%,rgba(122,91,175,0.08) 100%)"
                             : isHovered
                             ? "linear-gradient(180deg,#32363F 0%,#2A2D34 100%)"
                             : "linear-gradient(180deg,#2E3138 0%,#22252C 100%)",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
                           transition:"all 0.1s ease",
                           boxShadow: accent
-                            ? `0 0 12px rgba(184,156,218,0.2),inset 0 1px 0 rgba(255,255,255,0.06)`
+                            ? `0 0 12px rgba(122,91,175,0.2),inset 0 1px 0 rgba(255,255,255,0.06)`
                             : `inset 0 1px 0 rgba(255,255,255,0.05),0 2px 4px rgba(0,0,0,0.4)`,
                         }}>
                         <div style={{ fontSize:10, color:accent?t.accent:"#484540", marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
@@ -2056,7 +2056,7 @@ export default function App() {
                     <input type="number" min={40} max={240} value={bpm}
                       onChange={e => { const v=parseInt(e.target.value); if(!isNaN(v)&&v>=40&&v<=240) setBpm(v); else if(e.target.value==="") setBpm(e.target.value); }}
                       onBlur={e => { const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:15, textAlign:"center", width:58, padding:"4px 6px", borderRadius:8, border:`1px solid rgba(184,156,218,0.3)`, background:t.inputBg, color:t.accent, colorScheme:"dark", appearance:"textfield", MozAppearance:"textfield", letterSpacing:"0.08em" }}
+                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:15, textAlign:"center", width:58, padding:"4px 6px", borderRadius:8, border:`1px solid rgba(122,91,175,0.3)`, background:t.inputBg, color:t.accent, colorScheme:"dark", appearance:"textfield", MozAppearance:"textfield", letterSpacing:"0.08em" }}
                     />
                     <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
                     <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
@@ -2111,7 +2111,7 @@ export default function App() {
                           borderRadius:6, cursor:"grab",
                           display:"flex", alignItems:"center", justifyContent:"space-between",
                           padding:"0 4px 0 8px", overflow:"hidden",
-                          boxShadow:`0 0 8px rgba(184,156,218,0.1)`,
+                          boxShadow:`0 0 8px rgba(122,91,175,0.1)`,
                         }}>
                         <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
                           {item.chord.display}
