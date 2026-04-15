@@ -50,37 +50,37 @@ function getInstrument(soundType) {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
-    pageBg:"#F2F2F7", cardBg:"#FFFFFF", elevatedBg:"#F8F8F8",
-    textPrimary:"#1C1C1E", textSecondary:"#8E8E93", textTertiary:"#C7C7CC",
-    labelColor:"#8E8E93", border:"rgba(0,0,0,0.07)",
-    inputBorder:"rgba(0,0,0,0.12)", inputBg:"#FFFFFF", inputColor:"#1C1C1E", colorScheme:"light",
-    cardShadow:"0 1px 0 rgba(0,0,0,0.05),0 2px 10px rgba(0,0,0,0.07)",
-    accent:"#007AFF", accentBg:"#EEF5FF", accentBgHover:"#E0EDFF",
-    accentBorder:"rgba(0,122,255,0.5)", accentCardBg:"#EEF5FF", accentCardHover:"#F4F9FF",
-    degreeColor:"#BABABA", chordNameColor:"#1C1C1E", chordCardBg:"#FAFAFA",
-    chordHoverShadow:"0 6px 16px rgba(0,122,255,0.13)",
-    segBg:"rgba(118,118,128,0.12)", segActiveBg:"#FFFFFF", segActiveColor:"#1C1C1E",
-    segInactiveColor:"#6E6E73", segShadow:"0 1px 4px rgba(0,0,0,0.13)",
-    pianoRailBg:"#1C1C1E", pianoRailShadow:"inset 0 2px 4px rgba(0,0,0,0.3)", pianoKeysBg:"#F8F8F8",
-    whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"#EEF5FF",
-    whiteKeyHlBg:"linear-gradient(180deg,#CCE4FF 0%,#99C9FF 100%)",
-    whiteKeyAllScaleBg:"linear-gradient(180deg,#CCE4FF 0%,#99C9FF 100%)",
-    whiteKeyBorder:"rgba(0,0,0,0.10)", whiteKeyLabel:"#C0C0C0", whiteKeyLabelHl:"#0056CF",
-    blackKeyBg:"#1C1C1E", blackKeyScaleBg:"#3A7BD5",
-    blackKeyHlBg:"#0056CF", blackKeyAllScaleBg:"#0056CF",
-    legendChord:"linear-gradient(180deg,#CCE4FF,#99C9FF)", legendScale:"#EEF5FF", legendScaleBdr:"rgba(0,0,0,0.08)",
-    slotBg:"#F8F8F8", slotBorder:"rgba(0,0,0,0.05)",
-    tokenBg:"#FFFFFF", tokenBgHover:"#EEF5FF", tokenBorder:"#007AFF", tokenColor:"#007AFF",
-    playActiveBg:"#007AFF", playDisabledBg:"#E5E5EA", playDisabledClr:"#AEAEB2",
-    btnBg:"#FFFFFF", btnColor:"#3C3C43", btnBorder:"rgba(0,0,0,0.12)",
-    presetBg:"#FFFFFF", presetColor:"#3C3C43",
-    toggleBg:"#FFFFFF", toggleColor:"#3C3C43", toggleBorder:"rgba(0,0,0,0.12)",
-    stepBg:"#F2F2F7", stepColor:"#8E8E93",
-    stepWholeBg:"#EEF5FF", stepWholeColor:"#007AFF", stepWholeBorder:"rgba(0,122,255,0.25)",
-    stepHalfBg:"#F0F0F0", stepHalfColor:"#8E8E93", stepHalfBorder:"rgba(0,0,0,0.1)",
-    infoBg:"#F8F8F8", infoBorder:"rgba(0,0,0,0.06)",
-    modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(0,0,0,0.12)", modeBtnActiveColor:"#1C1C1E",
-    modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(60,60,67,0.4)",
+  pageBg:"#1A1C20", cardBg:"#22252C", elevatedBg:"#2A2D34",
+  textPrimary:"#E8E2D4", textSecondary:"#8A8680", textTertiary:"#484540",
+  labelColor:"#D4880A", border:"rgba(255,255,255,0.07)",
+  inputBorder:"rgba(255,255,255,0.1)", inputBg:"#12141A", inputColor:"#E8E2D4", colorScheme:"dark",
+  cardShadow:"0 2px 0 rgba(0,0,0,0.6),0 8px 32px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.05)",
+  accent:"#E8920C", accentBg:"rgba(232,146,12,0.13)", accentBgHover:"rgba(232,146,12,0.20)",
+  accentBorder:"rgba(232,146,12,0.45)", accentCardBg:"rgba(232,146,12,0.08)", accentCardHover:"rgba(232,146,12,0.13)",
+  degreeColor:"#484540", chordNameColor:"#E8E2D4", chordCardBg:"#2A2D34",
+  chordHoverShadow:"0 6px 24px rgba(232,146,12,0.22)",
+  segBg:"rgba(0,0,0,0.45)", segActiveBg:"#32363F", segActiveColor:"#E8E2D4",
+  segInactiveColor:"#585450", segShadow:"inset 0 1px 3px rgba(0,0,0,0.6),0 1px 0 rgba(255,255,255,0.04)",
+  pianoRailBg:"#0C0E12", pianoRailShadow:"inset 0 3px 10px rgba(0,0,0,0.9)", pianoKeysBg:"#181A1F",
+  whiteKeyBg:"#D4D0C8", whiteKeyScaleBg:"rgba(232,146,12,0.18)",
+  whiteKeyHlBg:"linear-gradient(180deg,#F5A428 0%,#C07010 100%)",
+  whiteKeyAllScaleBg:"linear-gradient(180deg,#F5A428 0%,#C07010 100%)",
+  whiteKeyBorder:"rgba(0,0,0,0.35)", whiteKeyLabel:"rgba(0,0,0,0.28)", whiteKeyLabelHl:"#7A3800",
+  blackKeyBg:"#0C0E12", blackKeyScaleBg:"#7A4A0C",
+  blackKeyHlBg:"#C07010", blackKeyAllScaleBg:"#C07010",
+  legendChord:"linear-gradient(180deg,#F5A428,#C07010)", legendScale:"rgba(232,146,12,0.15)", legendScaleBdr:"rgba(232,146,12,0.3)",
+  slotBg:"#12141A", slotBorder:"rgba(255,255,255,0.04)",
+  tokenBg:"#2A2D34", tokenBgHover:"rgba(232,146,12,0.18)", tokenBorder:"rgba(232,146,12,0.5)", tokenColor:"#E8920C",
+  playActiveBg:"#E8920C", playDisabledBg:"#1E2126", playDisabledClr:"#3A3835",
+  btnBg:"#2A2D34", btnColor:"#C8C2B4", btnBorder:"rgba(255,255,255,0.09)",
+  presetBg:"#2A2D34", presetColor:"#C8C2B4",
+  toggleBg:"#2A2D34", toggleColor:"#C8C2B4", toggleBorder:"rgba(255,255,255,0.09)",
+  stepBg:"#22252C", stepColor:"#585450",
+  stepWholeBg:"rgba(232,146,12,0.13)", stepWholeColor:"#E8920C", stepWholeBorder:"rgba(232,146,12,0.28)",
+  stepHalfBg:"#2A2D34", stepHalfColor:"#585450", stepHalfBorder:"rgba(255,255,255,0.07)",
+  infoBg:"#1E2126", infoBorder:"rgba(255,255,255,0.04)",
+  modeBtnActiveBg:"#32363F", modeBtnActiveBorder:"rgba(255,255,255,0.14)", modeBtnActiveColor:"#E8E2D4",
+  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(200,194,180,0.32)",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -785,7 +785,7 @@ function KeyDetector({ t }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const SF2   = "SF Pro Display,-apple-system,BlinkMacSystemFont,sans-serif";
+  const SF2   = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
   const card2 = { background:t.cardBg, borderRadius:18, padding:"20px 24px", boxShadow:t.cardShadow, marginBottom:12 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
@@ -1150,7 +1150,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
   const playTimerRef  = useRef(null);
   const timeoutsRef   = useRef([]);
 
-  const SF2 = "SF Pro Display,-apple-system,BlinkMacSystemFont,sans-serif";
+  const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
   const card2 = { background:t.cardBg, borderRadius:18, padding:"20px 24px", boxShadow:t.cardShadow, marginBottom:12 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
@@ -1389,7 +1389,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-const SF = "SF Pro Display,-apple-system,BlinkMacSystemFont,sans-serif";
+const SF = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
 
 export default function App() {
   const [soundType,    setSoundType]    = useState("piano"); // "piano" | "rhodes"
@@ -1397,25 +1397,26 @@ export default function App() {
   const [rootDisplay,  setRootDisplay]  = useState("C");
   const [scaleKey,     setScaleKey]     = useState("major");
   const [chordType,    setChordType]    = useState("triad");
-  const [progression,  setProgression]  = useState([]);
+  const [timelineItems, setTimelineItems] = useState([]); // { id, chord, startSlot, lengthSlots }
   const [hoveredChord, setHoveredChord] = useState(null);
   const [activeChord,  setActiveChord]  = useState(null);
   const [bpm,          setBpm]          = useState(90);
   const [looping,      setLooping]      = useState(false);
+  const [playheadPct,  setPlayheadPct]  = useState(0);
   const [arpOn,        setArpOn]        = useState(false);
-  const [arpPattern,   setArpPattern]   = useState("up");   // up|down|updown|random
-  const [arpRate,      setArpRate]      = useState(0.5);    // beat multiplier (0.5=8th)
-  const [chordOctave,  setChordOctave]  = useState(4);      // base octave for chord playback
-  const [dragOverPos,  setDragOverPos]  = useState(null);
-  const [chordInput,      setChordInput]      = useState("");
-  const [progressionName, setProgressionName] = useState(null);
+  const [arpPattern,   setArpPattern]   = useState("up");
+  const [arpRate,      setArpRate]      = useState(0.5);
+  const [chordOctave,  setChordOctave]  = useState(4);
+  const [chordInput,   setChordInput]   = useState("");
   const [chordInputErr,setChordInputErr]= useState(false);
   const [midiOutputs,  setMidiOutputs]  = useState([]);
   const [midiOutputId, setMidiOutputId] = useState("off");
   const [midiChannel,  setMidiChannel]  = useState(1);
   const [midiError,    setMidiError]    = useState(null);
   const loopRef    = useRef(null);
-  const draggedPos = useRef(null);
+  const rafRef     = useRef(null);
+  const dragRef    = useRef(null);
+  const trackRef   = useRef(null);
   const midiAccess = useRef(null);
 
   // ── MIDI init ──
@@ -1491,30 +1492,45 @@ export default function App() {
   const displayChord     = hoveredChord || activeChord;
   const highlightedNotes = displayChord ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality) : [];
 
+  // ── Timeline helpers ──────────────────────────────────────────────────────────
+  const TIMELINE_SLOTS = 8; // 4 bars × 2 half-notes
+
+  const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
+    for (let s = startSlot; s < startSlot + lengthSlots; s++) {
+      if (items.some(it => it.id !== excludeId && s >= it.startSlot && s < it.startSlot + it.lengthSlots))
+        return false;
+    }
+    return true;
+  };
+
   const addChord = (chord) => {
-    if (progression.length >= 8) return;
-    setProgressionName(null);
-    setProgression(p => [...p, chord]);
     setActiveChord(chord);
     const noteNames = getChordNoteNames(chord.noteIdx, chord.quality, chordOctave);
-
+    // Find first free slot for a 2-slot block
+    setTimelineItems(prev => {
+      let start = 0;
+      while (start < TIMELINE_SLOTS) {
+        const len = Math.min(2, TIMELINE_SLOTS - start);
+        if (isSlotFree(prev, start, len)) {
+          return [...prev, { id: Date.now() + Math.random(), chord, startSlot: start, lengthSlots: len }];
+        }
+        start++;
+      }
+      return prev; // timeline full
+    });
+    // Preview the chord
     if (arpOn) {
-      const ordered  = getArpNotes(noteNames, arpPattern);
-      const rateSec  = (60 / bpm) * arpRate;
-      const rateMs   = rateSec * 1000;
-      const cycles   = 2; // short preview
-      const midiOut  = getMIDIOut();
+      const ordered = getArpNotes(noteNames, arpPattern);
+      const rateSec = (60 / bpm) * arpRate;
+      const rateMs  = rateSec * 1000;
+      const midiOut = getMIDIOut();
       if (midiOut) {
         const ch = midiChannel - 1;
-        for (let i = 0; i < ordered.length * cycles; i++) {
+        for (let i = 0; i < ordered.length * 2; i++) {
           const n = nameToMidi(ordered[i % ordered.length]);
           const { offsetSec, vel } = arpHumanize(i, rateSec);
-          const delayMs = i * rateMs + offsetSec * 1000;
-          const midiVel = Math.round(vel * 100 + 15); // map 0.3–1.0 → ~45–115
-          setTimeout(() => {
-            midiOut.send([0x90 | ch, n, midiVel]);
-            setTimeout(() => midiOut.send([0x80 | ch, n, 0]), rateMs * 0.82);
-          }, delayMs);
+          const midiVel = Math.round(vel * 100 + 15);
+          setTimeout(() => { midiOut.send([0x90|ch,n,midiVel]); setTimeout(() => midiOut.send([0x80|ch,n,0]), rateMs*0.82); }, i*rateMs + offsetSec*1000);
         }
       } else {
         (async () => {
@@ -1522,9 +1538,9 @@ export default function App() {
           const inst = getInstrument(soundType);
           if (soundType === "piano") await Tone.loaded();
           const now = Tone.now();
-          for (let i = 0; i < ordered.length * cycles; i++) {
+          for (let i = 0; i < ordered.length * 2; i++) {
             const { offsetSec, vel } = arpHumanize(i, rateSec);
-            inst.triggerAttackRelease(ordered[i % ordered.length], rateSec * 0.82, now + i * rateSec + offsetSec, vel);
+            inst.triggerAttackRelease(ordered[i%ordered.length], rateSec*0.82, now+i*rateSec+offsetSec, vel);
           }
         })();
       }
@@ -1532,97 +1548,103 @@ export default function App() {
       if (!sendMIDINotes(noteNames, 1500)) playChord(noteNames, soundType);
     }
   };
-  const removeChord = pos => { stopLoop(); setProgressionName(null); setProgression(p => p.filter((_,i) => i!==pos)); };
 
   const stopLoop = () => {
-    if (loopRef.current) { clearInterval(loopRef.current); loopRef.current = null; }
+    if (loopRef.current)  { clearInterval(loopRef.current);      loopRef.current = null; }
+    if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
     setLooping(false);
+    setPlayheadPct(0);
   };
 
-  const scheduleProgression = async (prog, bpmVal, inst, arpEnabled, arpPat, arpR, oct) => {
-    const secPerChord = (60 / bpmVal) * 2;
-    const midiOut = getMIDIOut();
-
-    if (midiOut) {
-      const ch = midiChannel - 1;
-      prog.forEach((chord, pos) => {
-        if (chord === null) return;
-        const noteNames = getChordNoteNames(chord.noteIdx, chord.quality, oct);
-        const startMs   = pos * secPerChord * 1000;
-        if (arpEnabled) {
-          const rateSec  = (60 / bpmVal) * arpR;
-          const rateMs   = rateSec * 1000;
-          const numSteps = Math.round(secPerChord / rateSec);
-          const ordered  = getArpNotes(noteNames, arpPat);
-          for (let i = 0; i < numSteps; i++) {
-            const n = nameToMidi(ordered[i % ordered.length]);
-            const { offsetSec, vel } = arpHumanize(i, rateSec);
-            const midiVel = Math.round(vel * 100 + 15);
-            setTimeout(() => {
-              midiOut.send([0x90 | ch, n, midiVel]);
-              setTimeout(() => midiOut.send([0x80 | ch, n, 0]), rateMs * 0.85);
-            }, startMs + i * rateMs + offsetSec * 1000);
-          }
+  // ── Timeline drag/resize ───────────────────────────────────────────────────
+  useEffect(() => {
+    const onMouseMove = (e) => {
+      if (!dragRef.current || !trackRef.current) return;
+      const rect = trackRef.current.getBoundingClientRect();
+      const slotW = rect.width / TIMELINE_SLOTS;
+      const dSlots = Math.round((e.clientX - dragRef.current.startX) / slotW);
+      const { type, id, origStart, origLength } = dragRef.current;
+      setTimelineItems(prev => prev.map(item => {
+        if (item.id !== id) return item;
+        if (type === "move") {
+          const ns = Math.max(0, Math.min(TIMELINE_SLOTS - item.lengthSlots, origStart + dSlots));
+          return isSlotFree(prev, ns, item.lengthSlots, id) ? { ...item, startSlot: ns } : item;
         } else {
-          const noteDurMs = secPerChord * 0.85 * 1000;
-          noteNames.map(nameToMidi).forEach((n, i) => {
-            const strumMs = i * 13 + Math.random() * 7;
-            const vel = Math.floor(82 + Math.random() * 33);
-            setTimeout(() => {
-              midiOut.send([0x90 | ch, n, vel]);
-              setTimeout(() => midiOut.send([0x80 | ch, n, 0]), noteDurMs);
-            }, startMs + strumMs);
-          });
+          const nl = Math.max(1, Math.min(TIMELINE_SLOTS - item.startSlot, origLength + dSlots));
+          return isSlotFree(prev, item.startSlot, nl, id) ? { ...item, lengthSlots: nl } : item;
         }
-      });
-    } else {
-      const now = Tone.now();
-      prog.forEach((chord, pos) => {
-        if (chord === null) return;
-        const noteNames  = getChordNoteNames(chord.noteIdx, chord.quality, oct);
-        const chordStart = now + pos * secPerChord;
-        if (arpEnabled) {
-          const rateSec  = (60 / bpmVal) * arpR;
-          const numSteps = Math.round(secPerChord / rateSec);
-          const ordered  = getArpNotes(noteNames, arpPat);
-          for (let i = 0; i < numSteps; i++) {
-            const { offsetSec, vel } = arpHumanize(i, rateSec);
-            inst.triggerAttackRelease(
-              ordered[i % ordered.length],
-              rateSec * 0.85,
-              chordStart + i * rateSec + offsetSec,
-              vel
-            );
-          }
-        } else {
-          const offsets = strumOffsets(noteNames.length);
-          const vels    = humanVelocities(noteNames.length);
-          noteNames.forEach((note, i) =>
-            inst.triggerAttackRelease(note, `${secPerChord * 0.85}`, chordStart + offsets[i], vels[i])
-          );
-        }
-      });
-    }
-    return prog.length * secPerChord * 1000;
-  };
+      }));
+    };
+    const onMouseUp = () => { dragRef.current = null; };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup",   onMouseUp);
+    return () => { document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", onMouseUp); };
+  }, []);
 
-  const handlePlayProgression = async () => {
+  // ── Timeline playback ──────────────────────────────────────────────────────
+  const playTimeline = async () => {
     if (looping) { stopLoop(); return; }
-    if (progression.length === 0) return;
+    if (timelineItems.length === 0) return;
     await Tone.start();
     const midiOut = getMIDIOut();
     let inst = null;
-    if (!midiOut) {
-      inst = getInstrument(soundType);
-      if (soundType === "piano") await Tone.loaded();
-    }
+    if (!midiOut) { inst = getInstrument(soundType); if (soundType === "piano") await Tone.loaded(); }
 
-    const totalMs = await scheduleProgression(progression, bpm, inst, arpOn, arpPattern, arpRate, chordOctave);
+    const slotSec   = (60 / bpm) * 2;
+    const totalSec  = TIMELINE_SLOTS * slotSec;
+    const totalMs   = totalSec * 1000;
+
+    const doSchedule = (offsetNow) => {
+      const base = offsetNow ?? Tone.now();
+      timelineItems.forEach(item => {
+        const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+        const startSec  = item.startSlot * slotSec;
+        const durSec    = item.lengthSlots * slotSec;
+        const ch = midiChannel - 1;
+        if (midiOut) {
+          if (arpOn) {
+            const rateSec = (60/bpm)*arpRate, rateMs = rateSec*1000;
+            const steps = Math.round(durSec/rateSec);
+            const ordered = getArpNotes(noteNames, arpPattern);
+            for (let i=0;i<steps;i++) {
+              const n = nameToMidi(ordered[i%ordered.length]);
+              const {offsetSec,vel} = arpHumanize(i,rateSec);
+              const midiVel = Math.round(vel*100+15);
+              setTimeout(()=>{ midiOut.send([0x90|ch,n,midiVel]); setTimeout(()=>midiOut.send([0x80|ch,n,0]),rateMs*0.85); },(startSec+i*rateSec+offsetSec)*1000);
+            }
+          } else {
+            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+            noteNames.forEach((note,i) => {
+              const midiVel = Math.floor(vels[i]*100+15);
+              setTimeout(()=>{ midiOut.send([0x90|ch,nameToMidi(note),midiVel]); setTimeout(()=>midiOut.send([0x80|ch,nameToMidi(note),0]),durSec*0.85*1000); },(startSec+offsets[i])*1000);
+            });
+          }
+        } else {
+          if (arpOn) {
+            const rateSec = (60/bpm)*arpRate, steps = Math.round(durSec/rateSec);
+            const ordered = getArpNotes(noteNames, arpPattern);
+            for (let i=0;i<steps;i++) {
+              const {offsetSec,vel} = arpHumanize(i,rateSec);
+              inst.triggerAttackRelease(ordered[i%ordered.length],rateSec*0.85,base+startSec+i*rateSec+offsetSec,vel);
+            }
+          } else {
+            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+            noteNames.forEach((note,i) => inst.triggerAttackRelease(note,`${durSec*0.85}`,base+startSec+offsets[i],vels[i]));
+          }
+        }
+      });
+    };
+
+    doSchedule();
     setLooping(true);
-
-    loopRef.current = setInterval(async () => {
-      await scheduleProgression(progression, bpm, inst, arpOn, arpPattern, arpRate, chordOctave);
-    }, totalMs);
+    const wallStart = performance.now();
+    const animate = () => {
+      const pct = ((performance.now() - wallStart) % totalMs) / totalMs;
+      setPlayheadPct(pct);
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    loopRef.current = setInterval(() => doSchedule(Tone.now()), totalMs);
   };
 
   useEffect(() => () => stopLoop(), []);
@@ -1630,28 +1652,55 @@ export default function App() {
   return (
     <>
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
         *{box-sizing:border-box}
-        body{margin:0;background:${t.pageBg};font-family:${SF};transition:background 0.2s ease}
+        html,body{margin:0;background:${t.pageBg};font-family:${SF};transition:background 0.2s ease}
         select:focus,button:focus{outline:none}
         option{background:${t.inputBg};color:${t.inputColor}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
+        @keyframes led-glow{0%,100%{box-shadow:0 0 4px #E8920C,0 0 8px rgba(232,146,12,0.5)}50%{box-shadow:0 0 8px #E8920C,0 0 16px rgba(232,146,12,0.7)}}
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar-track{background:${t.pageBg}}
+        ::-webkit-scrollbar-thumb{background:#3A3D44;border-radius:3px}
+        ::-webkit-scrollbar-thumb:hover{background:#4A4D54}
+        .bpm-lcd{font-family:'Share Tech Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
       <div style={{ minHeight:"100vh", background:t.pageBg, padding:"2.5rem 1rem", fontFamily:SF, transition:"background 0.2s ease" }}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
 
           {/* ── Header ── */}
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:20 }}>
+          <div style={{
+            background:"linear-gradient(180deg,#2E3138 0%,#1E2126 100%)",
+            borderRadius:14, padding:"18px 28px", marginBottom:16,
+            boxShadow:"0 2px 0 rgba(0,0,0,0.7),0 8px 24px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.07)",
+            border:"1px solid rgba(255,255,255,0.06)",
+            display:"flex", justifyContent:"space-between", alignItems:"center",
+          }}>
             <div>
-              <h1 style={{ fontSize:30, fontWeight:700, letterSpacing:"-0.03em", color:t.textPrimary, margin:0 }}>
+              <h1 style={{
+                fontSize:28, fontWeight:700, letterSpacing:"0.18em",
+                textTransform:"uppercase", color:"#E8E2D4", margin:0,
+                fontFamily:SF, textShadow:"0 0 20px rgba(232,146,12,0.15)",
+              }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:13, color:t.textSecondary, margin:"4px 0 0", fontWeight:400 }}>
-                {mode==="detect" ? "Microphone · Real-time key detection"
-                  : mode==="sheet" ? "MusicXML · Import and play sheet music"
+              <p style={{ fontSize:11, color:t.labelColor, margin:"5px 0 0", fontWeight:600,
+                letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
+                {mode==="detect" ? "Key Detector · Microphone"
+                  : mode==="sheet" ? "Sheet Music · MusicXML"
                   : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
               </p>
+            </div>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#E8920C",
+                boxShadow:"0 0 6px #E8920C,0 0 12px rgba(232,146,12,0.6)",
+                animation:"led-glow 2s ease-in-out infinite" }} />
+              <span style={{ fontSize:10, color:t.textTertiary, fontWeight:600,
+                letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
+                PWR
+              </span>
             </div>
           </div>
 
@@ -1913,18 +1962,23 @@ export default function App() {
                         onMouseEnter={() => setHoveredChord(c)}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1.5px solid ${t.accent}` : `1.5px solid ${t.border}`,
-                          borderRadius:14, padding:"13px 6px 11px",
-                          background: isActive ? t.accentCardBg : isHovered ? t.accentCardHover : t.chordCardBg,
+                          border: accent ? `1px solid rgba(232,146,12,0.6)` : `1px solid rgba(255,255,255,0.07)`,
+                          borderRadius:10, padding:"13px 6px 11px",
+                          background: isActive
+                            ? "linear-gradient(180deg,rgba(232,146,12,0.18) 0%,rgba(232,146,12,0.08) 100%)"
+                            : isHovered
+                            ? "linear-gradient(180deg,#32363F 0%,#2A2D34 100%)"
+                            : "linear-gradient(180deg,#2E3138 0%,#22252C 100%)",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
-                          transition:"all 0.12s ease",
-                          transform: isHovered ? "translateY(-2px)" : "translateY(0)",
-                          boxShadow: isHovered ? t.chordHoverShadow : "none",
+                          transition:"all 0.1s ease",
+                          boxShadow: accent
+                            ? `0 0 12px rgba(232,146,12,0.2),inset 0 1px 0 rgba(255,255,255,0.06)`
+                            : `inset 0 1px 0 rgba(255,255,255,0.05),0 2px 4px rgba(0,0,0,0.4)`,
                         }}>
-                        <div style={{ fontSize:10, color:accent?t.accent:t.degreeColor, marginBottom:4, fontWeight:600, letterSpacing:"0.05em" }}>
+                        <div style={{ fontSize:10, color:accent?t.accent:"#484540", marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
                           {c.degree}
                         </div>
-                        <div style={{ fontSize:15, fontWeight:600, color:accent?t.accent:t.chordNameColor, letterSpacing:"-0.02em" }}>
+                        <div style={{ fontSize:15, fontWeight:700, color:accent?t.accent:t.chordNameColor, letterSpacing:"0.03em" }}>
                           {c.display}
                         </div>
                       </div>
@@ -1977,22 +2031,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Progression */}
+              {/* ── Timeline ── */}
               <div style={card}>
+                {/* Header row */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                      <div style={labelStyle}>Progression ({progression.length}/8)</div>
-                      {progressionName && (
-                        <span style={{
-                          fontSize:11, fontWeight:600, color:t.accent,
-                          background:t.accentBg, border:`1px solid ${t.accentBorder}`,
-                          borderRadius:20, padding:"2px 10px", letterSpacing:"0.01em",
-                        }}>
-                          {progressionName}
-                        </span>
-                      )}
-                    </div>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={labelStyle}>Timeline — 4 bars</div>
                     {looping && (
                       <span style={{ fontSize:11, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
                         display:"flex", alignItems:"center", gap:5 }}>
@@ -2003,229 +2047,162 @@ export default function App() {
                       </span>
                     )}
                   </div>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
-                    {/* BPM control */}
-                    <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>BPM</span>
-                      <button onClick={() => setBpm(b => Math.max(40, b-1))}
-                        style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
-                          border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
-                      <input
-                        type="number" min={40} max={240} value={bpm}
-                        onChange={e => {
-                          const v = parseInt(e.target.value);
-                          if (!isNaN(v) && v >= 40 && v <= 240) setBpm(v);
-                          else if (e.target.value === "") setBpm(e.target.value);
-                        }}
-                        onBlur={e => {
-                          const v = parseInt(e.target.value);
-                          setBpm(isNaN(v) ? 90 : Math.min(240, Math.max(40, v)));
-                        }}
-                        style={{
-                          fontFamily:SF, fontSize:14, fontWeight:700, textAlign:"center",
-                          width:52, padding:"4px 6px", borderRadius:8,
-                          border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor,
-                          colorScheme:"dark", appearance:"textfield", MozAppearance:"textfield",
-                        }}
-                      />
-                      <button onClick={() => setBpm(b => Math.min(240, b+1))}
-                        style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
-                          border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
-                    </div>
+                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
+                    {/* BPM */}
+                    <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>BPM</span>
+                    <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
+                    <input type="number" min={40} max={240} value={bpm}
+                      onChange={e => { const v=parseInt(e.target.value); if(!isNaN(v)&&v>=40&&v<=240) setBpm(v); else if(e.target.value==="") setBpm(e.target.value); }}
+                      onBlur={e => { const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
+                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:15, textAlign:"center", width:58, padding:"4px 6px", borderRadius:8, border:`1px solid rgba(232,146,12,0.3)`, background:t.inputBg, color:t.accent, colorScheme:"dark", appearance:"textfield", MozAppearance:"textfield", letterSpacing:"0.08em" }}
+                    />
+                    <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
                     <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
-                    {/* Octave control */}
+                    {/* Octave */}
                     <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
-                    <button onClick={() => { if (looping) stopLoop(); setChordOctave(o => Math.max(2, o-1)); }}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
                     <span style={{ fontSize:14, fontWeight:700, color:t.textPrimary, minWidth:16, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if (looping) stopLoop(); setChordOctave(o => Math.min(6, o+1)); }}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
-                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
-                    {PRESETS.map(p => (
-                      <button key={p.name}
-                        onClick={() => { stopLoop(); const cs=p.degrees.map(d=>chords[d]); setProgression(cs); setActiveChord(cs[0]); }}
-                        style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 11px", borderRadius:20,
-                          border:`1px solid ${t.btnBorder}`, background:t.presetBg, color:t.presetColor, cursor:"pointer" }}>
-                        {p.name}
-                      </button>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
+                  </div>
+                </div>
+
+                {/* Timeline track */}
+                <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
+                  {/* Bar labels */}
+                  <div style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                    {Array.from({length:8}, (_,i) => (
+                      <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${i%2===0 ? t.border : "rgba(255,255,255,0.03)"}` : "none" }}>
+                        {i%2===0 && <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i/2+1}</span>}
+                      </div>
                     ))}
                   </div>
-                </div>
-
-                {/* Free-text chord input */}
-                <div style={{ display:"flex", gap:8, marginBottom:10 }}>
-                  <input
-                    value={chordInput}
-                    onChange={e => { setChordInput(e.target.value); setChordInputErr(false); }}
-                    onKeyDown={e => {
-                      if (e.key !== "Enter") return;
-                      const chord = parseChordText(chordInput);
-                      if (!chord || progression.length >= 8) { setChordInputErr(true); return; }
-                      addChord(chord);
-                      setChordInput("");
-                    }}
-                    placeholder="Type a chord — e.g. Fmaj7, Am7, C9, Bb…"
-                    style={{
-                      flex:1, fontFamily:SF, fontSize:14, padding:"8px 14px", borderRadius:10,
-                      border: `1.5px solid ${chordInputErr ? "#FF453A" : t.inputBorder}`,
-                      background:t.inputBg, color:t.inputColor, outline:"none",
-                      transition:"border 0.15s",
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const chord = parseChordText(chordInput);
-                      if (!chord || progression.length >= 8) { setChordInputErr(true); return; }
-                      addChord(chord);
-                      setChordInput("");
-                    }}
-                    style={{
-                      fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
-                      border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer",
-                    }}>
-                    Add
-                  </button>
-                </div>
-                {chordInputErr && (
-                  <div style={{ fontSize:12, color:"#FF453A", marginBottom:8, fontFamily:SF }}>
-                    Unknown chord — try: Fmaj7, Am, C7, Bbm9, Db, G#dim…
+                  {/* Track area */}
+                  <div ref={trackRef} style={{ position:"relative", height:76, background:t.slotBg, userSelect:"none" }}>
+                    {/* Slot lines */}
+                    {Array.from({length:8}, (_,i) => i>0 && (
+                      <div key={i} style={{ position:"absolute", left:`${i/8*100}%`, top:0, bottom:0, width:1, background: i%2===0 ? t.border : "rgba(255,255,255,0.03)", pointerEvents:"none" }} />
+                    ))}
+                    {/* Chord blocks */}
+                    {timelineItems.map(item => (
+                      <div key={item.id}
+                        onMouseDown={e => { if(e.target.dataset.resize) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                        style={{
+                          position:"absolute",
+                          left:`${(item.startSlot/8)*100}%`,
+                          width:`calc(${(item.lengthSlots/8)*100}% - 4px)`,
+                          top:6, height:"calc(100% - 12px)",
+                          background:`linear-gradient(180deg,${t.accentCardHover} 0%,${t.accentCardBg} 100%)`,
+                          border:`1px solid ${t.accentBorder}`,
+                          borderRadius:6, cursor:"grab",
+                          display:"flex", alignItems:"center", justifyContent:"space-between",
+                          padding:"0 4px 0 8px", overflow:"hidden",
+                          boxShadow:`0 0 8px rgba(232,146,12,0.1)`,
+                        }}>
+                        <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
+                          {item.chord.display}
+                        </span>
+                        <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
+                          <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                            style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
+                          <div data-resize="1"
+                            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                            style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
+                        </div>
+                      </div>
+                    ))}
+                    {/* Playhead */}
+                    {looping && (
+                      <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none", boxShadow:`0 0 6px ${t.accent}` }} />
+                    )}
+                    {/* Empty state */}
+                    {timelineItems.length===0 && (
+                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Klikk en akkord i rutenettet over for å legge den til ↑</span>
+                      </div>
+                    )}
                   </div>
-                )}
-
-                <div style={{ background:t.slotBg, borderRadius:12, padding:"14px 16px", minHeight:64,
-                  display:"flex", gap:8, flexWrap:"wrap", alignItems:"center",
-                  marginBottom:14, border:`1px solid ${t.slotBorder}` }}>
-                  {progression.length===0
-                    ? <span style={{ color:t.textTertiary, fontSize:13 }}>Click chords above to build a progression ↑</span>
-                    : progression.map((chord, pos) => {
-                        const isRest     = chord === null;
-                        const isDragOver = dragOverPos === pos;
-                        return (
-                          <div key={pos}
-                            draggable
-                            onClick={() => removeChord(pos)}
-                            onDragStart={() => { draggedPos.current = pos; }}
-                            onDragOver={e => { e.preventDefault(); setDragOverPos(pos); }}
-                            onDragLeave={() => setDragOverPos(null)}
-                            onDragEnd={() => { setDragOverPos(null); draggedPos.current = null; }}
-                            onDrop={e => {
-                              e.preventDefault();
-                              const from = draggedPos.current;
-                              if (from === null || from === pos) { setDragOverPos(null); return; }
-                              const next = [...progression];
-                              const [moved] = next.splice(from, 1);
-                              next.splice(pos, 0, moved);
-                              setProgression(next);
-                              setDragOverPos(null);
-                              draggedPos.current = null;
-                            }}
-                            onMouseEnter={e => { if (!draggedPos.current) e.currentTarget.style.background = isRest ? "rgba(0,0,0,0.06)" : t.tokenBgHover; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = isRest ? "transparent" : t.tokenBg; }}
-                            title="Drag to reorder · Click to remove"
-                            style={{
-                              background: isRest ? "transparent" : t.tokenBg,
-                              border: isDragOver
-                                ? `1.5px solid ${t.accent}`
-                                : isRest
-                                  ? `1.5px dashed ${t.border}`
-                                  : `1.5px solid ${t.tokenBorder}`,
-                              borderRadius:10, padding:"7px 14px", fontSize:13, fontWeight:600,
-                              color: isRest ? t.textTertiary : t.tokenColor,
-                              cursor:"grab", userSelect:"none",
-                              transition:"border 0.1s, background 0.1s",
-                              letterSpacing:"-0.01em", minWidth:44, textAlign:"center",
-                              boxShadow: isDragOver ? `0 0 0 3px ${t.accentBg}` : "none",
-                              transform: isDragOver ? "scale(1.04)" : "scale(1)",
-                            }}>
-                            {isRest ? "—" : chord.display}
-                          </div>
-                        );
-                      })
-                  }
                 </div>
 
-                <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                  <button onClick={handlePlayProgression} disabled={progression.length===0}
+                {/* Controls */}
+                <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                  <button onClick={playTimeline} disabled={timelineItems.length===0}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
-                      background: progression.length===0 ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
-                      color: progression.length===0 ? t.playDisabledClr : "#FFFFFF",
-                      cursor: progression.length===0 ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
+                      background: timelineItems.length===0 ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
+                      color: timelineItems.length===0 ? t.playDisabledClr : "#FFFFFF",
+                      cursor: timelineItems.length===0 ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
                     {looping ? "⬛ Stop" : "▶  Play"}
                   </button>
-                  {/* Arp toggle */}
-                  <button
-                    onClick={() => { if (looping) stopLoop(); setArpOn(a => !a); }}
-                    title="Arpeggiator — play chord notes one at a time"
-                    style={{
-                      fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
-                      border: `1px solid ${arpOn ? t.accentBorder : t.btnBorder}`,
-                      background: arpOn ? t.accentBg : t.btnBg,
-                      color: arpOn ? t.accent : t.btnColor,
-                      cursor:"pointer", transition:"all 0.15s ease",
-                    }}>
+                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+                      border:`1px solid ${arpOn?t.accentBorder:t.btnBorder}`, background:arpOn?t.accentBg:t.btnBg,
+                      color:arpOn?t.accent:t.btnColor, cursor:"pointer", transition:"all 0.15s ease" }}>
                     ⤴ Arp
                   </button>
-                  {/* Arp controls — only visible when arp is on */}
                   {arpOn && <>
-                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
+                    <div style={{ width:1, height:20, background:t.border }} />
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if (looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight: arpPattern===v ? 700 : 500,
-                          padding:"5px 11px", borderRadius:8,
-                          border: `1px solid ${arpPattern===v ? t.accentBorder : t.btnBorder}`,
-                          background: arpPattern===v ? t.accentBg : t.btnBg,
-                          color: arpPattern===v ? t.accent : t.btnColor, cursor:"pointer" }}>
-                        {l}
-                      </button>
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpPattern===v?700:500, padding:"5px 11px", borderRadius:8,
+                          border:`1px solid ${arpPattern===v?t.accentBorder:t.btnBorder}`, background:arpPattern===v?t.accentBg:t.btnBg,
+                          color:arpPattern===v?t.accent:t.btnColor, cursor:"pointer" }}>{l}</button>
                     ))}
-                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
+                    <div style={{ width:1, height:20, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if (looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight: arpRate===v ? 700 : 500,
-                          padding:"5px 11px", borderRadius:8,
-                          border: `1px solid ${arpRate===v ? t.accentBorder : t.btnBorder}`,
-                          background: arpRate===v ? t.accentBg : t.btnBg,
-                          color: arpRate===v ? t.accent : t.btnColor, cursor:"pointer" }}>
-                        {l}
-                      </button>
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpRate===v?700:500, padding:"5px 11px", borderRadius:8,
+                          border:`1px solid ${arpRate===v?t.accentBorder:t.btnBorder}`, background:arpRate===v?t.accentBg:t.btnBg,
+                          color:arpRate===v?t.accent:t.btnColor, cursor:"pointer" }}>{l}</button>
                     ))}
                   </>}
-                  <button
-                    disabled={progression.length >= 8}
-                    onClick={() => setProgression(p => [...p, null])}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10,
-                      border:`1.5px dashed ${progression.length>=8 ? t.btnBorder : t.border}`,
-                      background:"transparent", color: progression.length>=8 ? t.playDisabledClr : t.textSecondary,
-                      cursor: progression.length>=8 ? "not-allowed" : "pointer" }}>
-                    + Rest
-                  </button>
-                  <button onClick={() => { stopLoop(); setProgression([]); setActiveChord(null); }}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10,
-                      border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Clear
                   </button>
                   <button onClick={() => {
+                    stopLoop();
                     const len = [3,4,4,4][Math.floor(Math.random()*4)];
                     const cs = Array.from({length:len}, () => chords[Math.floor(Math.random()*7)]);
-                    stopLoop(); setProgressionName(null); setProgression(cs); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10,
-                    border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                    let slot = 0;
+                    const items = [];
+                    cs.forEach(chord => {
+                      if (slot >= TIMELINE_SLOTS) return;
+                      const len2 = Math.min(2, TIMELINE_SLOTS - slot);
+                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
+                      slot += len2;
+                    });
+                    setTimelineItems(items); setActiveChord(cs[0]);
+                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Random
                   </button>
                   <button onClick={() => {
-                    const pick = FAMOUS_PROGRESSIONS[Math.floor(Math.random() * FAMOUS_PROGRESSIONS.length)];
-                    const cs = pick.degrees.map(d => chords[d % 7]);
-                    stopLoop(); setProgression(cs); setActiveChord(cs[0]); setProgressionName(pick.name);
-                  }} style={{
-                    fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
-                    border:`1px solid ${t.accentBorder}`,
-                    background:t.accentBg, color:t.accent, cursor:"pointer",
-                    transition:"all 0.15s ease",
-                  }}>
+                    stopLoop();
+                    const pick = FAMOUS_PROGRESSIONS[Math.floor(Math.random()*FAMOUS_PROGRESSIONS.length)];
+                    const cs = pick.degrees.map(d => chords[d%7]);
+                    let slot = 0;
+                    const items = [];
+                    cs.forEach(chord => {
+                      if (slot >= TIMELINE_SLOTS) return;
+                      const len2 = Math.min(2, TIMELINE_SLOTS - slot);
+                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
+                      slot += len2;
+                    });
+                    setTimelineItems(items); setActiveChord(cs[0]);
+                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                     ✦ Suggest
                   </button>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Chord text input */}
+                  <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
+                    onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
+                    placeholder="Skriv akkord, f.eks. Fmaj7…"
+                    style={{ fontFamily:SF, fontSize:13, padding:"7px 12px", borderRadius:10, border:`1.5px solid ${chordInputErr?"#FF453A":t.inputBorder}`, background:t.inputBg, color:t.inputColor, outline:"none", width:180 }}
+                  />
+                  <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"7px 16px", borderRadius:10, border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                    Add
+                  </button>
+                  {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Ukjent akkord</span>}
                 </div>
               </div>
             </>
