@@ -119,6 +119,8 @@ const CHORD_INTERVALS = {
   // Triads
   maj:[0,4,7], min:[0,3,7], dim:[0,3,6], aug:[0,4,8],
   sus2:[0,2,7], sus4:[0,5,7],
+  // Power chord (no 3rd)
+  "5":[0,7],
   // 6ths
   "6":[0,4,7,9], m6:[0,3,7,9],
   // 7ths
@@ -2312,7 +2314,33 @@ export default function App() {
                   <button onClick={() => {
                     stopLoop();
                     const pick = FAMOUS_PROGRESSIONS[Math.floor(Math.random()*FAMOUS_PROGRESSIONS.length)];
-                    const cs = pick.degrees.map(d => chords[d%7]);
+                    const scaleObj = SCALES[scaleKey];
+                    const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
+                    const ninthList   = scaleKey==="major" ? NINTHS_MAJOR   : scaleKey==="minor" ? NINTHS_MINOR   : NINTHS_OTHER;
+                    // Weighted variant pool — triads most common, sus/5/7/9 sprinkled in
+                    const VARIANT_POOL = ["triad","triad","triad","sus2","sus4","5","7","7","9"];
+                    const suffixOf = q =>
+                      q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
+                      q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
+                      q==="m7b5"?"m7b5": q==="maj9"?"maj9":
+                      q==="m9"?"m9": q==="9"?"9":
+                      q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
+                    const cs = pick.degrees.map(d => {
+                      const i = d % 7;
+                      const noteIdx = (rootIdx + scaleObj.intervals[i]) % 12;
+                      const baseQ   = scaleObj.qualities[i];
+                      let v = VARIANT_POOL[Math.floor(Math.random()*VARIANT_POOL.length)];
+                      // dim degree doesn't tolerate sus/5 — fall back to triad
+                      if (baseQ === "dim" && (v==="sus2" || v==="sus4" || v==="5")) v = "triad";
+                      let quality;
+                      if      (v==="triad") quality = baseQ;
+                      else if (v==="sus2")  quality = "sus2";
+                      else if (v==="sus4")  quality = "sus4";
+                      else if (v==="5")     quality = "5";
+                      else if (v==="7")     quality = seventhList[i];
+                      else /* "9" */        quality = ninthList[i];
+                      return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
+                    });
                     let slot = 0;
                     const items = [];
                     cs.forEach(chord => {
