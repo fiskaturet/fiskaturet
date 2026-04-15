@@ -1418,6 +1418,8 @@ export default function App() {
   const dragRef    = useRef(null);
   const trackRef   = useRef(null);
   const midiAccess = useRef(null);
+  const instRef    = useRef(null);
+  const tlTimeoutsRef = useRef([]);
 
   // ── MIDI init ──
   useEffect(() => {
@@ -1493,7 +1495,9 @@ export default function App() {
   const highlightedNotes = displayChord ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality) : [];
 
   // ── Timeline helpers ──────────────────────────────────────────────────────────
-  const TIMELINE_SLOTS = 8; // 4 bars × 2 half-notes
+  const TIMELINE_SLOTS     = 32;  // 4 bars × 8 eighth-notes per bar
+  const SLOTS_PER_BAR      = 8;   // 8 eighth-notes per bar
+  const DEFAULT_CHORD_LEN  = 8;   // one bar by default
 
   const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
     for (let s = startSlot; s < startSlot + lengthSlots; s++) {
@@ -1506,11 +1510,11 @@ export default function App() {
   const addChord = (chord) => {
     setActiveChord(chord);
     const noteNames = getChordNoteNames(chord.noteIdx, chord.quality, chordOctave);
-    // Find first free slot for a 2-slot block
+    // Find first free slot for a one-bar (8-slot) block
     setTimelineItems(prev => {
       let start = 0;
       while (start < TIMELINE_SLOTS) {
-        const len = Math.min(2, TIMELINE_SLOTS - start);
+        const len = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - start);
         if (isSlotFree(prev, start, len)) {
           return [...prev, { id: Date.now() + Math.random(), chord, startSlot: start, lengthSlots: len }];
         }
@@ -1552,6 +1556,23 @@ export default function App() {
   const stopLoop = () => {
     if (loopRef.current)  { clearInterval(loopRef.current);      loopRef.current = null; }
     if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
+    // Cancel all pending scheduled notes
+    if (tlTimeoutsRef.current) {
+      tlTimeoutsRef.current.forEach(id => clearTimeout(id));
+      tlTimeoutsRef.current = [];
+    }
+    // Release all playing Tone.js voices
+    try { instRef.current?.releaseAll?.(); } catch(e) {}
+    // Send MIDI all-notes-off / all-sound-off on every channel, just in case
+    try {
+      const midiOut = getMIDIOut();
+      if (midiOut) {
+        for (let c = 0; c < 16; c++) {
+          midiOut.send([0xB0|c, 120, 0]); // all sound off
+          midiOut.send([0xB0|c, 123, 0]); // all notes off
+        }
+      }
+    } catch(e) {}
     setLooping(false);
     setPlayheadPct(0);
   };
@@ -1588,15 +1609,28 @@ export default function App() {
     await Tone.start();
     const midiOut = getMIDIOut();
     let inst = null;
-    if (!midiOut) { inst = getInstrument(soundType); if (soundType === "piano") await Tone.loaded(); }
+    if (!midiOut) {
+      inst = getInstrument(soundType);
+      if (soundType === "piano") await Tone.loaded();
+    }
+    instRef.current = inst;
 
-    const slotSec   = (60 / bpm) * 2;
+    const slotSec   = (60 / bpm) * 0.5;  // eighth-note slots
     const loopSlots = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
     const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
 
-    const doSchedule = (offsetNow) => {
-      const base = offsetNow ?? Tone.now();
+    // Trackable setTimeout — clearable via stopLoop()
+    const schedule = (cb, ms) => {
+      const id = setTimeout(() => {
+        tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id);
+        cb();
+      }, ms);
+      tlTimeoutsRef.current.push(id);
+      return id;
+    };
+
+    const doSchedule = () => {
       timelineItems.forEach(item => {
         const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         const startSec  = item.startSlot * slotSec;
@@ -1605,32 +1639,48 @@ export default function App() {
         if (midiOut) {
           if (arpOn) {
             const rateSec = (60/bpm)*arpRate, rateMs = rateSec*1000;
-            const steps = Math.round(durSec/rateSec);
+            const steps = Math.max(1, Math.round(durSec/rateSec));
             const ordered = getArpNotes(noteNames, arpPattern);
             for (let i=0;i<steps;i++) {
               const n = nameToMidi(ordered[i%ordered.length]);
               const {offsetSec,vel} = arpHumanize(i,rateSec);
               const midiVel = Math.round(vel*100+15);
-              setTimeout(()=>{ midiOut.send([0x90|ch,n,midiVel]); setTimeout(()=>midiOut.send([0x80|ch,n,0]),rateMs*0.85); },(startSec+i*rateSec+offsetSec)*1000);
+              const onMs  = (startSec + i*rateSec + offsetSec) * 1000;
+              const offMs = onMs + rateMs*0.85;
+              schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+              schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
             }
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
               const midiVel = Math.floor(vels[i]*100+15);
-              setTimeout(()=>{ midiOut.send([0x90|ch,nameToMidi(note),midiVel]); setTimeout(()=>midiOut.send([0x80|ch,nameToMidi(note),0]),durSec*0.85*1000); },(startSec+offsets[i])*1000);
+              const n = nameToMidi(note);
+              const onMs  = (startSec + offsets[i]) * 1000;
+              const offMs = onMs + durSec*0.85*1000;
+              schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+              schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
             });
           }
         } else {
           if (arpOn) {
-            const rateSec = (60/bpm)*arpRate, steps = Math.round(durSec/rateSec);
+            const rateSec = (60/bpm)*arpRate, steps = Math.max(1, Math.round(durSec/rateSec));
             const ordered = getArpNotes(noteNames, arpPattern);
             for (let i=0;i<steps;i++) {
               const {offsetSec,vel} = arpHumanize(i,rateSec);
-              inst.triggerAttackRelease(ordered[i%ordered.length],rateSec*0.85,base+startSec+i*rateSec+offsetSec,vel);
+              const whenMs = (startSec + i*rateSec + offsetSec) * 1000;
+              const note = ordered[i%ordered.length];
+              schedule(() => {
+                try { inst.triggerAttackRelease(note, rateSec*0.85, Tone.now(), vel); } catch(e) {}
+              }, whenMs);
             }
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
-            noteNames.forEach((note,i) => inst.triggerAttackRelease(note,`${durSec*0.85}`,base+startSec+offsets[i],vels[i]));
+            noteNames.forEach((note,i) => {
+              const whenMs = (startSec + offsets[i]) * 1000;
+              schedule(() => {
+                try { inst.triggerAttackRelease(note, durSec*0.85, Tone.now(), vels[i]); } catch(e) {}
+              }, whenMs);
+            });
           }
         }
       });
@@ -1646,7 +1696,7 @@ export default function App() {
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
-    loopRef.current = setInterval(() => doSchedule(Tone.now()), totalMs);
+    loopRef.current = setInterval(doSchedule, totalMs);
   };
 
   useEffect(() => () => stopLoop(), []);
@@ -1674,21 +1724,21 @@ export default function App() {
 
           {/* ── Header ── */}
           <div style={{
-            background:"linear-gradient(180deg,#2E3138 0%,#1E2126 100%)",
+            background:"linear-gradient(180deg,#8A6CC0 0%,#6B4C9B 100%)",
             borderRadius:14, padding:"18px 28px", marginBottom:16,
-            boxShadow:"0 2px 0 rgba(0,0,0,0.7),0 8px 24px rgba(0,0,0,0.5),inset 0 1px 0 rgba(255,255,255,0.07)",
-            border:"1px solid rgba(255,255,255,0.06)",
+            boxShadow:"0 2px 0 rgba(107,76,155,0.15),0 8px 24px rgba(107,76,155,0.25),inset 0 1px 0 rgba(255,255,255,0.15)",
+            border:"1px solid rgba(107,76,155,0.3)",
             display:"flex", justifyContent:"space-between", alignItems:"center",
           }}>
             <div>
               <h1 style={{
                 fontSize:28, fontWeight:700, letterSpacing:"0.18em",
-                textTransform:"uppercase", color:"#E8E2D4", margin:0,
-                fontFamily:SF, textShadow:"0 0 20px rgba(122,91,175,0.15)",
+                textTransform:"uppercase", color:"#FFFFFF", margin:0,
+                fontFamily:SF, textShadow:"0 1px 2px rgba(0,0,0,0.15)",
               }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:11, color:t.labelColor, margin:"5px 0 0", fontWeight:600,
+              <p style={{ fontSize:11, color:"rgba(255,255,255,0.82)", margin:"5px 0 0", fontWeight:600,
                 letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
@@ -1696,10 +1746,10 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:"#7A5BAF",
-                boxShadow:"0 0 6px #7A5BAF,0 0 12px rgba(122,91,175,0.6)",
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#FFFFFF",
+                boxShadow:"0 0 6px #FFFFFF,0 0 12px rgba(255,255,255,0.6)",
                 animation:"led-glow 2s ease-in-out infinite" }} />
-              <span style={{ fontSize:10, color:t.textTertiary, fontWeight:600,
+              <span style={{ fontSize:10, color:"rgba(255,255,255,0.75)", fontWeight:600,
                 letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
                 PWR
               </span>
@@ -1964,20 +2014,20 @@ export default function App() {
                         onMouseEnter={() => setHoveredChord(c)}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1px solid rgba(122,91,175,0.6)` : `1px solid rgba(255,255,255,0.07)`,
+                          border: accent ? `1px solid rgba(122,91,175,0.55)` : `1px solid rgba(28,24,32,0.08)`,
                           borderRadius:10, padding:"13px 6px 11px",
                           background: isActive
-                            ? "linear-gradient(180deg,rgba(122,91,175,0.18) 0%,rgba(122,91,175,0.08) 100%)"
+                            ? "linear-gradient(180deg,rgba(122,91,175,0.14) 0%,rgba(122,91,175,0.06) 100%)"
                             : isHovered
-                            ? "linear-gradient(180deg,#32363F 0%,#2A2D34 100%)"
-                            : "linear-gradient(180deg,#2E3138 0%,#22252C 100%)",
+                            ? "linear-gradient(180deg,#FFFFFF 0%,#F4F1F8 100%)"
+                            : "linear-gradient(180deg,#FFFFFF 0%,#F8F6FA 100%)",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
                           transition:"all 0.1s ease",
                           boxShadow: accent
-                            ? `0 0 12px rgba(122,91,175,0.2),inset 0 1px 0 rgba(255,255,255,0.06)`
-                            : `inset 0 1px 0 rgba(255,255,255,0.05),0 2px 4px rgba(0,0,0,0.4)`,
+                            ? `0 0 12px rgba(122,91,175,0.18),0 1px 2px rgba(28,24,32,0.04)`
+                            : `0 1px 2px rgba(28,24,32,0.04),0 2px 6px rgba(28,24,32,0.05)`,
                         }}>
-                        <div style={{ fontSize:10, color:accent?t.accent:"#484540", marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
+                        <div style={{ fontSize:10, color:accent?t.accent:t.textTertiary, marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
                           {c.degree}
                         </div>
                         <div style={{ fontSize:15, fontWeight:700, color:accent?t.accent:t.chordNameColor, letterSpacing:"0.03em" }}>
@@ -2071,19 +2121,25 @@ export default function App() {
                 {/* Timeline track */}
                 <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
                   {/* Bar labels */}
-                  <div style={{ display:"grid", gridTemplateColumns:"repeat(8,1fr)", background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
-                    {Array.from({length:8}, (_,i) => (
-                      <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${i%2===0 ? t.border : "rgba(255,255,255,0.03)"}` : "none" }}>
-                        {i%2===0 && <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i/2+1}</span>}
+                  <div style={{ display:"grid", gridTemplateColumns:`repeat(4,1fr)`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                    {Array.from({length:4}, (_,i) => (
+                      <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
                       </div>
                     ))}
                   </div>
                   {/* Track area */}
                   <div ref={trackRef} style={{ position:"relative", height:76, background:t.slotBg, userSelect:"none" }}>
-                    {/* Slot lines */}
-                    {Array.from({length:8}, (_,i) => i>0 && (
-                      <div key={i} style={{ position:"absolute", left:`${i/8*100}%`, top:0, bottom:0, width:1, background: i%2===0 ? t.border : "rgba(255,255,255,0.03)", pointerEvents:"none" }} />
-                    ))}
+                    {/* Slot lines — bar (prominent), half-bar (subtle), quarter-beat (faint) */}
+                    {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
+                      if (i===0) return null;
+                      let bg;
+                      if (i%SLOTS_PER_BAR===0)       bg = t.border;                 // bar
+                      else if (i%(SLOTS_PER_BAR/2)===0) bg = "rgba(28,24,32,0.09)";  // half-bar
+                      else if (i%2===0)              bg = "rgba(28,24,32,0.04)";    // quarter
+                      else                           return null;                   // skip eighth subdivisions
+                      return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
+                    })}
                     {/* Chord blocks */}
                     {timelineItems.map(item => (
                       <div key={item.id}
@@ -2103,8 +2159,8 @@ export default function App() {
                         }}
                         style={{
                           position:"absolute",
-                          left:`${(item.startSlot/8)*100}%`,
-                          width:`calc(${(item.lengthSlots/8)*100}% - 4px)`,
+                          left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
+                          width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
                           top:6, height:"calc(100% - 12px)",
                           background:`linear-gradient(180deg,${t.accentCardHover} 0%,${t.accentCardBg} 100%)`,
                           border:`1px solid ${t.accentBorder}`,
@@ -2182,7 +2238,7 @@ export default function App() {
                     const items = [];
                     cs.forEach(chord => {
                       if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(2, TIMELINE_SLOTS - slot);
+                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
                       items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
                       slot += len2;
                     });
@@ -2198,7 +2254,7 @@ export default function App() {
                     const items = [];
                     cs.forEach(chord => {
                       if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(2, TIMELINE_SLOTS - slot);
+                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
                       items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
                       slot += len2;
                     });
