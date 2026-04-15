@@ -1407,6 +1407,8 @@ export default function App() {
   const [arpPattern,   setArpPattern]   = useState("up");
   const [arpRate,      setArpRate]      = useState(0.5);
   const [chordOctave,  setChordOctave]  = useState(4);
+  const [playStyle,    setPlayStyle]    = useState("normal");
+  const [styleMenuOpen,setStyleMenuOpen]= useState(false);
   const [chordInput,   setChordInput]   = useState("");
   const [chordInputErr,setChordInputErr]= useState(false);
   const [midiOutputs,  setMidiOutputs]  = useState([]);
@@ -1495,9 +1497,20 @@ export default function App() {
   const highlightedNotes = displayChord ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality) : [];
 
   // ── Timeline helpers ──────────────────────────────────────────────────────────
-  const TIMELINE_SLOTS     = 32;  // 4 bars × 8 eighth-notes per bar
-  const SLOTS_PER_BAR      = 8;   // 8 eighth-notes per bar
-  const DEFAULT_CHORD_LEN  = 8;   // one bar by default
+  const TIMELINE_SLOTS     = 64;  // 4 bars × 16 sixteenth-notes per bar
+  const SLOTS_PER_BAR      = 16;  // 16 sixteenth-notes per bar
+  const DEFAULT_CHORD_LEN  = 16;  // one bar by default
+
+  // Playing styles — affect duration, velocity, sustain pedal and tremolo
+  const STYLES = {
+    normal:   { label:"Normal",   durMult:0.85, sustain:false, accent:false, tremoloHz:0  },
+    staccato: { label:"Staccato", durMult:0.20, sustain:false, accent:false, tremoloHz:0  },
+    legato:   { label:"Legato",   durMult:1.10, sustain:true,  accent:false, tremoloHz:0  },
+    tenuto:   { label:"Tenuto",   durMult:0.95, sustain:true,  accent:false, tremoloHz:0  },
+    portato:  { label:"Portato",  durMult:0.55, sustain:false, accent:false, tremoloHz:0  },
+    accents:  { label:"Aksenter", durMult:0.85, sustain:true,  accent:true,  tremoloHz:0  },
+    tremolo:  { label:"Tremolo",  durMult:0.85, sustain:false, accent:false, tremoloHz:14 },
+  };
 
   const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
     for (let s = startSlot; s < startSlot + lengthSlots; s++) {
@@ -1615,7 +1628,7 @@ export default function App() {
     }
     instRef.current = inst;
 
-    const slotSec   = (60 / bpm) * 0.5;  // eighth-note slots
+    const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
     const loopSlots = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
     const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
@@ -1630,12 +1643,22 @@ export default function App() {
       return id;
     };
 
+    const style = STYLES[playStyle] || STYLES.normal;
+
     const doSchedule = () => {
       timelineItems.forEach(item => {
         const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         const startSec  = item.startSlot * slotSec;
         const durSec    = item.lengthSlots * slotSec;
+        const styledDur = durSec * style.durMult;
         const ch = midiChannel - 1;
+
+        // Sustain pedal (MIDI only): press at chord start, release just before end
+        if (midiOut && style.sustain) {
+          schedule(() => midiOut.send([0xB0|ch, 64, 127]), startSec*1000);
+          schedule(() => midiOut.send([0xB0|ch, 64, 0]),   (startSec + durSec*0.97)*1000);
+        }
+
         if (midiOut) {
           if (arpOn) {
             const rateSec = (60/bpm)*arpRate, rateMs = rateSec*1000;
@@ -1644,19 +1667,36 @@ export default function App() {
             for (let i=0;i<steps;i++) {
               const n = nameToMidi(ordered[i%ordered.length]);
               const {offsetSec,vel} = arpHumanize(i,rateSec);
-              const midiVel = Math.round(vel*100+15);
+              const accentBoost = style.accent && (i%ordered.length===0) ? 1.35 : 1;
+              const midiVel = Math.min(127, Math.round(vel*100*accentBoost + 15));
               const onMs  = (startSec + i*rateSec + offsetSec) * 1000;
-              const offMs = onMs + rateMs*0.85;
+              const offMs = onMs + rateMs * style.durMult;
               schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
               schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
+            }
+          } else if (style.tremoloHz > 0) {
+            const repSec = 1 / style.tremoloHz;
+            const reps   = Math.max(1, Math.floor(durSec / repSec));
+            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+            for (let r=0;r<reps;r++) {
+              noteNames.forEach((note,i) => {
+                const accentBoost = style.accent && i===0 ? 1.35 : 1;
+                const midiVel = Math.min(127, Math.floor(vels[i]*100*accentBoost + 15));
+                const n = nameToMidi(note);
+                const onMs  = (startSec + r*repSec + offsets[i]) * 1000;
+                const offMs = onMs + repSec * 0.7 * 1000;
+                schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+                schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
+              });
             }
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
-              const midiVel = Math.floor(vels[i]*100+15);
+              const accentBoost = style.accent && i===0 ? 1.35 : 1;
+              const midiVel = Math.min(127, Math.floor(vels[i]*100*accentBoost + 15));
               const n = nameToMidi(note);
               const onMs  = (startSec + offsets[i]) * 1000;
-              const offMs = onMs + durSec*0.85*1000;
+              const offMs = onMs + styledDur * 1000;
               schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
               schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
             });
@@ -1667,18 +1707,37 @@ export default function App() {
             const ordered = getArpNotes(noteNames, arpPattern);
             for (let i=0;i<steps;i++) {
               const {offsetSec,vel} = arpHumanize(i,rateSec);
+              const accentBoost = style.accent && (i%ordered.length===0) ? 1.4 : 1;
+              const v = Math.min(1, vel*accentBoost);
+              const noteDur = rateSec * style.durMult;
               const whenMs = (startSec + i*rateSec + offsetSec) * 1000;
               const note = ordered[i%ordered.length];
               schedule(() => {
-                try { inst.triggerAttackRelease(note, rateSec*0.85, Tone.now(), vel); } catch(e) {}
+                try { inst.triggerAttackRelease(note, noteDur, Tone.now(), v); } catch(e) {}
               }, whenMs);
+            }
+          } else if (style.tremoloHz > 0) {
+            const repSec = 1 / style.tremoloHz;
+            const reps   = Math.max(1, Math.floor(durSec / repSec));
+            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+            for (let r=0;r<reps;r++) {
+              noteNames.forEach((note,i) => {
+                const accentBoost = style.accent && i===0 ? 1.4 : 1;
+                const v = Math.min(1, vels[i]*accentBoost);
+                const whenMs = (startSec + r*repSec + offsets[i]) * 1000;
+                schedule(() => {
+                  try { inst.triggerAttackRelease(note, repSec*0.7, Tone.now(), v); } catch(e) {}
+                }, whenMs);
+              });
             }
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
+              const accentBoost = style.accent && i===0 ? 1.4 : 1;
+              const v = Math.min(1, vels[i]*accentBoost);
               const whenMs = (startSec + offsets[i]) * 1000;
               schedule(() => {
-                try { inst.triggerAttackRelease(note, durSec*0.85, Tone.now(), vels[i]); } catch(e) {}
+                try { inst.triggerAttackRelease(note, styledDur, Tone.now(), v); } catch(e) {}
               }, whenMs);
             });
           }
@@ -2130,14 +2189,14 @@ export default function App() {
                   </div>
                   {/* Track area */}
                   <div ref={trackRef} style={{ position:"relative", height:76, background:t.slotBg, userSelect:"none" }}>
-                    {/* Slot lines — bar (prominent), half-bar (subtle), quarter-beat (faint) */}
+                    {/* Slot lines — bar (prominent), half-bar (medium), beat (faint) */}
                     {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                       if (i===0) return null;
                       let bg;
-                      if (i%SLOTS_PER_BAR===0)       bg = t.border;                 // bar
-                      else if (i%(SLOTS_PER_BAR/2)===0) bg = "rgba(28,24,32,0.09)";  // half-bar
-                      else if (i%2===0)              bg = "rgba(28,24,32,0.04)";    // quarter
-                      else                           return null;                   // skip eighth subdivisions
+                      if (i%SLOTS_PER_BAR===0)            bg = t.border;                // bar
+                      else if (i%(SLOTS_PER_BAR/2)===0)   bg = "rgba(28,24,32,0.09)";   // half-bar
+                      else if (i%(SLOTS_PER_BAR/4)===0)   bg = "rgba(28,24,32,0.04)";   // beat
+                      else                                return null;                  // skip eighth/sixteenth
                       return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                     })}
                     {/* Chord blocks */}
@@ -2262,6 +2321,41 @@ export default function App() {
                   }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                     ✦ Suggest
                   </button>
+                  {/* Style dropdown */}
+                  <div style={{ position:"relative" }}>
+                    <button onClick={() => setStyleMenuOpen(o => !o)}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 14px", borderRadius:10,
+                        border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
+                        background:playStyle!=="normal"?t.accentBg:t.btnBg,
+                        color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
+                      <span style={{ fontSize:11, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Stil:</span>
+                      <span>{STYLES[playStyle].label}</span>
+                      <span style={{ fontSize:9, opacity:0.6 }}>▾</span>
+                    </button>
+                    {styleMenuOpen && (
+                      <>
+                        <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
+                        <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:51, minWidth:180,
+                            background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:12,
+                            boxShadow:`0 8px 24px rgba(28,24,32,0.12), 0 2px 6px rgba(28,24,32,0.06)`,
+                            padding:6, display:"flex", flexDirection:"column", gap:2 }}>
+                          {Object.entries(STYLES).map(([key, cfg]) => (
+                            <button key={key} onClick={() => { if(looping) stopLoop(); setPlayStyle(key); setStyleMenuOpen(false); }}
+                              style={{ fontFamily:SF, fontSize:13, fontWeight:playStyle===key?700:500,
+                                padding:"8px 12px", borderRadius:8, border:"none", textAlign:"left",
+                                background:playStyle===key?t.accentBg:"transparent",
+                                color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer",
+                                display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}
+                              onMouseEnter={e=>{ if(playStyle!==key) e.currentTarget.style.background=t.elevatedBg; }}
+                              onMouseLeave={e=>{ if(playStyle!==key) e.currentTarget.style.background="transparent"; }}>
+                              <span>{cfg.label}</span>
+                              {playStyle===key && <span style={{ fontSize:11 }}>✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   {/* Chord text input */}
                   <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
