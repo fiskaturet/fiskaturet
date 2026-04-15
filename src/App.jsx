@@ -1501,15 +1501,19 @@ export default function App() {
   const SLOTS_PER_BAR      = 16;  // 16 sixteenth-notes per bar
   const DEFAULT_CHORD_LEN  = 16;  // one bar by default
 
-  // Playing styles — affect duration, velocity, sustain pedal and tremolo
+  // Playing styles — affect duration, velocity (anslagskraft), sustain pedal and tremolo
+  // velMult: hvor hardt tangentene treffes (0.3 = sart, 1.5 = veldig kraftig)
+  // accentMult: ekstra boost på første tone i akkorden (1.0 = ingen aksent)
   const STYLES = {
-    normal:   { label:"Normal",   durMult:0.85, sustain:false, accent:false, tremoloHz:0  },
-    staccato: { label:"Staccato", durMult:0.20, sustain:false, accent:false, tremoloHz:0  },
-    legato:   { label:"Legato",   durMult:1.10, sustain:true,  accent:false, tremoloHz:0  },
-    tenuto:   { label:"Tenuto",   durMult:0.95, sustain:true,  accent:false, tremoloHz:0  },
-    portato:  { label:"Portato",  durMult:0.55, sustain:false, accent:false, tremoloHz:0  },
-    accents:  { label:"Aksenter", durMult:0.85, sustain:true,  accent:true,  tremoloHz:0  },
-    tremolo:  { label:"Tremolo",  durMult:0.85, sustain:false, accent:false, tremoloHz:14 },
+    normal:    { label:"Normal",    durMult:0.85, velMult:1.00, accentMult:1.00, sustain:false, tremoloHz:0  },
+    sart:      { label:"Sart",      durMult:1.05, velMult:0.38, accentMult:1.00, sustain:true,  tremoloHz:0  },
+    staccato:  { label:"Staccato",  durMult:0.18, velMult:0.80, accentMult:1.00, sustain:false, tremoloHz:0  },
+    legato:    { label:"Legato",    durMult:1.10, velMult:0.85, accentMult:1.00, sustain:true,  tremoloHz:0  },
+    tenuto:    { label:"Tenuto",    durMult:0.95, velMult:0.95, accentMult:1.00, sustain:true,  tremoloHz:0  },
+    portato:   { label:"Portato",   durMult:0.55, velMult:0.85, accentMult:1.00, sustain:false, tremoloHz:0  },
+    accents:   { label:"Aksenter",  durMult:0.85, velMult:0.78, accentMult:1.55, sustain:true,  tremoloHz:0  },
+    tremolo:   { label:"Tremolo",   durMult:0.85, velMult:0.70, accentMult:1.00, sustain:false, tremoloHz:14 },
+    dramatisk: { label:"Dramatisk", durMult:1.00, velMult:1.55, accentMult:1.70, sustain:true,  tremoloHz:0  },
   };
 
   const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
@@ -1667,8 +1671,8 @@ export default function App() {
             for (let i=0;i<steps;i++) {
               const n = nameToMidi(ordered[i%ordered.length]);
               const {offsetSec,vel} = arpHumanize(i,rateSec);
-              const accentBoost = style.accent && (i%ordered.length===0) ? 1.35 : 1;
-              const midiVel = Math.min(127, Math.round(vel*100*accentBoost + 15));
+              const accentBoost = (i%ordered.length===0) ? style.accentMult : 1;
+              const midiVel = Math.max(1, Math.min(127, Math.round((vel*100*accentBoost + 15) * style.velMult)));
               const onMs  = (startSec + i*rateSec + offsetSec) * 1000;
               const offMs = onMs + rateMs * style.durMult;
               schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
@@ -1680,8 +1684,8 @@ export default function App() {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             for (let r=0;r<reps;r++) {
               noteNames.forEach((note,i) => {
-                const accentBoost = style.accent && i===0 ? 1.35 : 1;
-                const midiVel = Math.min(127, Math.floor(vels[i]*100*accentBoost + 15));
+                const accentBoost = i===0 ? style.accentMult : 1;
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult)));
                 const n = nameToMidi(note);
                 const onMs  = (startSec + r*repSec + offsets[i]) * 1000;
                 const offMs = onMs + repSec * 0.7 * 1000;
@@ -1692,8 +1696,8 @@ export default function App() {
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
-              const accentBoost = style.accent && i===0 ? 1.35 : 1;
-              const midiVel = Math.min(127, Math.floor(vels[i]*100*accentBoost + 15));
+              const accentBoost = i===0 ? style.accentMult : 1;
+              const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult)));
               const n = nameToMidi(note);
               const onMs  = (startSec + offsets[i]) * 1000;
               const offMs = onMs + styledDur * 1000;
@@ -1707,8 +1711,8 @@ export default function App() {
             const ordered = getArpNotes(noteNames, arpPattern);
             for (let i=0;i<steps;i++) {
               const {offsetSec,vel} = arpHumanize(i,rateSec);
-              const accentBoost = style.accent && (i%ordered.length===0) ? 1.4 : 1;
-              const v = Math.min(1, vel*accentBoost);
+              const accentBoost = (i%ordered.length===0) ? style.accentMult : 1;
+              const v = Math.max(0.02, Math.min(1, vel*accentBoost*style.velMult));
               const noteDur = rateSec * style.durMult;
               const whenMs = (startSec + i*rateSec + offsetSec) * 1000;
               const note = ordered[i%ordered.length];
@@ -1722,8 +1726,8 @@ export default function App() {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             for (let r=0;r<reps;r++) {
               noteNames.forEach((note,i) => {
-                const accentBoost = style.accent && i===0 ? 1.4 : 1;
-                const v = Math.min(1, vels[i]*accentBoost);
+                const accentBoost = i===0 ? style.accentMult : 1;
+                const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult));
                 const whenMs = (startSec + r*repSec + offsets[i]) * 1000;
                 schedule(() => {
                   try { inst.triggerAttackRelease(note, repSec*0.7, Tone.now(), v); } catch(e) {}
@@ -1733,8 +1737,8 @@ export default function App() {
           } else {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
-              const accentBoost = style.accent && i===0 ? 1.4 : 1;
-              const v = Math.min(1, vels[i]*accentBoost);
+              const accentBoost = i===0 ? style.accentMult : 1;
+              const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult));
               const whenMs = (startSec + offsets[i]) * 1000;
               schedule(() => {
                 try { inst.triggerAttackRelease(note, styledDur, Tone.now(), v); } catch(e) {}
