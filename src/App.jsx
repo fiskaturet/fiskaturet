@@ -3888,7 +3888,8 @@ export default function App() {
   const [bassChannel,  setBassChannel]  = useState(2);
   const [melodyChannel2, setMelodyChannel2] = useState(3); // "melodyChannel2" to avoid collision with "melodyChannel" in SheetMusicTab
   const [midiError,    setMidiError]    = useState(null);
-  const [midiClockEnabled, setMidiClockEnabled] = useState(false);
+  const [midiSyncMode, setMidiSyncMode] = useState("off"); // "off" | "send" | "receive"
+  const midiClockEnabled = midiSyncMode === "send"; // backward compat
   const midiClockRef = useRef(null); // interval ID for clock ticks
   // ── Drum state ──
   const [drumGenre,      setDrumGenre]      = useState("boombap_classic");
@@ -4064,6 +4065,60 @@ export default function App() {
       try { out.send([0xF8]); } catch(e) {}
     }, tickIntervalMs);
   }, [bpm, midiClockEnabled, getMIDIOut]);
+
+  // ── MIDI Clock Receive — derive BPM from incoming 0xF8 ticks ──
+  const clockTickTimesRef = useRef([]);
+  const clockReceiveCleanup = useRef(null);
+  useEffect(() => {
+    // Clean up previous listener
+    if (clockReceiveCleanup.current) { clockReceiveCleanup.current(); clockReceiveCleanup.current = null; }
+    if (midiSyncMode !== "receive" || !midiAccess.current) return;
+
+    const tickTimes = clockTickTimesRef.current;
+    tickTimes.length = 0;
+
+    const onMidiMessage = (e) => {
+      const data = e.data;
+      if (!data || data.length === 0) return;
+      const status = data[0];
+
+      if (status === 0xF8) {
+        // Clock tick — 24 PPQ
+        const now = performance.now();
+        tickTimes.push(now);
+        // Keep last 48 ticks (2 beats) for averaging
+        if (tickTimes.length > 48) tickTimes.shift();
+        // Need at least 24 ticks (1 beat) to calculate BPM
+        if (tickTimes.length >= 24) {
+          const span = tickTimes[tickTimes.length - 1] - tickTimes[tickTimes.length - 24];
+          const msPerBeat = span; // 24 ticks = 1 beat
+          const derivedBpm = Math.round(60000 / msPerBeat);
+          if (derivedBpm >= 30 && derivedBpm <= 300) {
+            setBpm(prev => {
+              // Only update if it actually changed (avoid render thrash)
+              if (Math.abs(prev - derivedBpm) >= 1) return derivedBpm;
+              return prev;
+            });
+          }
+        }
+      }
+    };
+
+    // Listen on ALL MIDI inputs
+    const inputs = [];
+    midiAccess.current.inputs.forEach(input => {
+      input.onmidimessage = onMidiMessage;
+      inputs.push(input);
+    });
+
+    clockReceiveCleanup.current = () => {
+      inputs.forEach(input => { input.onmidimessage = null; });
+    };
+
+    return () => {
+      if (clockReceiveCleanup.current) { clockReceiveCleanup.current(); clockReceiveCleanup.current = null; }
+    };
+  }, [midiSyncMode]);
 
   const t = THEME;
 
@@ -5123,16 +5178,16 @@ export default function App() {
                         ))}
                       </select>
                       {midiOutputId !== "off" && (
-                        <>
-                          <button onClick={() => setMidiClockEnabled(c => !c)}
-                            style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 10px", borderRadius:7,
-                              border:`1px solid ${midiClockEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                              background: midiClockEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
-                              color: midiClockEnabled ? "#30D158" : t.btnColor, cursor:"pointer", transition:"all 0.12s",
-                              whiteSpace:"nowrap" }}>
-                            Sync {midiClockEnabled ? "ON" : "OFF"}
-                          </button>
-                        </>
+                        <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 8px", borderRadius:7,
+                            border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                            background: midiSyncMode !== "off" ? "rgba(48,209,88,0.12)" : t.btnBg,
+                            color: midiSyncMode !== "off" ? "#30D158" : t.btnColor, cursor:"pointer",
+                            whiteSpace:"nowrap" }}>
+                          <option value="off">Sync Off</option>
+                          <option value="send">Sync → MPC</option>
+                          <option value="receive">Sync ← MPC</option>
+                        </select>
                       )}
                     </>
                   )}
