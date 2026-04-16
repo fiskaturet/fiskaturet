@@ -3893,14 +3893,14 @@ export default function App() {
   useEffect(() => { muteBassRef.current = muteBass; }, [muteBass]);
   useEffect(() => { muteMelodyRef.current = muteMelody; }, [muteMelody]);
   useEffect(() => { muteDrumsRef.current = muteDrums; }, [muteDrums]);
-  const humanizeRef = useRef(0);
-  useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
   // ── Arrangement playback ──
   const [arrangementPlaying, setArrangementPlaying] = useState(false);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
   const [humanize,       setHumanize]       = useState(0);    // 0-100 → timing jitter + velocity variation
+  const humanizeRef = useRef(0);
+  useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
