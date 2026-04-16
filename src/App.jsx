@@ -333,96 +333,142 @@ function initDrumSynths() {
 
   // Kick — deep membrane hit
   drumSynths.kick = new Tone.MembraneSynth({
-    pitchDecay: 0.06, octaves: 6, envelope: { attack:0.001, decay:0.3, sustain:0, release:0.4 }, volume:-6
+    pitchDecay: 0.06, octaves: 6, envelope: { attack:0.001, decay:0.35, sustain:0, release:0.4 }, volume:-6
   }).toDestination();
+  drumSynths.kick._type = "membrane";
+  drumSynths.kick._note = "C1";
 
-  // Snare — membrane + noise burst
+  // Snare — membrane + noise burst (layered)
   const snareNoise = new Tone.NoiseSynth({
-    noise: { type:"white" }, envelope: { attack:0.001, decay:0.13, sustain:0, release:0.05 }, volume:-12
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.15, sustain:0, release:0.06 }, volume:-10
   }).toDestination();
   const snareMembrane = new Tone.MembraneSynth({
-    pitchDecay:0.01, octaves:4, envelope:{attack:0.001,decay:0.1,sustain:0,release:0.1}, volume:-16
+    pitchDecay:0.01, octaves:4, envelope:{attack:0.001,decay:0.12,sustain:0,release:0.1}, volume:-14
   }).toDestination();
-  drumSynths.snare = { trigger(dur, time, vel) { snareNoise.triggerAttackRelease(dur, time, vel); snareMembrane.triggerAttackRelease("C3", dur, time, vel*0.6); }};
+  drumSynths.snare = { _type:"custom", fire(dur, time, vel) {
+    snareNoise.triggerAttackRelease(dur, time, vel);
+    snareMembrane.triggerAttackRelease("C3", dur, time, vel * 0.6);
+  }};
 
-  // Closed hat — filtered noise
+  // Ghost snare — quieter snare hit
+  drumSynths.ghost = { _type:"custom", fire(dur, time, vel) {
+    snareNoise.triggerAttackRelease(dur * 0.6, time, vel * 0.35);
+    snareMembrane.triggerAttackRelease("D3", dur * 0.5, time, vel * 0.2);
+  }};
+
+  // Closed hat — filtered noise, tight
   const hatFilter = new Tone.Filter(8000, "highpass").toDestination();
   drumSynths.hatC = new Tone.NoiseSynth({
-    noise: { type:"white" }, envelope: { attack:0.001, decay:0.04, sustain:0, release:0.02 }, volume:-14
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.045, sustain:0, release:0.02 }, volume:-12
   }).connect(hatFilter);
+  drumSynths.hatC._type = "noise";
 
-  // Open hat — longer noise
-  const ohatFilter = new Tone.Filter(7000, "highpass").toDestination();
+  // Open hat — longer noise, shimmer
+  const ohatFilter = new Tone.Filter(6500, "highpass").toDestination();
   drumSynths.hatO = new Tone.NoiseSynth({
-    noise: { type:"white" }, envelope: { attack:0.001, decay:0.18, sustain:0.02, release:0.1 }, volume:-16
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.22, sustain:0.03, release:0.12 }, volume:-14
   }).connect(ohatFilter);
+  drumSynths.hatO._type = "noise";
 
-  // Clap — noise burst
-  drumSynths.clap = new Tone.NoiseSynth({
-    noise: { type:"pink" }, envelope: { attack:0.001, decay:0.15, sustain:0, release:0.06 }, volume:-14
-  }).toDestination();
+  // Clap — layered noise bursts with slight spread
+  const clapFilter = new Tone.Filter(1200, "highpass").toDestination();
+  drumSynths.clap = { _type:"custom", fire(dur, time, vel) {
+    const c1 = new Tone.NoiseSynth({ noise:{type:"white"}, envelope:{attack:0.001,decay:0.01,sustain:0,release:0.01}, volume:-14 }).connect(clapFilter);
+    const c2 = new Tone.NoiseSynth({ noise:{type:"pink"}, envelope:{attack:0.001,decay:0.12,sustain:0,release:0.06}, volume:-12 }).connect(clapFilter);
+    c1.triggerAttackRelease(0.01, time, vel * 0.7);
+    c2.triggerAttackRelease(dur, time + 0.012, vel);
+    setTimeout(() => { c1.dispose(); c2.dispose(); }, 500);
+  }};
 
-  // Ghost snare — quieter snare
-  drumSynths.ghost = { trigger(dur, time, vel) { snareNoise.triggerAttackRelease(dur, time, vel*0.3); }};
-
-  // Rim — short metallic click
+  // Rim — sharp metallic click, high and tight
+  const rimFilter = new Tone.Filter(2500, "highpass").toDestination();
   drumSynths.rim = new Tone.MetalSynth({
-    frequency:400, envelope:{attack:0.001,decay:0.04,release:0.03}, harmonicity:0.1, modulationIndex:4, volume:-18
-  }).toDestination();
+    frequency:800, envelope:{attack:0.001,decay:0.035,release:0.02},
+    harmonicity:0.1, modulationIndex:2, resonance:6000, volume:-12
+  }).connect(rimFilter);
+  drumSynths.rim._type = "metal";
 
-  // Tom — tuned membrane
+  // Tom — tuned membrane, punchy
   drumSynths.tom = new Tone.MembraneSynth({
-    pitchDecay:0.04, octaves:3, envelope:{attack:0.001,decay:0.2,sustain:0,release:0.15}, volume:-10
+    pitchDecay:0.05, octaves:3, envelope:{attack:0.001,decay:0.25,sustain:0,release:0.18}, volume:-8
   }).toDestination();
+  drumSynths.tom._type = "membrane";
+  drumSynths.tom._note = "G2";
 
-  // 808 — deep sub
+  // 808 — deep sub bass
   drumSynths.low808 = new Tone.MembraneSynth({
-    pitchDecay:0.08, octaves:8, envelope:{attack:0.001,decay:0.6,sustain:0.1,release:0.5}, volume:-4
+    pitchDecay:0.08, octaves:8, envelope:{attack:0.001,decay:0.7,sustain:0.15,release:0.5}, volume:-4
   }).toDestination();
+  drumSynths.low808._type = "membrane";
+  drumSynths.low808._note = "C1";
 
-  // Ride — metallic shimmer
+  // Ride — metallic shimmer, longer sustain
   drumSynths.ride = new Tone.MetalSynth({
-    frequency:300, envelope:{attack:0.001,decay:0.6,release:0.4}, harmonicity:5.1, modulationIndex:18, volume:-22
+    frequency:320, envelope:{attack:0.001,decay:0.8,release:0.5},
+    harmonicity:5.1, modulationIndex:18, resonance:4000, volume:-18
   }).toDestination();
+  drumSynths.ride._type = "metal";
 
-  // Shaker — short noise
-  const shakerFilter = new Tone.Filter(6000, "highpass").toDestination();
+  // Shaker — crispy high noise, short
+  const shakerFilter = new Tone.Filter(5500, "highpass").toDestination();
+  const shakerBpf = new Tone.Filter({ frequency:9000, type:"bandpass", Q:1.5 }).connect(shakerFilter);
   drumSynths.shaker = new Tone.NoiseSynth({
-    noise:{type:"white"}, envelope:{attack:0.001,decay:0.03,sustain:0,release:0.02}, volume:-18
-  }).connect(shakerFilter);
+    noise:{type:"white"}, envelope:{attack:0.002,decay:0.055,sustain:0,release:0.03}, volume:-10
+  }).connect(shakerBpf);
+  drumSynths.shaker._type = "noise";
 
-  // Perc — metallic
+  // Perc — short metallic tap
   drumSynths.perc = new Tone.MetalSynth({
-    frequency:200, envelope:{attack:0.001,decay:0.08,release:0.05}, harmonicity:2, modulationIndex:8, volume:-16
+    frequency:250, envelope:{attack:0.001,decay:0.1,release:0.06},
+    harmonicity:3, modulationIndex:10, resonance:3000, volume:-12
   }).toDestination();
+  drumSynths.perc._type = "metal";
 
-  // Bell — bright metal
+  // Bell — bright tuned metal
   drumSynths.bell = new Tone.MetalSynth({
-    frequency:600, envelope:{attack:0.001,decay:0.4,release:0.3}, harmonicity:12, modulationIndex:24, volume:-20
+    frequency:680, envelope:{attack:0.001,decay:0.5,release:0.35},
+    harmonicity:12, modulationIndex:24, resonance:5000, volume:-16
   }).toDestination();
+  drumSynths.bell._type = "metal";
 
-  // FX1, FX2 — noise sweeps
+  // FX1 — downward noise sweep
+  const fx1Filter = new Tone.AutoFilter({ frequency:4, baseFrequency:200, octaves:4, wet:1 }).toDestination();
+  fx1Filter.start();
   drumSynths.fx1 = new Tone.NoiseSynth({
-    noise:{type:"brown"}, envelope:{attack:0.01,decay:0.3,sustain:0,release:0.1}, volume:-16
-  }).toDestination();
-  drumSynths.fx2 = new Tone.NoiseSynth({
-    noise:{type:"pink"}, envelope:{attack:0.05,decay:0.4,sustain:0.05,release:0.2}, volume:-18
-  }).toDestination();
+    noise:{type:"brown"}, envelope:{attack:0.01,decay:0.35,sustain:0,release:0.12}, volume:-12
+  }).connect(fx1Filter);
+  drumSynths.fx1._type = "noise";
 
-  // Crash — long metallic
+  // FX2 — vinyl crackle / texture
+  const fx2Filter = new Tone.Filter({ frequency:3000, type:"bandpass", Q:2 }).toDestination();
+  drumSynths.fx2 = new Tone.NoiseSynth({
+    noise:{type:"pink"}, envelope:{attack:0.03,decay:0.4,sustain:0.08,release:0.25}, volume:-14
+  }).connect(fx2Filter);
+  drumSynths.fx2._type = "noise";
+
+  // Crash — long metallic wash
   drumSynths.crash = new Tone.MetalSynth({
-    frequency:350, envelope:{attack:0.001,decay:1.2,release:0.8}, harmonicity:5.1, modulationIndex:32, volume:-20
+    frequency:350, envelope:{attack:0.001,decay:1.4,release:0.9},
+    harmonicity:5.1, modulationIndex:32, resonance:4500, volume:-18
   }).toDestination();
+  drumSynths.crash._type = "metal";
 }
 
 function triggerDrumSynth(trackId, velocity, duration) {
   const s = drumSynths[trackId];
   if (!s) return;
   const vel = Math.max(0.01, Math.min(1, velocity / 127));
-  const dur = duration || 0.1;
-  if (s.trigger) { s.trigger(dur, Tone.now(), vel); }
-  else if (s.triggerAttackRelease) {
-    try { s.triggerAttackRelease(trackId === "kick" ? "C1" : trackId === "tom" ? "G2" : trackId === "low808" ? "C1" : dur, dur, Tone.now(), vel); } catch(e) {}
+  const dur = Math.max(0.02, duration || 0.1);
+  const now = Tone.now();
+
+  if (s._type === "custom" && s.fire) {
+    s.fire(dur, now, vel);
+  } else if (s._type === "membrane") {
+    try { s.triggerAttackRelease(s._note || "C2", dur, now, vel); } catch(e) {}
+  } else if (s._type === "metal") {
+    try { s.triggerAttackRelease(dur, now, vel); } catch(e) {}
+  } else if (s._type === "noise") {
+    try { s.triggerAttackRelease(dur, now, vel); } catch(e) {}
   }
 }
 
