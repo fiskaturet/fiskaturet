@@ -3154,6 +3154,7 @@ export default function App() {
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
   const [muteMelody, setMuteMelody] = useState(false);
+  const [muteDrums, setMuteDrums] = useState(false);
   // ── Arrangement playback ──
   const [arrangementPlaying, setArrangementPlaying] = useState(false);
   // ── Pad-to-chord mode ──
@@ -3741,7 +3742,7 @@ export default function App() {
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
       // Works with MIDI out OR built-in drum synths (no MPC needed)
-      if (hasDrums) {
+      if (hasDrums && !muteDrums) {
         if (!midiOut) initDrumSynths();
         const drumCh = drumChannel - 1;
         const curSwing     = drumSwingRef.current;
@@ -3933,7 +3934,7 @@ export default function App() {
         }
 
         // Drums
-        if (sec.drumPattern) {
+        if (sec.drumPattern && !muteDrums) {
           if (!midiOut) initDrumSynths();
           const drumCh = drumChannel - 1;
           DRUM_TRACKS.forEach(track => {
@@ -3981,7 +3982,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody]);
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody, muteDrums]);
 
   return (
     <>
@@ -5270,6 +5271,16 @@ export default function App() {
                       textDecoration: muteMelody ? "line-through" : "none",
                       opacity: melodyLine.length === 0 ? 0.4 : 1 }}>
                     Melody
+                  </button>
+                  <button onClick={() => setMuteDrums(m => !m)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
+                      border:`1px solid ${muteDrums ? "#FF453A" : !drumPattern ? t.border : t.btnBorder}`,
+                      background: muteDrums ? "rgba(255,69,58,0.1)" : t.btnBg,
+                      color: muteDrums ? "#FF453A" : !drumPattern ? t.textTertiary : t.btnColor,
+                      cursor: !drumPattern ? "default" : "pointer", transition:"all 0.12s",
+                      textDecoration: muteDrums ? "line-through" : "none",
+                      opacity: !drumPattern ? 0.4 : 1 }}>
+                    Drums
                   </button>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
