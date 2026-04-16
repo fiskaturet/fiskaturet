@@ -4816,7 +4816,7 @@ export default function App() {
     const midiBassA   = midiOut ? (msg, ms) => scheduleMidiA(muteBassRef,   midiOut, msg, ms) : null;
     const midiMelodyA = midiOut ? (msg, ms) => scheduleMidiA(muteMelodyRef, midiOut, msg, ms) : null;
     const midiDrumA   = midiOut ? (msg, ms) => scheduleMidiA(muteDrumsRef,  midiOut, msg, ms) : null;
-    const scheduleDrumA = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
+    const scheduleDrumA = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms + preroll);
 
     // Humanize helper for arrangement (same logic as main loop)
     const hzA = () => {
