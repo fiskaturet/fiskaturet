@@ -4031,13 +4031,19 @@ export default function App() {
   // Sends MIDI Start (0xFA) + Clock ticks (0xF8) at 24 PPQ, and MIDI Stop (0xFC)
   // Returns prerollMs (0 if clock disabled) — callers add this to all note timestamps
   const midiPrerollMs = useRef(0);
+  const midiSyncModeRef = useRef(midiSyncMode);
+  useEffect(() => { midiSyncModeRef.current = midiSyncMode; }, [midiSyncMode]);
+
   const startMidiClock = useCallback((bpmVal) => {
     const out = getMIDIOut();
     if (!out) { midiPrerollMs.current = 0; return; }
     // Stop any existing clock
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
-    // Always send MIDI Start (transport) so MPC starts playback
-    try { out.send([0xFA]); } catch(e) {}
+    // In "send" or "off" mode, send MIDI Start to trigger MPC
+    // In "receive" mode, MPC is the master — don't echo Start back
+    if (midiSyncModeRef.current !== "receive") {
+      try { out.send([0xFA]); } catch(e) {}
+    }
     // Only send clock ticks if we're the clock source ("send" mode)
     if (midiClockEnabled) {
       const tickIntervalMs = (60 / bpmVal / 24) * 1000;
@@ -4046,14 +4052,15 @@ export default function App() {
       }, tickIntervalMs);
     }
     // Preroll: 1 beat before notes start — added to all note timestamps
-    midiPrerollMs.current = (60 / bpmVal) * 1000;
+    // In receive mode, no preroll needed — MPC handles timing
+    midiPrerollMs.current = midiSyncModeRef.current === "receive" ? 0 : (60 / bpmVal) * 1000;
   }, [getMIDIOut, midiClockEnabled]);
 
   const stopMidiClock = useCallback(() => {
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
     const out = getMIDIOut();
-    // Always send MIDI Stop (transport) so MPC stops playback
-    if (out) {
+    // Send MIDI Stop — but not in receive mode (MPC is master)
+    if (out && midiSyncModeRef.current !== "receive") {
       try { out.send([0xFC]); } catch(e) {} // MIDI Stop
     }
   }, [getMIDIOut]);
@@ -4090,6 +4097,21 @@ export default function App() {
       if (!data || data.length === 0) return;
       const status = data[0];
 
+      if (status === 0xFA) {
+        // MIDI Start received from MPC — auto-start playback
+        tickTimes.length = 0; // reset tick buffer for fresh BPM calc
+        if (!loopingRef.current && playTimelineRef.current) {
+          playTimelineRef.current();
+        }
+        return;
+      }
+      if (status === 0xFC) {
+        // MIDI Stop received from MPC — auto-stop playback
+        if (loopingRef.current && stopLoopRef.current) {
+          stopLoopRef.current();
+        }
+        return;
+      }
       if (status === 0xF8) {
         // Clock tick
         const now = performance.now();
@@ -5032,7 +5054,11 @@ export default function App() {
 
   useEffect(() => () => stopLoop(), []);
 
-  // Restart loop when swing, halftime, solo, or mute changes during playback
+  // Refs for MIDI transport auto-start/stop (so clock handler can trigger play/stop)
+  const playTimelineRef = useRef(null);
+  const stopLoopRef = useRef(null);
+  useEffect(() => { playTimelineRef.current = playTimeline; }, [playTimeline]);
+  useEffect(() => { stopLoopRef.current = stopLoop; });
   const loopingRef = useRef(false);
   useEffect(() => { loopingRef.current = looping; }, [looping]);
   useEffect(() => { loopEnabledRef.current = loopEnabled; }, [loopEnabled]);
