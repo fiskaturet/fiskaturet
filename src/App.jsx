@@ -80,7 +80,7 @@ function buildMidiFile(tracks, ppq = 480) {
 }
 
 // Convert timeline + drums + bass to a multi-track MIDI file
-function exportToMidi({ timelineItems, drumPattern, bassLine, bpm, chordOctave, padMap,
+function exportToMidi({ timelineItems, drumPattern, bassLine, melodyLine, bpm, chordOctave, padMap,
                         pianoRollEdits, TIMELINE_SLOTS, DRUM_TRACKS, sections, arrangement }) {
   const PPQ = 480; // ticks per quarter note
   const ticksPerSlot = PPQ / 4; // 16th note = 1/4 of a quarter
@@ -88,7 +88,7 @@ function exportToMidi({ timelineItems, drumPattern, bassLine, bpm, chordOctave, 
   // If arrangement mode, build from sections; otherwise use single timeline
   const resolvedSections = arrangement && arrangement.length > 0
     ? arrangement.map(secId => sections.find(s => s.id === secId)).filter(Boolean)
-    : [{ timelineItems, drumPattern, bassLine }];
+    : [{ timelineItems, drumPattern, bassLine, melodyLine }];
 
   // Tempo track
   const tempoTrack = {
@@ -141,6 +141,22 @@ function exportToMidi({ timelineItems, drumPattern, bassLine, bpm, chordOctave, 
 
   const bassTrack = { name: "Bass", channel: 1, events: bassEvents };
 
+  // Melody track
+  const melodyEvents = [];
+  sectionOffset = 0;
+  resolvedSections.forEach(sec => {
+    const ml = sec.melodyLine || [];
+    ml.forEach(note => {
+      if (note.muted) return;
+      const startTick = (sectionOffset + note.startSlot) * ticksPerSlot;
+      const durTicks = note.lengthSlots * ticksPerSlot;
+      melodyEvents.push({ tick: startTick, type: "note", note: note.midi, velocity: note.velocity || 85, duration: durTicks });
+    });
+    sectionOffset += TIMELINE_SLOTS;
+  });
+
+  const melodyTrack = { name: "Melody", channel: 2, events: melodyEvents };
+
   // Drum track (channel 9 = MIDI ch 10)
   const drumEvents = [];
   sectionOffset = 0;
@@ -165,6 +181,7 @@ function exportToMidi({ timelineItems, drumPattern, bassLine, bpm, chordOctave, 
 
   const tracks = [tempoTrack, chordTrack];
   if (bassEvents.length > 0) tracks.push(bassTrack);
+  if (melodyEvents.length > 0) tracks.push(melodyTrack);
   if (drumEvents.length > 0) tracks.push(drumTrack);
 
   return buildMidiFile(tracks, PPQ);
@@ -268,6 +285,221 @@ function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, pattern
       if (beats >= 4) notes.push({ midi: rootMidi, startSlot: start + beatLen * 3, lengthSlots: beatLen, velocity: 90 });
     }
   });
+
+  return notes;
+}
+
+// ─── Topline / melody generation ─────────────────────────────────────────────
+
+const MELODY_PATTERNS = {
+  chordTones:  { label: "Chord Tones",   desc: "Melody from chord notes — safe and musical" },
+  stepwise:    { label: "Stepwise",      desc: "Scale steps with occasional leaps — singable" },
+  pentatonic:  { label: "Pentatonic",    desc: "Pentatonic scale only — catchy and universal" },
+  callResponse:{ label: "Call & Response",desc: "2-bar phrases with answers" },
+  rhythmic:    { label: "Rhythmic",      desc: "Repetitive rhythm, changing pitch" },
+};
+
+function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternType, TIMELINE_SLOTS) {
+  const melOctave = chordOctave + 1;
+  const notes = [];
+  const scaleIntervals = SCALES[scaleKey]?.intervals || SCALES.major.intervals;
+  const scaleNotes = scaleIntervals.map(iv => (rootIdx + iv) % 12);
+  // Build pentatonic from scale (degrees 1,2,3,5,6 → indices 0,1,2,4,5)
+  const pentDegrees = scaleIntervals.length >= 7 ? [0,1,2,4,5] : [0,1,2,3,4];
+  const pentNotes = pentDegrees.map(d => scaleNotes[d]);
+
+  // Helper: get chord tones as MIDI numbers in melody octave
+  const chordMidis = (item) => {
+    const intervals = CHORD_INTERVALS[item.chord.quality] || CHORD_INTERVALS["maj"];
+    return intervals.map(iv => {
+      const ni = (item.chord.noteIdx + iv) % 12;
+      let oct = melOctave;
+      if (ni + oct * 12 + 12 < 60) oct++; // keep in singable range
+      return ni + oct * 12 + 12;
+    });
+  };
+
+  // Helper: nearest scale note midi above/below a target
+  const scaleToMidi = (degreeIdx, oct) => {
+    const ni = scaleNotes[((degreeIdx % scaleNotes.length) + scaleNotes.length) % scaleNotes.length];
+    return ni + oct * 12 + 12;
+  };
+
+  // Helper: random pick
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+  // Keep melody in a nice range
+  const clampMidi = (m) => Math.max(60, Math.min(84, m));
+
+  let lastMidi = null;
+
+  if (patternType === "chordTones") {
+    // Arpeggiate through chord tones with rhythm variety
+    timelineItems.forEach(item => {
+      const midis = chordMidis(item);
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const beatLen = 4; // sixteenth notes per beat
+      const beats = Math.floor(len / beatLen);
+
+      // Rhythm: mix of quarter and eighth notes
+      let pos = 0;
+      let noteIdx = 0;
+      while (pos < len) {
+        const midi = clampMidi(midis[noteIdx % midis.length]);
+        // Vary note lengths: 70% quarter, 20% eighth, 10% half
+        const r = Math.random();
+        const noteDur = r < 0.1 && pos + 8 <= len ? 8 : r < 0.3 && pos + 2 <= len ? 2 : Math.min(4, len - pos);
+        if (noteDur > 0) {
+          const vel = noteIdx === 0 ? 95 : 70 + Math.floor(Math.random() * 20);
+          notes.push({ midi, startSlot: start + pos, lengthSlots: noteDur, velocity: vel });
+          lastMidi = midi;
+        }
+        pos += noteDur;
+        noteIdx++;
+      }
+    });
+
+  } else if (patternType === "stepwise") {
+    // Scale-step melody — mostly steps (±1 degree), occasional leap
+    let degree = scaleNotes.indexOf(timelineItems[0]?.chord.noteIdx % 12);
+    if (degree < 0) degree = 0;
+    let oct = melOctave;
+
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const chordRoot = item.chord.noteIdx % 12;
+
+      // Start near chord root
+      const rootDeg = scaleNotes.indexOf(chordRoot);
+      if (rootDeg >= 0 && Math.abs(rootDeg - degree) > 3) degree = rootDeg;
+
+      let pos = 0;
+      while (pos < len) {
+        const midi = clampMidi(scaleToMidi(degree, oct));
+        // Note durations: mostly 2-4 sixteenths
+        const noteDur = pick([2, 2, 4, 4, 4, 3]);
+        const actualDur = Math.min(noteDur, len - pos);
+        if (actualDur > 0) {
+          notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 75 + Math.floor(Math.random() * 20) });
+          lastMidi = midi;
+        }
+        pos += actualDur;
+        // Move: 60% step, 25% same, 15% leap
+        const motion = Math.random();
+        if (motion < 0.6) degree += pick([-1, 1]);
+        else if (motion < 0.85) { /* stay */ }
+        else degree += pick([-2, 2, -3, 3]);
+        // Clamp octave
+        if (degree > scaleNotes.length + 2) { degree -= scaleNotes.length; oct++; }
+        if (degree < -2) { degree += scaleNotes.length; oct--; }
+        oct = Math.max(melOctave - 1, Math.min(melOctave + 1, oct));
+      }
+    });
+
+  } else if (patternType === "pentatonic") {
+    // Pentatonic — only 5 notes, very catchy
+    let pentIdx = 0;
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      let pos = 0;
+      while (pos < len) {
+        const ni = pentNotes[((pentIdx % pentNotes.length) + pentNotes.length) % pentNotes.length];
+        let oct = melOctave;
+        const midi = clampMidi(ni + oct * 12 + 12);
+        const noteDur = pick([2, 3, 4, 4, 6]);
+        const actualDur = Math.min(noteDur, len - pos);
+        if (actualDur > 0) {
+          // Add occasional rests (20% chance)
+          if (Math.random() > 0.2) {
+            notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 80 + Math.floor(Math.random() * 15) });
+          }
+          lastMidi = midi;
+        }
+        pos += actualDur;
+        pentIdx += pick([-1, 1, 1, 2]);
+      }
+    });
+
+  } else if (patternType === "callResponse") {
+    // 2-bar call, 2-bar response structure
+    const halfLen = Math.floor(TIMELINE_SLOTS / 2);
+    const callItems = timelineItems.filter(it => it.startSlot < halfLen);
+    const respItems = timelineItems.filter(it => it.startSlot >= halfLen);
+
+    const generatePhrase = (items, isResponse) => {
+      // Generate a short motif (3-5 notes) and repeat/vary it
+      const motif = [];
+      const numNotes = 3 + Math.floor(Math.random() * 3);
+      let degree = scaleNotes.indexOf(items[0]?.chord.noteIdx % 12);
+      if (degree < 0) degree = 0;
+
+      for (let i = 0; i < numNotes; i++) {
+        const dur = pick([2, 3, 4]);
+        motif.push({ degreeDelta: degree, dur, vel: i === 0 ? 95 : 70 + Math.floor(Math.random() * 20) });
+        degree += pick([-1, 1, 1, 2, -2]);
+      }
+
+      items.forEach(item => {
+        const start = item.startSlot;
+        const len = item.lengthSlots;
+        let pos = 0;
+        let motifIdx = 0;
+        // Response: transpose motif up or down
+        const transpose = isResponse ? pick([2, 3, -2, 5]) : 0;
+
+        while (pos < len && motifIdx < motif.length * 2) {
+          const m = motif[motifIdx % motif.length];
+          const deg = m.degreeDelta + transpose;
+          const midi = clampMidi(scaleToMidi(deg, melOctave));
+          const actualDur = Math.min(m.dur, len - pos);
+          if (actualDur > 0) {
+            notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: m.vel });
+          }
+          pos += actualDur;
+          motifIdx++;
+          // Add small rest between notes occasionally
+          if (Math.random() < 0.3) pos += 1;
+        }
+      });
+    };
+
+    generatePhrase(callItems, false);
+    generatePhrase(respItems, true);
+
+  } else if (patternType === "rhythmic") {
+    // Same rhythm pattern, pitch follows chord root
+    // Create a 1-bar rhythm template
+    const template = [];
+    let pos = 0;
+    while (pos < 16) {
+      const dur = pick([2, 2, 3, 4]);
+      const isRest = Math.random() < 0.15;
+      template.push({ pos, dur, isRest });
+      pos += dur;
+    }
+
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const midis = chordMidis(item);
+      const bars = Math.floor(len / 16);
+
+      for (let bar = 0; bar < Math.max(1, bars); bar++) {
+        template.forEach((t, idx) => {
+          const absPos = bar * 16 + t.pos;
+          if (absPos >= len || t.isRest) return;
+          const midi = clampMidi(midis[idx % midis.length]);
+          const actualDur = Math.min(t.dur, len - absPos);
+          if (actualDur > 0) {
+            notes.push({ midi, startSlot: start + absPos, lengthSlots: actualDur, velocity: idx === 0 ? 95 : 78 });
+          }
+        });
+      }
+    });
+  }
 
   return notes;
 }
@@ -2914,9 +3146,14 @@ export default function App() {
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
   const [bassPattern, setBassPattern] = useState("root");
   const [bassVisible, setBassVisible] = useState(false);
+  // ── Topline / melody ──
+  const [melodyLine, setMelodyLine] = useState([]);
+  const [melodyPattern, setMelodyPattern] = useState("chordTones");
+  const [melodyVisible, setMelodyVisible] = useState(false);
   // ── Mute controls ──
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
+  const [muteMelody, setMuteMelody] = useState(false);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
@@ -3108,6 +3345,14 @@ export default function App() {
     setBassLine(bl);
   }, [timelineItems, scaleKey, rootIdx, chordOctave, bassPattern]);
 
+  // ── Melody regeneration ───────────────────────────────────────────────────
+  const regenerateMelody = useCallback((pattern, items) => {
+    const tl = items || timelineItems;
+    if (tl.length === 0) { setMelodyLine([]); return; }
+    const ml = generateMelody(tl, scaleKey, rootIdx, chordOctave, pattern || melodyPattern, TIMELINE_SLOTS);
+    setMelodyLine(ml);
+  }, [timelineItems, scaleKey, rootIdx, chordOctave, melodyPattern]);
+
   // ── Section (arrangement) helpers ─────────────────────────────────────────
   const saveSection = useCallback((name) => {
     const sec = {
@@ -3116,10 +3361,11 @@ export default function App() {
       timelineItems: JSON.parse(JSON.stringify(timelineItems)),
       drumPattern: drumPattern ? JSON.parse(JSON.stringify(drumPattern)) : null,
       bassLine: JSON.parse(JSON.stringify(bassLine)),
+      melodyLine: JSON.parse(JSON.stringify(melodyLine)),
     };
     setSections(prev => [...prev, sec]);
     return sec;
-  }, [timelineItems, drumPattern, bassLine, sections.length]);
+  }, [timelineItems, drumPattern, bassLine, melodyLine, sections.length]);
 
   const loadSection = useCallback((secId) => {
     const sec = sections.find(s => s.id === secId);
@@ -3128,6 +3374,7 @@ export default function App() {
     setTimelineItems(JSON.parse(JSON.stringify(sec.timelineItems)));
     if (sec.drumPattern) setDrumPattern(JSON.parse(JSON.stringify(sec.drumPattern)));
     setBassLine(JSON.parse(JSON.stringify(sec.bassLine || [])));
+    setMelodyLine(JSON.parse(JSON.stringify(sec.melodyLine || [])));
     setEditingSectionId(secId);
   }, [sections]);
 
@@ -3137,8 +3384,9 @@ export default function App() {
       timelineItems: JSON.parse(JSON.stringify(timelineItems)),
       drumPattern: drumPattern ? JSON.parse(JSON.stringify(drumPattern)) : null,
       bassLine: JSON.parse(JSON.stringify(bassLine)),
+      melodyLine: JSON.parse(JSON.stringify(melodyLine)),
     } : s));
-  }, [timelineItems, drumPattern, bassLine]);
+  }, [timelineItems, drumPattern, bassLine, melodyLine]);
 
   const deleteSection = useCallback((secId) => {
     setSections(prev => prev.filter(s => s.id !== secId));
@@ -3149,7 +3397,7 @@ export default function App() {
   // ── MIDI file download ────────────────────────────────────────────────────
   const downloadMidi = useCallback(() => {
     const data = exportToMidi({
-      timelineItems, drumPattern, bassLine, bpm, chordOctave, padMap,
+      timelineItems, drumPattern, bassLine, melodyLine, bpm, chordOctave, padMap,
       pianoRollEdits, TIMELINE_SLOTS, DRUM_TRACKS,
       sections: arrangement.length > 0 ? sections : null,
       arrangement: arrangement.length > 0 ? arrangement : null,
@@ -3325,7 +3573,7 @@ export default function App() {
   const playTimeline = async () => {
     if (looping) { stopLoop(); return; }
     const hasDrums  = drumPattern && DRUM_TRACKS.some(t => drumPattern[t.id]?.some(v => v > 0));
-    if (timelineItems.length === 0 && !hasDrums && bassLine.length === 0) return;
+    if (timelineItems.length === 0 && !hasDrums && bassLine.length === 0 && melodyLine.length === 0) return;
     await Tone.start();
     const midiOut = getMIDIOut();
     let inst = null;
@@ -3338,7 +3586,8 @@ export default function App() {
     const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
     const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
     const bassEnd   = bassLine.reduce((m,n) => Math.max(m, n.startSlot + n.lengthSlots), 0);
-    const loopSlots = Math.max(chordEnd, bassEnd, hasDrums ? DRUM_STEPS : 0);
+    const melEnd    = melodyLine.reduce((m,n) => Math.max(m, n.startSlot + n.lengthSlots), 0);
+    const loopSlots = Math.max(chordEnd, bassEnd, melEnd, hasDrums ? DRUM_STEPS : 0);
     if (loopSlots === 0) return;
     const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
@@ -3539,6 +3788,27 @@ export default function App() {
           }
         });
       }
+
+      // ── Melody / topline scheduling ──
+      if (melodyLine.length > 0 && !muteMelody) {
+        melodyLine.forEach(note => {
+          if (note.muted) return;
+          const startSec = note.startSlot * slotSec;
+          const durSec = note.lengthSlots * slotSec * style.durMult;
+          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+          const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+          if (midiOut) {
+            const ch = (midiChannel - 1);
+            const midiVel = Math.max(1, Math.min(127, note.velocity));
+            schedule(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
+            schedule(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
+          } else {
+            schedule(() => {
+              try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
+            }, startSec * 1000);
+          }
+        });
+      }
     };
 
     doSchedule();
@@ -3572,7 +3842,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass]);
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody]);
 
   return (
     <>
@@ -4639,6 +4909,99 @@ export default function App() {
                   )}
                 </div>
 
+                {/* ── Topline / Melody ── */}
+                <div style={{ marginBottom: 12 }}>
+                  <button onClick={() => setMelodyVisible(o => !o)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, background:"none", border:"none",
+                      cursor:"pointer", padding:"4px 0", letterSpacing:"0.06em", textTransform:"uppercase",
+                      display:"flex", alignItems:"center", gap:6, opacity:0.8 }}>
+                    <span style={{ fontSize:8, transition:"transform 0.2s", transform: melodyVisible ? "rotate(90deg)" : "rotate(0)" }}>▶</span>
+                    Topline {melodyLine.length > 0 ? `(${melodyLine.length} notes)` : ""}
+                  </button>
+                  {melodyVisible && (
+                    <div style={{ marginTop:6, display:"flex", flexDirection:"column", gap:8 }}>
+                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
+                        {Object.entries(MELODY_PATTERNS).map(([key, cfg]) => (
+                          <button key={key} onClick={() => { setMelodyPattern(key); regenerateMelody(key); }}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight: melodyPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
+                              border:`1px solid ${melodyPattern === key ? "rgba(255,159,10,0.5)" : t.btnBorder}`,
+                              background: melodyPattern === key ? "rgba(255,159,10,0.12)" : t.btnBg,
+                              color: melodyPattern === key ? "#FF9F0A" : t.btnColor, cursor:"pointer",
+                              transition:"all 0.12s" }}
+                            title={cfg.desc}>
+                            {cfg.label}
+                          </button>
+                        ))}
+                        {timelineItems.length > 0 && (
+                          <button onClick={() => regenerateMelody()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                            Regenerate
+                          </button>
+                        )}
+                        {melodyLine.length > 0 && (
+                          <button onClick={() => setMelodyLine([])} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      {/* Melody visualization */}
+                      {melodyLine.length > 0 && (
+                        <div style={{ height:50, borderRadius:6, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
+                          {/* Slot lines */}
+                          {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
+                            if (i === 0) return null;
+                            let bg;
+                            if (i % SLOTS_PER_BAR === 0) bg = t.border;
+                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(28,24,32,0.04)";
+                            else return null;
+                            return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
+                          })}
+                          {/* Melody note blocks (active) */}
+                          {melodyLine.map((note,i) => {
+                            if (note.muted) return null;
+                            const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
+                            const range = Math.max(1, midiRange.hi - midiRange.lo);
+                            const yPct = 1 - (note.midi - midiRange.lo) / range;
+                            return (
+                              <div key={i}
+                                onDoubleClick={() => setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
+                                style={{
+                                  position:"absolute",
+                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  top: `${yPct * 70 + 6}%`, height: 8,
+                                  background:"rgba(255,159,10,0.6)", borderRadius:3,
+                                  border:"1px solid rgba(255,159,10,0.8)",
+                                  cursor:"pointer",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity} — double-click to mute`} />
+                            );
+                          })}
+                          {/* Muted melody notes */}
+                          {melodyLine.map((note,i) => {
+                            if (!note.muted) return null;
+                            const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
+                            const range = Math.max(1, midiRange.hi - midiRange.lo);
+                            const yPct = 1 - (note.midi - midiRange.lo) / range;
+                            return (
+                              <div key={`m${i}`}
+                                onDoubleClick={() => setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, muted:false} : n))}
+                                style={{
+                                  position:"absolute",
+                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  top: `${yPct * 70 + 6}%`, height: 8,
+                                  background:"rgba(28,24,32,0.08)", borderRadius:3,
+                                  border:"1px dashed rgba(28,24,32,0.2)",
+                                  cursor:"pointer", opacity:0.5,
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
+                            );
+                          })}
+                          {looping && <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:"#FF9F0A", opacity:0.7, pointerEvents:"none" }} />}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* ── Song Mode / Arrangement ── */}
                 <div style={{ marginBottom: 12 }}>
                   <button onClick={() => setSongModeOpen(o => !o)}
@@ -4745,6 +5108,16 @@ export default function App() {
                       textDecoration: muteBass ? "line-through" : "none",
                       opacity: bassLine.length === 0 ? 0.4 : 1 }}>
                     Bass
+                  </button>
+                  <button onClick={() => setMuteMelody(m => !m)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
+                      border:`1px solid ${muteMelody ? "#FF453A" : melodyLine.length === 0 ? t.border : t.btnBorder}`,
+                      background: muteMelody ? "rgba(255,69,58,0.1)" : t.btnBg,
+                      color: muteMelody ? "#FF453A" : melodyLine.length === 0 ? t.textTertiary : t.btnColor,
+                      cursor: melodyLine.length === 0 ? "default" : "pointer", transition:"all 0.12s",
+                      textDecoration: muteMelody ? "line-through" : "none",
+                      opacity: melodyLine.length === 0 ? 0.4 : 1 }}>
+                    Melody
                   </button>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
@@ -4886,11 +5259,11 @@ export default function App() {
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginTop:12, paddingTop:12, borderTop:`1px solid ${t.border}` }}>
                   <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", marginRight:4 }}>MPC</span>
                   <button onClick={downloadMidi}
-                    disabled={timelineItems.length === 0 && !drumPattern && bassLine.length === 0}
+                    disabled={timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0}
                     style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
                       border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent,
-                      cursor: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0) ? "not-allowed" : "pointer",
-                      opacity: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0) ? 0.4 : 1,
+                      cursor: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0) ? "not-allowed" : "pointer",
+                      opacity: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0) ? 0.4 : 1,
                       transition:"all 0.12s" }}>
                     ↓ Export MIDI
                   </button>
@@ -4919,7 +5292,7 @@ export default function App() {
                       <button onClick={() => {
                         // Export full arrangement as MIDI
                         const data = exportToMidi({
-                          timelineItems, drumPattern, bassLine, bpm, chordOctave, padMap,
+                          timelineItems, drumPattern, bassLine, melodyLine, bpm, chordOctave, padMap,
                           pianoRollEdits, TIMELINE_SLOTS, DRUM_TRACKS,
                           sections, arrangement,
                         });
