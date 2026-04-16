@@ -3893,11 +3893,14 @@ export default function App() {
   useEffect(() => { muteBassRef.current = muteBass; }, [muteBass]);
   useEffect(() => { muteMelodyRef.current = muteMelody; }, [muteMelody]);
   useEffect(() => { muteDrumsRef.current = muteDrums; }, [muteDrums]);
+  const humanizeRef = useRef(0);
+  useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
   // ── Arrangement playback ──
   const [arrangementPlaying, setArrangementPlaying] = useState(false);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
+  const [humanize,       setHumanize]       = useState(0);    // 0-100 → timing jitter + velocity variation
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
@@ -4353,6 +4356,17 @@ export default function App() {
     const scheduleMelody = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
     const scheduleDrum = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
 
+    // Humanize: timing jitter (ms) + velocity scale — reads live ref
+    const hz = () => {
+      const h = humanizeRef.current / 100; // 0..1
+      if (h === 0) return { tMs: 0, vScale: 1 };
+      const maxJitterMs = h * slotSec * 1000 * 0.45; // up to ~45% of a slot at full humanize
+      const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
+      const maxVelVar = h * 0.3; // up to ±30% velocity variation
+      const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
+      return { tMs, vScale };
+    };
+
     const style = STYLES[playStyle] || STYLES.normal;
 
     // Apply attack envelope to Tone.js instrument for soft/hard feel
@@ -4441,11 +4455,12 @@ export default function App() {
               const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
               const offsets = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
               hitNotes.forEach((note, i) => {
+                const { tMs: hzT, vScale: hzV } = hz();
                 const accentBoost = i === 0 ? style.accentMult : 1;
                 const prVel = getNoteVelScale(note, item.startSlot);
-                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i] * 100 * accentBoost + 15) * style.velMult * prVel * hit.velMult)));
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i] * 100 * accentBoost + 15) * style.velMult * prVel * hit.velMult * hzV)));
                 const n = nameToMidi(note);
-                const onMs = (hitStartSec + offsets[i]) * 1000;
+                const onMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT);
                 const offMs = onMs + hitDurSec * 1000;
                 scheduleChord(() => midiOut.send([0x90 | ch, n, midiVel]), onMs);
                 scheduleChord(() => midiOut.send([0x80 | ch, n, 0]), offMs);
@@ -4493,10 +4508,11 @@ export default function App() {
               const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
               const offsets = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
               hitNotes.forEach((note, i) => {
+                const { tMs: hzT, vScale: hzV } = hz();
                 const accentBoost = i === 0 ? style.accentMult : 1;
                 const prVel = getNoteVelScale(note, item.startSlot);
-                const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult));
-                const whenMs = (hitStartSec + offsets[i]) * 1000;
+                const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult * hzV));
+                const whenMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT);
                 scheduleChord(() => {
                   try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {}
                 }, whenMs);
@@ -4525,15 +4541,17 @@ export default function App() {
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
+            const { tMs: hzT, vScale: hzV } = hz();
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
-            const onMs  = (step * slotSec + swingDelay) * 1000;
+            const onMs  = Math.max(0, (step * slotSec + swingDelay) * 1000 + hzT);
+            const hzVel = Math.max(1, Math.min(127, Math.round(vel * hzV)));
             if (midiOut) {
               const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
               const offMs = onMs + slotSec * 0.9 * 1000;
-              scheduleDrum(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+              scheduleDrum(() => midiOut.send([0x90 | drumCh, note, hzVel]), onMs);
               scheduleDrum(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
             } else {
-              scheduleDrum(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+              scheduleDrum(() => triggerDrumSynth(track.id, hzVel, slotSec * 0.8), onMs);
             }
           });
         }
@@ -4544,19 +4562,21 @@ export default function App() {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
         bassLine.forEach(note => {
           if (note.muted) return;
+          const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
-          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * hzV));
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+          const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
             const ch = (midiChannel - 1);
-            const midiVel = Math.max(1, Math.min(127, note.velocity));
-            scheduleBass(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
-            scheduleBass(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
+            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hzV)));
+            scheduleBass(() => midiOut.send([0x90 | ch, note.midi, midiVel]), onMs);
+            scheduleBass(() => midiOut.send([0x80 | ch, note.midi, 0]), onMs + durSec * 1000);
           } else {
             scheduleBass(() => {
               try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
-            }, startSec * 1000);
+            }, onMs);
           }
         });
       }
@@ -4567,19 +4587,21 @@ export default function App() {
         const cpatMelVel = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
         melodyLine.forEach(note => {
           if (note.muted) return;
+          const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
-          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVel));
+          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVel * hzV));
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+          const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
             const ch = (midiChannel - 1);
-            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVel)));
-            scheduleMelody(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
-            scheduleMelody(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
+            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVel * hzV)));
+            scheduleMelody(() => midiOut.send([0x90 | ch, note.midi, midiVel]), onMs);
+            scheduleMelody(() => midiOut.send([0x80 | ch, note.midi, 0]), onMs + durSec * 1000);
           } else {
             scheduleMelody(() => {
               try { melInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
-            }, startSec * 1000);
+            }, onMs);
           }
         });
       }
@@ -4645,6 +4667,17 @@ export default function App() {
     const scheduleMelodyA = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
     const scheduleDrumA = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
 
+    // Humanize helper for arrangement (same logic as main loop)
+    const hzA = () => {
+      const h = humanizeRef.current / 100;
+      if (h === 0) return { tMs: 0, vScale: 1 };
+      const maxJitterMs = h * slotSec * 1000 * 0.45;
+      const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
+      const maxVelVar = h * 0.3;
+      const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
+      return { tMs, vScale };
+    };
+
     const doScheduleArrangement = () => {
       resolvedSecs.forEach((sec, secIdx) => {
         const offset = secIdx * slotsPerSection;
@@ -4667,16 +4700,20 @@ export default function App() {
                 const ch = midiChannel - 1;
                 const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
                 hitNotes.forEach((note, i) => {
-                  const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult)));
+                  const { tMs: ht, vScale: hv } = hzA();
+                  const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult * hv)));
                   const n = nameToMidi(note);
-                  scheduleChordA(() => midiOut.send([0x90|ch, n, midiVel]), (hitStartSec + offsets2[i]) * 1000);
-                  scheduleChordA(() => midiOut.send([0x80|ch, n, 0]), (hitStartSec + hitDurSec) * 1000);
+                  const onMs = Math.max(0, (hitStartSec + offsets2[i]) * 1000 + ht);
+                  scheduleChordA(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+                  scheduleChordA(() => midiOut.send([0x80|ch, n, 0]), onMs + hitDurSec * 1000);
                 });
               } else {
                 const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
                 hitNotes.forEach((note, i) => {
-                  const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult));
-                  scheduleChordA(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, (hitStartSec + offsets2[i]) * 1000);
+                  const { tMs: ht, vScale: hv } = hzA();
+                  const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult * hv));
+                  const whenMs = Math.max(0, (hitStartSec + offsets2[i]) * 1000 + ht);
+                  scheduleChordA(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, whenMs);
                 });
               }
             });
@@ -4688,15 +4725,18 @@ export default function App() {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
+            const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
-            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * hv));
+            const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
-              scheduleBassA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, note.velocity]), startSec * 1000);
-              scheduleBassA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hv)));
+              scheduleBassA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, midiVel]), onMs);
+              scheduleBassA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), onMs + durSec * 1000);
             } else {
-              scheduleBassA(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              scheduleBassA(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, onMs);
             }
           });
         }
@@ -4707,15 +4747,18 @@ export default function App() {
           const cpatMelVelA = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
+            const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
-            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVelA));
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVelA * hv));
+            const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
-              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, Math.round(note.velocity * cpatMelVelA))]), startSec * 1000);
-              scheduleMelodyA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVelA * hv)));
+              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, midiVel]), onMs);
+              scheduleMelodyA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), onMs + durSec * 1000);
             } else {
-              scheduleMelodyA(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              scheduleMelodyA(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, onMs);
             }
           });
         }
@@ -4729,13 +4772,15 @@ export default function App() {
             if (!steps) return;
             steps.forEach((vel, step) => {
               if (vel === 0) return;
-              const onMs = (offset + step) * slotSec * 1000;
+              const { tMs: ht, vScale: hv } = hzA();
+              const onMs = Math.max(0, (offset + step) * slotSec * 1000 + ht);
+              const hzVel = Math.max(1, Math.min(127, Math.round(vel * hv)));
               const note = padMap[track.id]?.midiNote ?? track.defaultNote;
               if (midiOut) {
-                scheduleDrumA(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+                scheduleDrumA(() => midiOut.send([0x90 | drumCh, note, hzVel]), onMs);
                 scheduleDrumA(() => midiOut.send([0x80 | drumCh, note, 0]), onMs + slotSec * 0.9 * 1000);
               } else {
-                scheduleDrumA(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+                scheduleDrumA(() => triggerDrumSynth(track.id, hzVel, slotSec * 0.8), onMs);
               }
             });
           });
@@ -6216,6 +6261,17 @@ export default function App() {
                       opacity: !drumPattern ? 0.4 : 1 }}>
                     Drums
                   </button>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Humanize slider */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:10, fontWeight:600, color: humanize > 0 ? t.accent : t.labelColor, textTransform:"uppercase",
+                      letterSpacing:"0.06em", fontFamily:SF, whiteSpace:"nowrap" }}>
+                      Feel {humanize > 0 ? `${humanize}%` : ""}
+                    </span>
+                    <input type="range" min={0} max={100} value={humanize}
+                      onChange={e => setHumanize(Number(e.target.value))}
+                      style={{ width:72, accentColor:t.accent, cursor:"pointer" }} />
+                  </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
