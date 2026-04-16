@@ -214,10 +214,12 @@ function exportMpcDrumProgram(padMap, DRUM_TRACKS) {
 const CHORD_PLAY_PATTERNS = {
   sustained: {
     label: "Sustained", desc: "Full sustained chords — default",
+    melodyVelMult: 1.0,
     generate: () => [{ offset: 0, duration: 1, velMult: 1 }],
   },
   staccato: {
     label: "Staccato", desc: "Short choppy hits on each beat — lo-fi / hip-hop",
+    melodyVelMult: 0.75,
     generate: (lenSlots) => {
       const hits = [];
       const beatLen = 4; // quarter note = 4 sixteenths
@@ -230,6 +232,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   trap: {
     label: "Trap", desc: "Hit on 1, ghost on and-of-2, hit on 3 — trap / modern rap",
+    melodyVelMult: 0.85,
     generate: (lenSlots) => {
       const hits = [];
       // Beat 1 — hard hit
@@ -245,6 +248,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   griselda: {
     label: "Griselda", desc: "Gritty boom-bap stabs — Griselda / 90s NY",
+    melodyVelMult: 0.9,
     generate: (lenSlots) => {
       const hits = [];
       // Hard stab on 1
@@ -260,6 +264,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   lofi: {
     label: "Lo-Fi", desc: "Lazy offbeat hits with gaps — lo-fi hip-hop / chill",
+    melodyVelMult: 0.6,
     generate: (lenSlots) => {
       const hits = [];
       // Slightly late beat 1
@@ -273,6 +278,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   rnbPulse: {
     label: "R&B Pulse", desc: "Smooth eighth-note pumps — R&B / neo-soul",
+    melodyVelMult: 0.7,
     generate: (lenSlots) => {
       const hits = [];
       const eighthLen = 2;
@@ -289,6 +295,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   soulStab: {
     label: "Soul Stab", desc: "Rhythmic stabs with anticipation — classic soul / funk",
+    melodyVelMult: 0.8,
     generate: (lenSlots) => {
       const hits = [];
       // Anticipation (16th before beat 1 of next bar mapped to end of current)
@@ -305,6 +312,7 @@ const CHORD_PLAY_PATTERNS = {
   },
   nordicArp: {
     label: "Nordic Arp", desc: "Broken chord arpeggiation — Nordic pop / ambient",
+    melodyVelMult: 0.65,
     generate: (lenSlots) => {
       // This is handled specially in scheduling — breaks chord into individual notes
       const hits = [];
@@ -336,8 +344,8 @@ const BASS_PATTERNS = {
   nordicPulse: { label: "Nordic Pulse", desc: "Steady eighth-note pulse — Nordic pop drive" },
 };
 
-function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS) {
-  const bassOctave = Math.max(1, chordOctave - 1);
+function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS, bassOctaveOffset = 0) {
+  const bassOctave = Math.max(1, chordOctave - 1 + bassOctaveOffset);
   const notes = [];
   const scaleIntervals = SCALES[scaleKey]?.intervals || SCALES.major.intervals;
   const scaleNotes = scaleIntervals.map(iv => (rootIdx + iv) % 12);
@@ -466,8 +474,8 @@ const MELODY_PATTERNS = {
   nordicWide:  { label: "Nordic Wide",   desc: "Wide intervals, open spaces — Scandi pop feel" },
 };
 
-function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternType, TIMELINE_SLOTS) {
-  const melOctave = chordOctave + 1;
+function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternType, TIMELINE_SLOTS, melodyOctaveOffset = 0) {
+  const melOctave = chordOctave + 1 + melodyOctaveOffset;
   const notes = [];
   const scaleIntervals = SCALES[scaleKey]?.intervals || SCALES.major.intervals;
   const scaleNotes = scaleIntervals.map(iv => (rootIdx + iv) % 12);
@@ -989,8 +997,8 @@ function initDrumSynths() {
 
   // Perc — short metallic tap
   drumSynths.perc = new Tone.MetalSynth({
-    frequency:250, envelope:{attack:0.001,decay:0.1,release:0.06},
-    harmonicity:3, modulationIndex:10, resonance:3000, volume:-12
+    frequency:350, envelope:{attack:0.001,decay:0.15,release:0.08},
+    harmonicity:5.1, modulationIndex:16, resonance:800, volume:-8
   }).toDestination();
   drumSynths.perc._type = "metal";
 
@@ -3649,6 +3657,8 @@ export default function App() {
   const [melodySound, setMelodySound] = useState("piano"); // "piano" | "bell" | "pluck"
   // ── Bass sound ──
   const [bassSound, setBassSound] = useState("piano"); // "piano" | "808"
+  const [bassOctaveOffset, setBassOctaveOffset] = useState(0); // -2..+2
+  const [melodyOctaveOffset, setMelodyOctaveOffset] = useState(0); // -2..+2
   // ── Mute controls ──
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
@@ -3852,17 +3862,21 @@ export default function App() {
   const regenerateBass = useCallback((pattern, items) => {
     const tl = items || timelineItems;
     if (tl.length === 0) { setBassLine([]); return; }
-    const bl = generateBassLine(tl, scaleKey, rootIdx, chordOctave, pattern || bassPattern, TIMELINE_SLOTS);
+    const bl = generateBassLine(tl, scaleKey, rootIdx, chordOctave, pattern || bassPattern, TIMELINE_SLOTS, bassOctaveOffset);
     setBassLine(bl);
-  }, [timelineItems, scaleKey, rootIdx, chordOctave, bassPattern]);
+  }, [timelineItems, scaleKey, rootIdx, chordOctave, bassPattern, bassOctaveOffset]);
 
   // ── Melody regeneration ───────────────────────────────────────────────────
   const regenerateMelody = useCallback((pattern, items) => {
     const tl = items || timelineItems;
     if (tl.length === 0) { setMelodyLine([]); return; }
-    const ml = generateMelody(tl, scaleKey, rootIdx, chordOctave, pattern || melodyPattern, TIMELINE_SLOTS);
+    const ml = generateMelody(tl, scaleKey, rootIdx, chordOctave, pattern || melodyPattern, TIMELINE_SLOTS, melodyOctaveOffset);
     setMelodyLine(ml);
-  }, [timelineItems, scaleKey, rootIdx, chordOctave, melodyPattern]);
+  }, [timelineItems, scaleKey, rootIdx, chordOctave, melodyPattern, melodyOctaveOffset]);
+
+  // Auto-regenerate bass/melody when octave offset changes
+  useEffect(() => { if (bassLine.length > 0) regenerateBass(); }, [bassOctaveOffset]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (melodyLine.length > 0) regenerateMelody(); }, [melodyOctaveOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Section (arrangement) helpers ─────────────────────────────────────────
   const saveSection = useCallback((name) => {
@@ -4330,15 +4344,16 @@ export default function App() {
       // ── Melody / topline scheduling ──
       if (melodyLine.length > 0) {
         const melInst = midiOut ? null : getMelodyInstrument(melodySound);
+        const cpatMelVel = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
         melodyLine.forEach(note => {
           if (note.muted) return;
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
-          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVel));
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
           if (midiOut) {
             const ch = (midiChannel - 1);
-            const midiVel = Math.max(1, Math.min(127, note.velocity));
+            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVel)));
             scheduleMelody(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
             scheduleMelody(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
           } else {
@@ -4469,14 +4484,15 @@ export default function App() {
         // Melody
         if (sec.melodyLine) {
           const melInst2 = midiOut ? null : getMelodyInstrument(melodySound);
+          const cpatMelVelA = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
-            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVelA));
             if (midiOut) {
-              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, note.velocity)]), startSec * 1000);
+              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, Math.round(note.velocity * cpatMelVelA))]), startSec * 1000);
               scheduleMelodyA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
             } else {
               scheduleMelodyA(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
@@ -5415,6 +5431,26 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* ── Chord Pattern ── */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                    <span style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, letterSpacing:"0.06em", textTransform:"uppercase", opacity:0.8 }}>
+                      Chord Rhythm
+                    </span>
+                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
+                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); setChordRhythmMutes({}); }}
+                        style={{ fontFamily:SF, fontSize:11, fontWeight: chordPlayPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
+                          border:`1px solid ${chordPlayPattern === key ? "rgba(122,91,175,0.4)" : t.btnBorder}`,
+                          background: chordPlayPattern === key ? "rgba(122,91,175,0.12)" : t.btnBg,
+                          color: chordPlayPattern === key ? "rgb(122,91,175)" : t.btnColor, cursor:"pointer",
+                          transition:"all 0.12s" }}
+                        title={cfg.desc}>
+                        {cfg.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
                 {/* ── Piano Roll ── */}
                 <div style={{ marginBottom: 12 }}>
                   <button onClick={() => setPianoRollOpen(o => !o)}
@@ -5580,26 +5616,6 @@ export default function App() {
                   )}
                 </div>
 
-                {/* ── Chord Pattern ── */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
-                    <span style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, letterSpacing:"0.06em", textTransform:"uppercase", opacity:0.8 }}>
-                      Chord Rhythm
-                    </span>
-                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
-                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); setChordRhythmMutes({}); }}
-                        style={{ fontFamily:SF, fontSize:11, fontWeight: chordPlayPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
-                          border:`1px solid ${chordPlayPattern === key ? "rgba(122,91,175,0.4)" : t.btnBorder}`,
-                          background: chordPlayPattern === key ? "rgba(122,91,175,0.12)" : t.btnBg,
-                          color: chordPlayPattern === key ? "rgb(122,91,175)" : t.btnColor, cursor:"pointer",
-                          transition:"all 0.12s" }}
-                        title={cfg.desc}>
-                        {cfg.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
                 {/* ── Bass Line ── */}
                 <div style={{ marginBottom: 12 }}>
                   <button onClick={() => setBassVisible(o => !o)}
@@ -5644,6 +5660,17 @@ export default function App() {
                             {l}
                           </button>
                         ))}
+                        <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Octave</span>
+                        <button onClick={() => { setBassOctaveOffset(o => Math.max(-2, o - 1)); }}
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
+                        <span style={{ fontFamily:SF, fontSize:11, fontWeight:700, color:t.textPrimary, minWidth:18, textAlign:"center" }}>
+                          {bassOctaveOffset === 0 ? "0" : (bassOctaveOffset > 0 ? `+${bassOctaveOffset}` : bassOctaveOffset)}
+                        </span>
+                        <button onClick={() => { setBassOctaveOffset(o => Math.min(2, o + 1)); }}
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Mini bass visualization */}
                       {bassLine.length > 0 && (
@@ -5748,6 +5775,17 @@ export default function App() {
                             {l}
                           </button>
                         ))}
+                        <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Octave</span>
+                        <button onClick={() => { setMelodyOctaveOffset(o => Math.max(-2, o - 1)); }}
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
+                        <span style={{ fontFamily:SF, fontSize:11, fontWeight:700, color:t.textPrimary, minWidth:18, textAlign:"center" }}>
+                          {melodyOctaveOffset === 0 ? "0" : (melodyOctaveOffset > 0 ? `+${melodyOctaveOffset}` : melodyOctaveOffset)}
+                        </span>
+                        <button onClick={() => { setMelodyOctaveOffset(o => Math.min(2, o + 1)); }}
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Melody visualization */}
                       {melodyLine.length > 0 && (
