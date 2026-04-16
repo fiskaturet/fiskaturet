@@ -3841,6 +3841,8 @@ export default function App() {
   const [midiOutputId, setMidiOutputId] = useState("off");
   const [midiChannel,  setMidiChannel]  = useState(1);
   const [midiError,    setMidiError]    = useState(null);
+  const [midiClockEnabled, setMidiClockEnabled] = useState(false);
+  const midiClockRef = useRef(null); // interval ID for clock ticks
   // ── Drum state ──
   const [drumGenre,      setDrumGenre]      = useState("boombap_classic");
   const [drumPattern,    setDrumPattern]    = useState(null); // { kick:[64], snare:[64], ... }
@@ -3974,6 +3976,30 @@ export default function App() {
     setTimeout(() => out.send([0x80 | ch, n, 0]), durationMs);
     return true;
   }, [getMIDIOut, midiChannel]);
+
+  // ── MIDI Clock sync ──
+  // Sends MIDI Start (0xFA) + Clock ticks (0xF8) at 24 PPQ, and MIDI Stop (0xFC)
+  const startMidiClock = useCallback((bpmVal) => {
+    const out = getMIDIOut();
+    if (!out || !midiClockEnabled) return;
+    // Stop any existing clock
+    if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
+    // Send MIDI Start
+    out.send([0xFA]);
+    // 24 PPQ = 24 ticks per quarter note
+    const tickIntervalMs = (60 / bpmVal / 24) * 1000;
+    midiClockRef.current = setInterval(() => {
+      try { out.send([0xF8]); } catch(e) {}
+    }, tickIntervalMs);
+  }, [getMIDIOut, midiClockEnabled]);
+
+  const stopMidiClock = useCallback(() => {
+    if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
+    const out = getMIDIOut();
+    if (out && midiClockEnabled) {
+      try { out.send([0xFC]); } catch(e) {} // MIDI Stop
+    }
+  }, [getMIDIOut, midiClockEnabled]);
 
   const t = THEME;
 
@@ -4277,6 +4303,8 @@ export default function App() {
     }
     // Release all playing Tone.js voices
     try { instRef.current?.releaseAll?.(); } catch(e) {}
+    // Stop MIDI Clock
+    stopMidiClock();
     // Send MIDI all-notes-off / all-sound-off on every channel, just in case
     try {
       const midiOut = getMIDIOut();
@@ -4331,6 +4359,7 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
+    startMidiClock(bpm);
 
     const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
     const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
@@ -4642,6 +4671,7 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
+    startMidiClock(bpm);
 
     const slotSec = (60 / bpm) * 0.25;
     const style = STYLES[playStyle] || STYLES.normal;
@@ -4982,15 +5012,25 @@ export default function App() {
                         ))}
                       </select>
                       {midiOutputId !== "off" && (
-                        <select
-                          value={midiChannel}
-                          onChange={e => setMidiChannel(Number(e.target.value))}
-                          style={{ ...selectStyle, width:90 }}
-                        >
-                          {Array.from({length:16},(_,i)=>i+1).map(ch => (
-                            <option key={ch} value={ch}>Ch {ch}</option>
-                          ))}
-                        </select>
+                        <>
+                          <select
+                            value={midiChannel}
+                            onChange={e => setMidiChannel(Number(e.target.value))}
+                            style={{ ...selectStyle, width:90 }}
+                          >
+                            {Array.from({length:16},(_,i)=>i+1).map(ch => (
+                              <option key={ch} value={ch}>Ch {ch}</option>
+                            ))}
+                          </select>
+                          <button onClick={() => setMidiClockEnabled(c => !c)}
+                            style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                              border:`1px solid ${midiClockEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                              background: midiClockEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
+                              color: midiClockEnabled ? "#30D158" : t.btnColor, cursor:"pointer", transition:"all 0.12s",
+                              whiteSpace:"nowrap" }}>
+                            Sync {midiClockEnabled ? "ON" : "OFF"}
+                          </button>
+                        </>
                       )}
                     </>
                   )}
