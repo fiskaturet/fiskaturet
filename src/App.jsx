@@ -5369,6 +5369,16 @@ export default function App() {
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                       Clear
                     </button>
+                    <div style={{ width:1, height:24, background:t.border }} />
+                    <button onClick={() => setLoopEnabled(e => !e)}
+                      style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                        border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                        background: loopEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
+                        color: loopEnabled ? "#30D158" : t.textTertiary,
+                        cursor:"pointer", transition:"all 0.12s", display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:13 }}>🔁</span>
+                      {loopEnabled ? "Loop" : "1×"}
+                    </button>
                   </div>
                 </div>
                 {/* Swing + Half-tempo + Favorites row */}
