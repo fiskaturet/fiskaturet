@@ -1795,12 +1795,14 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   const [detected,  setDetected]    = useState(null);  // [{ freq, note, noteIdx, chord }]
   const [countdown, setCountdown]   = useState(0);
   const [level,     setLevel]       = useState(0);     // mic input level 0-1
+  const [playingRef_,setPlayingRef] = useState(false);  // true while reference tone/scale plays
   const streamRef      = useRef(null);
   const audioCtxRef    = useRef(null);
   const analyserRef    = useRef(null);
   const rafRef         = useRef(null);
   const recordBufRef   = useRef([]);
   const countdownRef   = useRef(null);
+  const refTimeouts    = useRef([]);
 
   // ── Cleanup on unmount ──
   useEffect(() => () => {
@@ -1808,7 +1810,43 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
     if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
     if (countdownRef.current) clearInterval(countdownRef.current);
+    refTimeouts.current.forEach(id => clearTimeout(id));
   }, []);
+
+  // ── Reference tone helpers ──
+  const stopReference = () => {
+    refTimeouts.current.forEach(id => clearTimeout(id));
+    refTimeouts.current = [];
+    try { getSampler().releaseAll(); } catch(e) {}
+    setPlayingRef(false);
+  };
+
+  const playRoot = async () => {
+    if (playingRef_) { stopReference(); return; }
+    await Tone.start();
+    setPlayingRef(true);
+    const noteName = NOTES[rootIdx] + "4";
+    const inst = getSampler();
+    inst.triggerAttackRelease(noteName, 2.0);
+    refTimeouts.current.push(setTimeout(() => setPlayingRef(false), 2200));
+  };
+
+  const playScale = async () => {
+    if (playingRef_) { stopReference(); return; }
+    await Tone.start();
+    setPlayingRef(true);
+    const inst = getSampler();
+    const intervals = SCALES[scaleKey].intervals;
+    // Play scale ascending + root octave above
+    const noteList = [...intervals.map(iv => NOTES[(rootIdx + iv) % 12] + "4"), NOTES[rootIdx] + "5"];
+    const gap = 400; // ms between notes
+    noteList.forEach((n, i) => {
+      refTimeouts.current.push(setTimeout(() => {
+        inst.triggerAttackRelease(n, 0.35);
+      }, i * gap));
+    });
+    refTimeouts.current.push(setTimeout(() => setPlayingRef(false), noteList.length * gap + 200));
+  };
 
   // ── Harmonize a melody note into a chord from the scale ──
   function harmonize(melodyNoteIdx, rootIdx, scaleKey, freeMode) {
@@ -2009,9 +2047,28 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
           </div>
         </div>
 
-        <div style={{ fontSize:12, color:t.textTertiary, fontFamily:SF2, marginBottom:12 }}>
+        <div style={{ fontSize:12, color:t.textTertiary, fontFamily:SF2, marginBottom:14 }}>
           Opptak: {durationSec.toFixed(1)}s ({humBars} takter × {humBpm} BPM)
           {!freeMode && ` · Skala: ${NOTES[rootIdx]} ${SCALE_DESCRIPTIONS[scaleKey]?.label || scaleKey}`}
+        </div>
+
+        {/* ── Reference tone buttons ── */}
+        <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
+          <button onClick={playRoot} disabled={recording}
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+              border:`1.5px solid ${playingRef_ ? "#34C759" : t.inputBorder}`,
+              background: playingRef_ ? "rgba(52,199,89,0.08)" : t.elevatedBg,
+              color: playingRef_ ? "#34C759" : t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
+              opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
+            {playingRef_ ? "Stopp" : `Spill grunntone (${NOTES[rootIdx]})`}
+          </button>
+          <button onClick={playScale} disabled={recording}
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+              border:`1.5px solid ${t.inputBorder}`, background:t.elevatedBg,
+              color:t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
+              opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
+            Spill skala
+          </button>
         </div>
       </div>
 
