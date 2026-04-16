@@ -1164,27 +1164,12 @@ function initDrumSynths() {
   }).toDestination();
   drumSynths.perc._type = "metal";
 
-  // Bell — bright tuned metal
-  drumSynths.bell = new Tone.MetalSynth({
-    frequency:680, envelope:{attack:0.001,decay:0.5,release:0.35},
-    harmonicity:12, modulationIndex:24, resonance:5000, volume:-16
+  // Ghost Kick — softer, shorter kick for ghost notes
+  drumSynths.ghostKick = new Tone.MembraneSynth({
+    pitchDecay:0.03, octaves:6, envelope:{attack:0.001,decay:0.12,sustain:0,release:0.06}, volume:-12
   }).toDestination();
-  drumSynths.bell._type = "metal";
-
-  // FX1 — downward noise sweep
-  const fx1Filter = new Tone.AutoFilter({ frequency:4, baseFrequency:200, octaves:4, wet:1 }).toDestination();
-  fx1Filter.start();
-  drumSynths.fx1 = new Tone.NoiseSynth({
-    noise:{type:"brown"}, envelope:{attack:0.01,decay:0.35,sustain:0,release:0.12}, volume:-12
-  }).connect(fx1Filter);
-  drumSynths.fx1._type = "noise";
-
-  // FX2 — vinyl crackle / texture
-  const fx2Filter = new Tone.Filter({ frequency:3000, type:"bandpass", Q:2 }).toDestination();
-  drumSynths.fx2 = new Tone.NoiseSynth({
-    noise:{type:"pink"}, envelope:{attack:0.03,decay:0.4,sustain:0.08,release:0.25}, volume:-14
-  }).connect(fx2Filter);
-  drumSynths.fx2._type = "noise";
+  drumSynths.ghostKick._type = "membrane";
+  drumSynths.ghostKick._note = "C2";
 
   // Crash — long metallic wash
   drumSynths.crash = new Tone.MetalSynth({
@@ -1462,24 +1447,22 @@ const FAMOUS_PROGRESSIONS = [
 // ─── DRUM MACHINE ──────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════════════
 
-// 16 tracks mapped 1:1 to MPC pads A1..A16 (chromatic from MIDI 36)
+// 14 tracks — focused on what matters for hip-hop / boom-bap / trap
 const DRUM_TRACKS = [
-  { id:"kick",   label:"Kick",     defaultPad:"A1",  defaultNote:36 },
-  { id:"snare",  label:"Snare",    defaultPad:"A2",  defaultNote:37 },
-  { id:"hatC",   label:"Hat (C)",  defaultPad:"A3",  defaultNote:38 },
-  { id:"ghost",  label:"Ghost Sn", defaultPad:"A4",  defaultNote:39 },
-  { id:"clap",   label:"Clap",     defaultPad:"A5",  defaultNote:40 },
-  { id:"rim",    label:"Rim",      defaultPad:"A6",  defaultNote:41 },
-  { id:"tom",    label:"Tom",      defaultPad:"A7",  defaultNote:42 },
-  { id:"low808", label:"808",      defaultPad:"A8",  defaultNote:43 },
-  { id:"hatO",   label:"Hat (O)",  defaultPad:"A9",  defaultNote:44 },
-  { id:"ride",   label:"Ride",     defaultPad:"A10", defaultNote:45 },
-  { id:"shaker", label:"Shaker",   defaultPad:"A11", defaultNote:46 },
-  { id:"perc",   label:"Perc",     defaultPad:"A12", defaultNote:47 },
-  { id:"bell",   label:"Bell",     defaultPad:"A13", defaultNote:48 },
-  { id:"fx1",    label:"FX 1",     defaultPad:"A14", defaultNote:49 },
-  { id:"fx2",    label:"FX 2",     defaultPad:"A15", defaultNote:50 },
-  { id:"crash",  label:"Crash",    defaultPad:"A16", defaultNote:51 },
+  { id:"kick",      label:"Kick",      defaultPad:"A1",  defaultNote:36 },
+  { id:"ghostKick", label:"Ghost Kick", defaultPad:"A2", defaultNote:37 },
+  { id:"snare",     label:"Snare",     defaultPad:"A3",  defaultNote:38 },
+  { id:"ghost",     label:"Ghost Sn",  defaultPad:"A4",  defaultNote:39 },
+  { id:"clap",      label:"Clap",      defaultPad:"A5",  defaultNote:40 },
+  { id:"hatC",      label:"Hat (C)",   defaultPad:"A6",  defaultNote:41 },
+  { id:"hatO",      label:"Hat (O)",   defaultPad:"A7",  defaultNote:42 },
+  { id:"rim",       label:"Rim",       defaultPad:"A8",  defaultNote:43 },
+  { id:"tom",       label:"Tom",       defaultPad:"A9",  defaultNote:44 },
+  { id:"low808",    label:"808",       defaultPad:"A10", defaultNote:45 },
+  { id:"shaker",    label:"Shaker",    defaultPad:"A11", defaultNote:46 },
+  { id:"perc",      label:"Perc",      defaultPad:"A12", defaultNote:47 },
+  { id:"ride",      label:"Ride",      defaultPad:"A13", defaultNote:48 },
+  { id:"crash",     label:"Crash",     defaultPad:"A14", defaultNote:49 },
 ];
 
 const DRUM_STEPS = 64;       // 4 bars × 16 sixteenth-notes
@@ -1506,29 +1489,20 @@ const padLabelToMidi = (label) => {
 
 // ── Pad Map Presets ──
 const PAD_MAP_PRESETS = [
-  { id:"default", label:"Fiskaturet Default", desc:"A1-A16 chromatic",
+  { id:"default", label:"Fiskaturet Default", desc:"A1-A14 chromatic",
     map: DRUM_TRACKS.reduce((a,t) => ({...a,[t.id]:{padId:t.defaultPad, midiNote:t.defaultNote}}),{}) },
   { id:"gm", label:"General MIDI", desc:"Standard GM drum map",
-    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38}, hatC:{padId:"A7",midiNote:42},
-           ghost:{padId:"A4",midiNote:40}, clap:{padId:"A4",midiNote:39}, rim:{padId:"B1",midiNote:37},
-           tom:{padId:"A10",midiNote:45}, low808:{padId:"A1",midiNote:36}, hatO:{padId:"A11",midiNote:46},
-           ride:{padId:"B5",midiNote:51}, shaker:{padId:"B7",midiNote:70}, perc:{padId:"A16",midiNote:67},
-           bell:{padId:"B7",midiNote:53}, fx1:{padId:"A14",midiNote:49}, fx2:{padId:"B3",midiNote:55},
-           crash:{padId:"A14",midiNote:49} }},
+    map: { kick:{padId:"A1",midiNote:36}, ghostKick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38},
+           ghost:{padId:"A5",midiNote:40}, clap:{padId:"A4",midiNote:39}, hatC:{padId:"A7",midiNote:42},
+           hatO:{padId:"A11",midiNote:46}, rim:{padId:"A2",midiNote:37}, tom:{padId:"A10",midiNote:45},
+           low808:{padId:"A1",midiNote:36}, shaker:{padId:"B7",midiNote:70}, perc:{padId:"A16",midiNote:67},
+           ride:{padId:"B4",midiNote:51}, crash:{padId:"A14",midiNote:49} }},
   { id:"mpc_classic", label:"MPC 60/2000", desc:"Classic Akai layout",
-    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A2",midiNote:37}, hatC:{padId:"A3",midiNote:38},
-           ghost:{padId:"A4",midiNote:39}, clap:{padId:"A5",midiNote:40}, rim:{padId:"A6",midiNote:41},
-           tom:{padId:"A7",midiNote:42}, low808:{padId:"A8",midiNote:43}, hatO:{padId:"A9",midiNote:44},
-           ride:{padId:"A10",midiNote:45}, shaker:{padId:"A11",midiNote:46}, perc:{padId:"A12",midiNote:47},
-           bell:{padId:"A13",midiNote:48}, fx1:{padId:"A14",midiNote:49}, fx2:{padId:"A15",midiNote:50},
-           crash:{padId:"A16",midiNote:51} }},
-  { id:"tr808", label:"TR-808 Style", desc:"808 machine layout",
-    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38}, hatC:{padId:"A7",midiNote:42},
-           ghost:{padId:"A3",midiNote:38}, clap:{padId:"A4",midiNote:39}, rim:{padId:"B2",midiNote:56},
-           tom:{padId:"A10",midiNote:45}, low808:{padId:"A1",midiNote:36}, hatO:{padId:"A11",midiNote:46},
-           ride:{padId:"A14",midiNote:49}, shaker:{padId:"B7",midiNote:70}, perc:{padId:"B1",midiNote:54},
-           bell:{padId:"B1",midiNote:53}, fx1:{padId:"B3",midiNote:55}, fx2:{padId:"B4",midiNote:75},
-           crash:{padId:"A14",midiNote:49} }},
+    map: { kick:{padId:"A1",midiNote:36}, ghostKick:{padId:"A2",midiNote:37}, snare:{padId:"A3",midiNote:38},
+           ghost:{padId:"A4",midiNote:39}, clap:{padId:"A5",midiNote:40}, hatC:{padId:"A6",midiNote:41},
+           hatO:{padId:"A7",midiNote:42}, rim:{padId:"A8",midiNote:43}, tom:{padId:"A9",midiNote:44},
+           low808:{padId:"A10",midiNote:45}, shaker:{padId:"A11",midiNote:46}, perc:{padId:"A12",midiNote:47},
+           ride:{padId:"A13",midiNote:48}, crash:{padId:"A14",midiNote:49} }},
 ];
 
 const D_PROB = (p) => Math.random() < p;
@@ -1570,6 +1544,12 @@ function genBoomBapClassic() {
   }
   tracks.ghost = emptyDrumTrack();
   sprinkleGhosts(tracks.ghost, 0.08, 30);
+  // Ghost kicks — soft kicks before/after main kicks
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (tracks.kick[i] > 0 && i > 0 && tracks.kick[i-1] === 0 && D_PROB(0.25)) tracks.ghostKick[i-1] = D_VEL(45, 10);
+    if (tracks.kick[i] > 0 && i < DRUM_STEPS-1 && tracks.kick[i+1] === 0 && D_PROB(0.15)) tracks.ghostKick[i+1] = D_VEL(40, 10);
+  }
   return tracks;
 }
 
@@ -1589,6 +1569,11 @@ function genGriselda() {
   }
   tracks.rim = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (i%16===14 && D_PROB(0.5)) tracks.rim[i] = D_VEL(70);
+  // Ghost kicks — rare, menacing
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (tracks.kick[i] === 0 && i%4===2 && D_PROB(0.12)) tracks.ghostKick[i] = D_VEL(35, 8);
+  }
   return tracks;
 }
 
@@ -1631,6 +1616,11 @@ function genLofi() {
   sprinkleGhosts(tracks.ghost, 0.18, 28);
   tracks.shaker = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (i%2===1) tracks.shaker[i] = D_VEL(50, 10);
+  // Ghost kicks — lazy, swung feel
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (tracks.kick[i] > 0 && i < DRUM_STEPS-1 && tracks.kick[i+1] === 0 && D_PROB(0.3)) tracks.ghostKick[i+1] = D_VEL(35, 8);
+  }
   return tracks;
 }
 
@@ -1651,6 +1641,11 @@ function genDetroit() {
     else if (i%2===0) tracks.hatC[i] = D_VEL(60, 15);
     else if (D_PROB(0.4)) tracks.hatC[i] = D_VEL(45, 10);
   }
+  // Ghost kicks — Detroit bounce
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (tracks.kick[i] === 0 && i%2===1 && D_PROB(0.2)) tracks.ghostKick[i] = D_VEL(40, 10);
+  }
   return tracks;
 }
 
@@ -1662,11 +1657,11 @@ function genMemphisPhonk() {
   ];
   tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
   tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
-  tracks.bell  = emptyDrumTrack();
+  tracks.ride  = emptyDrumTrack();
   // Approximate triplet feel with 6-step interval (close enough on 16-grid)
   for (let i=0; i<DRUM_STEPS; i++) {
-    if (i%6===0) tracks.bell[i] = D_VEL(70, 15);
-    else if (i%6===3) tracks.bell[i] = D_VEL(60, 15);
+    if (i%6===0) tracks.ride[i] = D_VEL(70, 15);
+    else if (i%6===3) tracks.ride[i] = D_VEL(60, 15);
   }
   tracks.rim = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (i%16===10 && D_PROB(0.5)) tracks.rim[i] = D_VEL(75);
@@ -1708,8 +1703,9 @@ function genExperimental() {
   });
   tracks.perc = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.12)) tracks.perc[i] = D_VEL(60, 20);
-  tracks.fx1 = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.04)) tracks.fx1[i] = D_VEL(70, 15);
+  // Ghost kicks — random scattered
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (tracks.kick[i] === 0 && D_PROB(0.06)) tracks.ghostKick[i] = D_VEL(40, 15);
   return tracks;
 }
 
@@ -5471,7 +5467,7 @@ export default function App() {
                               color:isSolo?t.accent:t.textTertiary, cursor:"pointer", fontFamily:SF, letterSpacing:"0.05em" }}>
                             S
                           </button>
-                          {(track.id==="hatC"||track.id==="hatO"||track.id==="bell"||track.id==="ride"||track.id==="shaker") && (
+                          {(track.id==="hatC"||track.id==="hatO"||track.id==="ride"||track.id==="shaker") && (
                             <button onClick={() => setTripletTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                               title={isTriplet ? "16th grid" : "Triplet grid"}
                               style={{ fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:3,
