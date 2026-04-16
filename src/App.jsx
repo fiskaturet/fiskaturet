@@ -1795,7 +1795,10 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   const [detected,  setDetected]    = useState(null);  // [{ freq, note, noteIdx, chord }]
   const [countdown, setCountdown]   = useState(0);
   const [level,     setLevel]       = useState(0);     // mic input level 0-1
+  const [liveNote,  setLiveNote]    = useState(null);   // { raw, snapped } during recording
+  const [currentBar,setCurrentBar]  = useState(0);      // 1-based bar during recording
   const [playingRef_,setPlayingRef] = useState(false);  // true while reference tone/scale plays
+  const [metronome, setMetronome]   = useState(true);   // metronome on/off
   const streamRef      = useRef(null);
   const audioCtxRef    = useRef(null);
   const analyserRef    = useRef(null);
@@ -1803,6 +1806,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   const recordBufRef   = useRef([]);
   const countdownRef   = useRef(null);
   const refTimeouts    = useRef([]);
+  const metroTimeouts  = useRef([]);
 
   // ── Cleanup on unmount ──
   useEffect(() => () => {
@@ -1811,6 +1815,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
     if (countdownRef.current) clearInterval(countdownRef.current);
     refTimeouts.current.forEach(id => clearTimeout(id));
+    metroTimeouts.current.forEach(id => clearTimeout(id));
   }, []);
 
   // ── Reference tone helpers ──
@@ -1846,6 +1851,28 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
       }, i * gap));
     });
     refTimeouts.current.push(setTimeout(() => setPlayingRef(false), noteList.length * gap + 200));
+  };
+
+  // ── Snap to nearest scale note (autotune) ──
+  const snapToScale = (noteIdx) => {
+    const scaleNotes = SCALES[scaleKey].intervals.map(iv => (rootIdx + iv) % 12);
+    let bestNote = noteIdx, bestDist = 99;
+    scaleNotes.forEach(sn => {
+      const dist = Math.min(Math.abs(noteIdx - sn), 12 - Math.abs(noteIdx - sn));
+      if (dist < bestDist) { bestDist = dist; bestNote = sn; }
+    });
+    return { snapped: bestNote, snappedName: NOTES[bestNote], wasAdjusted: bestNote !== noteIdx };
+  };
+
+  // ── Metronome click via Tone.js synth ──
+  const playClick = (accent) => {
+    const synth = new Tone.Synth({
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 },
+      volume: accent ? -8 : -14,
+    }).toDestination();
+    synth.triggerAttackRelease(accent ? "C6" : "G5", 0.03);
+    setTimeout(() => synth.dispose(), 200);
   };
 
   // ── Harmonize a melody note into a chord from the scale ──
@@ -1892,7 +1919,12 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   const startRecording = async () => {
     setDetected(null);
     setAnalyzing(false);
+    setLiveNote(null);
+    setCurrentBar(0);
+    metroTimeouts.current.forEach(id => clearTimeout(id));
+    metroTimeouts.current = [];
     try {
+      await Tone.start();
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const analyser = audioCtx.createAnalyser();
@@ -1905,15 +1937,36 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
       const sampleRate = audioCtx.sampleRate;
       const buf = new Float32Array(analyser.fftSize);
       const durationSec = (humBars * 4 * 60) / humBpm; // bars * beats * seconds/beat
+      const barDurMs = (4 * 60 / humBpm) * 1000; // duration of one bar in ms
+      const beatDurMs = (60 / humBpm) * 1000;     // duration of one beat in ms
       const startTime = Date.now();
       recordBufRef.current = [];
 
-      // Countdown
+      // Countdown timer
       setCountdown(Math.ceil(durationSec));
       countdownRef.current = setInterval(() => {
         const remaining = Math.max(0, Math.ceil(durationSec - (Date.now() - startTime) / 1000));
         setCountdown(remaining);
       }, 250);
+
+      // Schedule metronome clicks and bar changes
+      if (metronome) {
+        for (let bar = 0; bar < humBars; bar++) {
+          for (let beat = 0; beat < 4; beat++) {
+            const clickTime = bar * barDurMs + beat * beatDurMs;
+            metroTimeouts.current.push(setTimeout(() => {
+              playClick(beat === 0); // accent on beat 1
+            }, clickTime));
+          }
+          // Update current bar display
+          metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
+        }
+      } else {
+        // Still update bar display without metronome
+        for (let bar = 0; bar < humBars; bar++) {
+          metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
+        }
+      }
 
       setRecording(true);
 
@@ -1923,6 +1976,8 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         if (Date.now() - startTime > durationSec * 1000) {
           // Done recording
           setRecording(false);
+          setLiveNote(null);
+          setCurrentBar(0);
           clearInterval(countdownRef.current);
           setCountdown(0);
           stream.getTracks().forEach(tr => tr.stop());
@@ -1939,8 +1994,13 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         const freq = detectPitchAutocorr(buf, sampleRate);
         if (freq && freq > 60 && freq < 1200) {
           const midi = 12 * Math.log2(freq / 440) + 69;
-          const noteIdx = Math.round(midi) % 12;
-          snapshots.push({ time: Date.now() - startTime, freq, midi, noteIdx: ((noteIdx % 12) + 12) % 12 });
+          const rawIdx = ((Math.round(midi) % 12) + 12) % 12;
+          const rawName = NOTES[rawIdx];
+          const { snapped, snappedName, wasAdjusted } = freeMode ? { snapped: rawIdx, snappedName: NOTES[rawIdx], wasAdjusted: false } : snapToScale(rawIdx);
+          setLiveNote({ raw: rawName, snapped: snappedName, wasAdjusted, freq: freq.toFixed(0) });
+          snapshots.push({ time: Date.now() - startTime, freq, midi, noteIdx: rawIdx });
+        } else {
+          setLiveNote(null);
         }
         rafRef.current = requestAnimationFrame(captureLoop);
       };
@@ -1956,8 +2016,12 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
     if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
     clearInterval(countdownRef.current);
+    metroTimeouts.current.forEach(id => clearTimeout(id));
+    metroTimeouts.current = [];
     setRecording(false);
     setCountdown(0);
+    setLiveNote(null);
+    setCurrentBar(0);
   };
 
   // ── Analyze captured pitch snapshots → melody notes → chords ──
@@ -1988,13 +2052,15 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
       counts.forEach((c, i) => { if (c > bestCount) { bestCount = c; bestNote = i; } });
       const avgFreq = segSnaps.filter(sn => sn.noteIdx === bestNote).reduce((s, sn) => s + sn.freq, 0) /
                       segSnaps.filter(sn => sn.noteIdx === bestNote).length;
-      melodyNotes.push({ noteIdx: bestNote, freq: avgFreq, noteName: NOTES[bestNote], count: bestCount });
+      // Snap to scale (autotune)
+      const snap = freeMode ? { snapped: bestNote, snappedName: NOTES[bestNote], wasAdjusted: false } : snapToScale(bestNote);
+      melodyNotes.push({ noteIdx: bestNote, freq: avgFreq, noteName: NOTES[bestNote], count: bestCount, ...snap });
     }
 
-    // Harmonize each melody note
+    // Harmonize each melody note (use snapped note for harmonization)
     const results = melodyNotes.map(mn => {
       if (!mn) return null;
-      const chord = harmonize(mn.noteIdx, rootIdx, scaleKey, freeMode);
+      const chord = harmonize(mn.snapped, rootIdx, scaleKey, freeMode);
       return { ...mn, chord };
     });
 
@@ -2069,22 +2135,70 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
             Spill skala
           </button>
+          <div style={{ width:1, height:24, background:t.border }} />
+          <button onClick={() => setMetronome(m => !m)}
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+              border:`1.5px solid ${metronome ? "#34C759" : t.inputBorder}`,
+              background: metronome ? "rgba(52,199,89,0.08)" : t.elevatedBg,
+              color: metronome ? "#34C759" : t.textTertiary, cursor:"pointer", transition:"all 0.15s ease" }}>
+            Metronom {metronome ? "på" : "av"}
+          </button>
         </div>
       </div>
 
       {/* ── Record card ── */}
       <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}`, textAlign:"center" }}>
-        {/* Level meter */}
+        {/* Live recording display */}
         {recording && (
           <div style={{ marginBottom:14 }}>
-            <div style={{ fontSize:42, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", marginBottom:6 }}>
-              {countdown}s
+            {/* Bar indicator */}
+            <div style={{ display:"flex", justifyContent:"center", gap:8, marginBottom:12 }}>
+              {Array.from({ length: humBars }, (_, i) => (
+                <div key={i} style={{
+                  width:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center",
+                  fontSize:16, fontWeight:700, fontFamily:SF2,
+                  background: currentBar === i + 1 ? t.accent : t.elevatedBg,
+                  color: currentBar === i + 1 ? "#FFFFFF" : t.textTertiary,
+                  border: `2px solid ${currentBar === i + 1 ? t.accent : t.border}`,
+                  transition:"all 0.15s ease",
+                  boxShadow: currentBar === i + 1 ? `0 0 16px rgba(122,91,175,0.4)` : "none",
+                }}>
+                  {i + 1}
+                </div>
+              ))}
             </div>
-            <div style={{ height:8, borderRadius:4, background:t.elevatedBg, overflow:"hidden", maxWidth:300, margin:"0 auto" }}>
-              <div style={{ height:"100%", borderRadius:4, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
+            <div style={{ fontSize:12, fontWeight:600, color:t.textSecondary, fontFamily:SF2, marginBottom:8 }}>
+              {currentBar > 0 ? `Takt ${currentBar} av ${humBars}` : "Klar…"}
+            </div>
+
+            {/* Live detected note */}
+            <div style={{ minHeight:60, display:"flex", alignItems:"center", justifyContent:"center", marginBottom:8 }}>
+              {liveNote ? (
+                <div>
+                  <div style={{ fontSize:48, fontWeight:700, color: liveNote.wasAdjusted ? "#FF9500" : "#34C759",
+                    fontFamily:"'Share Tech Mono',monospace", lineHeight:1 }}>
+                    {liveNote.snapped}
+                  </div>
+                  {liveNote.wasAdjusted && (
+                    <div style={{ fontSize:11, color:t.textTertiary, fontFamily:SF2, marginTop:2 }}>
+                      du sang {liveNote.raw} → snappet til {liveNote.snapped}
+                    </div>
+                  )}
+                  <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace" }}>
+                    {liveNote.freq} Hz
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontSize:16, color:t.textTertiary, fontFamily:SF2 }}>…</div>
+              )}
+            </div>
+
+            {/* Level meter */}
+            <div style={{ height:6, borderRadius:3, background:t.elevatedBg, overflow:"hidden", maxWidth:300, margin:"0 auto", marginBottom:4 }}>
+              <div style={{ height:"100%", borderRadius:3, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
                 width:`${Math.min(100, level * 100)}%`, transition:"width 0.05s" }} />
             </div>
-            <div style={{ fontSize:11, color:t.textTertiary, marginTop:6, fontFamily:SF2 }}>Nynn én tone per takt…</div>
+            <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF2 }}>{countdown}s igjen</div>
           </div>
         )}
 
@@ -2129,8 +2243,13 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                     {d ? (
                       <>
                         <div style={{ fontSize:13, color:t.textSecondary, marginBottom:2, fontFamily:SF2 }}>
-                          Melodi: <strong style={{ color:t.textPrimary }}>{d.noteName}</strong>
-                          <span style={{ fontSize:11, color:t.textTertiary }}> ({d.freq.toFixed(0)} Hz)</span>
+                          Nynnet: <strong style={{ color: d.wasAdjusted ? "#FF9500" : t.textPrimary }}>{d.noteName}</strong>
+                          {d.wasAdjusted && (
+                            <span style={{ fontSize:11, color:"#FF9500" }}> → {d.snappedName}</span>
+                          )}
+                        </div>
+                        <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", marginBottom:4 }}>
+                          {d.freq.toFixed(0)} Hz {d.wasAdjusted ? "(justert)" : ""}
                         </div>
                         <div style={{ fontSize:22, fontWeight:700, color:t.accent, fontFamily:SF2 }}>
                           {d.chord.display}
