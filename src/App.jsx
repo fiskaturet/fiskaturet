@@ -1896,7 +1896,8 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   const [humBars,   setHumBars]     = useState(4);
   const [humBpm,    setHumBpm]      = useState(90);
   const [freeMode,  setFreeMode]    = useState(false); // false = use scale, true = chromatic
-  const [detected,  setDetected]    = useState(null);  // [{ freq, note, noteIdx, chord }]
+  const [freeLength,setFreeLength]  = useState(false); // false = fixed bars, true = sing until stop
+  const [detected,  setDetected]    = useState(null);  // [{ freq, note, noteIdx, chord, durationSlots }]
   const [countdown, setCountdown]   = useState(0);
   const [level,     setLevel]       = useState(0);     // mic input level 0-1
   const [liveNote,  setLiveNote]    = useState(null);   // { raw, snapped } during recording
@@ -1968,15 +1969,23 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
     return { snapped: bestNote, snappedName: NOTES[bestNote], wasAdjusted: bestNote !== noteIdx };
   };
 
-  // ── Metronome click via Tone.js synth ──
+  // ── Metronome click — plays root note on beat 1, higher octave on other beats ──
   const playClick = (accent) => {
-    const synth = new Tone.Synth({
-      oscillator: { type: "triangle" },
-      envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.05 },
-      volume: accent ? -8 : -14,
-    }).toDestination();
-    synth.triggerAttackRelease(accent ? "C6" : "G5", 0.03);
-    setTimeout(() => synth.dispose(), 200);
+    const rootNote = NOTES[rootIdx];
+    const inst = getSampler();
+    if (accent) {
+      // Beat 1: play root note as reference pitch
+      try { inst.triggerAttackRelease(rootNote + "4", 0.3, Tone.now(), 0.35); } catch(e) {}
+    } else {
+      // Other beats: short quiet tick
+      const synth = new Tone.Synth({
+        oscillator: { type: "triangle" },
+        envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.03 },
+        volume: -18,
+      }).toDestination();
+      synth.triggerAttackRelease(rootNote + "5", 0.02);
+      setTimeout(() => synth.dispose(), 200);
+    }
   };
 
   // ── Harmonize a melody note into a chord from the scale ──
@@ -2020,11 +2029,30 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   }
 
   // ── Record & analyze ──
+  const snapshotsRef = useRef([]);
+
+  const finishRecording = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
+    clearInterval(countdownRef.current);
+    metroTimeouts.current.forEach(id => clearTimeout(id));
+    metroTimeouts.current = [];
+    setRecording(false);
+    setLiveNote(null);
+    setCurrentBar(0);
+    setCountdown(0);
+    if (snapshotsRef.current.length > 0) {
+      analyzeSnapshots(snapshotsRef.current);
+    }
+  };
+
   const startRecording = async () => {
     setDetected(null);
     setAnalyzing(false);
     setLiveNote(null);
     setCurrentBar(0);
+    snapshotsRef.current = [];
     metroTimeouts.current.forEach(id => clearTimeout(id));
     metroTimeouts.current = [];
     try {
@@ -2040,61 +2068,68 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
 
       const sampleRate = audioCtx.sampleRate;
       const buf = new Float32Array(analyser.fftSize);
-      const durationSec = (humBars * 4 * 60) / humBpm; // bars * beats * seconds/beat
-      const barDurMs = (4 * 60 / humBpm) * 1000; // duration of one bar in ms
-      const beatDurMs = (60 / humBpm) * 1000;     // duration of one beat in ms
+      const durationSec = freeLength ? 120 : (humBars * 4 * 60) / humBpm; // free: max 2min
+      const barDurMs = (4 * 60 / humBpm) * 1000;
+      const beatDurMs = (60 / humBpm) * 1000;
       const startTime = Date.now();
-      recordBufRef.current = [];
 
-      // Countdown timer
-      setCountdown(Math.ceil(durationSec));
-      countdownRef.current = setInterval(() => {
-        const remaining = Math.max(0, Math.ceil(durationSec - (Date.now() - startTime) / 1000));
-        setCountdown(remaining);
-      }, 250);
-
-      // Schedule metronome clicks and bar changes
-      if (metronome) {
-        for (let bar = 0; bar < humBars; bar++) {
-          for (let beat = 0; beat < 4; beat++) {
-            const clickTime = bar * barDurMs + beat * beatDurMs;
-            metroTimeouts.current.push(setTimeout(() => {
-              playClick(beat === 0); // accent on beat 1
-            }, clickTime));
-          }
-          // Update current bar display
-          metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
-        }
+      // Countdown timer (counts up in free mode)
+      if (freeLength) {
+        setCountdown(0);
+        countdownRef.current = setInterval(() => {
+          setCountdown(Math.floor((Date.now() - startTime) / 1000));
+        }, 250);
       } else {
-        // Still update bar display without metronome
-        for (let bar = 0; bar < humBars; bar++) {
-          metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
+        setCountdown(Math.ceil(durationSec));
+        countdownRef.current = setInterval(() => {
+          const remaining = Math.max(0, Math.ceil(durationSec - (Date.now() - startTime) / 1000));
+          setCountdown(remaining);
+        }, 250);
+      }
+
+      // Schedule metronome clicks and bar changes (fixed mode only)
+      if (!freeLength) {
+        if (metronome) {
+          for (let bar = 0; bar < humBars; bar++) {
+            for (let beat = 0; beat < 4; beat++) {
+              const clickTime = bar * barDurMs + beat * beatDurMs;
+              metroTimeouts.current.push(setTimeout(() => playClick(beat === 0), clickTime));
+            }
+            metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
+          }
+        } else {
+          for (let bar = 0; bar < humBars; bar++) {
+            metroTimeouts.current.push(setTimeout(() => setCurrentBar(bar + 1), bar * barDurMs));
+          }
         }
+      } else if (metronome) {
+        // Free mode: continuous metronome on BPM beats (root on beat 1 of each bar)
+        let beatIdx = 0;
+        const scheduleBeats = () => {
+          const clickTime = beatIdx * beatDurMs;
+          if (clickTime > durationSec * 1000) return;
+          metroTimeouts.current.push(setTimeout(() => {
+            playClick(beatIdx % 4 === 0);
+            if (beatIdx % 4 === 0) setCurrentBar(Math.floor(beatIdx / 4) + 1);
+          }, clickTime));
+          beatIdx++;
+          if (beatIdx < 500) scheduleBeats(); // safety limit
+        };
+        scheduleBeats();
       }
 
       setRecording(true);
 
-      // Capture pitch snapshots at ~30fps
-      const snapshots = [];
       const captureLoop = () => {
-        if (Date.now() - startTime > durationSec * 1000) {
-          // Done recording
-          setRecording(false);
-          setLiveNote(null);
-          setCurrentBar(0);
-          clearInterval(countdownRef.current);
-          setCountdown(0);
-          stream.getTracks().forEach(tr => tr.stop());
-          if (audioCtx.state !== "closed") audioCtx.close();
-          analyzeSnapshots(snapshots, sampleRate);
+        const elapsed = Date.now() - startTime;
+        if (elapsed > durationSec * 1000) {
+          finishRecording();
           return;
         }
         analyser.getFloatTimeDomainData(buf);
-        // Level meter
         let rms = 0;
         for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
         setLevel(Math.min(1, Math.sqrt(rms / buf.length) * 10));
-        // Detect pitch
         const freq = detectPitchAutocorr(buf, sampleRate);
         if (freq && freq > 60 && freq < 1200) {
           const midi = 12 * Math.log2(freq / 440) + 69;
@@ -2102,7 +2137,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
           const rawName = NOTES[rawIdx];
           const { snapped, snappedName, wasAdjusted } = freeMode ? { snapped: rawIdx, snappedName: NOTES[rawIdx], wasAdjusted: false } : snapToScale(rawIdx);
           setLiveNote({ raw: rawName, snapped: snappedName, wasAdjusted, freq: freq.toFixed(0) });
-          snapshots.push({ time: Date.now() - startTime, freq, midi, noteIdx: rawIdx });
+          snapshotsRef.current.push({ time: elapsed, freq, midi, noteIdx: rawIdx });
         } else {
           setLiveNote(null);
         }
@@ -2116,67 +2151,103 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   };
 
   const stopRecording = () => {
-    if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
-    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
-    clearInterval(countdownRef.current);
-    metroTimeouts.current.forEach(id => clearTimeout(id));
-    metroTimeouts.current = [];
-    setRecording(false);
-    setCountdown(0);
-    setLiveNote(null);
-    setCurrentBar(0);
+    snapshotsRef.current = snapshotsRef.current.length > 0 ? snapshotsRef.current : [];
+    finishRecording();
   };
 
   // ── Analyze captured pitch snapshots → melody notes → chords ──
-  const analyzeSnapshots = (snapshots, sampleRate) => {
+  const analyzeSnapshots = (snapshots) => {
     setAnalyzing(true);
     if (snapshots.length < 4) {
       setDetected([]); setAnalyzing(false); return;
     }
 
-    // Segment into N equal time slices (one per bar)
     const totalTime = snapshots[snapshots.length - 1].time;
-    const segments = humBars;
-    const segDur = totalTime / segments;
 
-    const melodyNotes = [];
-    for (let s = 0; s < segments; s++) {
-      const segStart = s * segDur;
-      const segEnd   = (s + 1) * segDur;
-      const segSnaps = snapshots.filter(sn => sn.time >= segStart && sn.time < segEnd);
-      if (segSnaps.length === 0) {
-        melodyNotes.push(null);
-        continue;
+    if (!freeLength) {
+      // ── Fixed bars: segment into equal time slices ──
+      const segments = humBars;
+      const segDur = totalTime / segments;
+      const melodyNotes = [];
+      for (let s = 0; s < segments; s++) {
+        const segStart = s * segDur;
+        const segEnd   = (s + 1) * segDur;
+        const segSnaps = snapshots.filter(sn => sn.time >= segStart && sn.time < segEnd);
+        if (segSnaps.length === 0) { melodyNotes.push(null); continue; }
+        const counts = new Array(12).fill(0);
+        segSnaps.forEach(sn => counts[sn.noteIdx]++);
+        let bestNote = 0, bestCount = 0;
+        counts.forEach((c, i) => { if (c > bestCount) { bestCount = c; bestNote = i; } });
+        const avgFreq = segSnaps.filter(sn => sn.noteIdx === bestNote).reduce((s, sn) => s + sn.freq, 0) /
+                        segSnaps.filter(sn => sn.noteIdx === bestNote).length;
+        const snap = freeMode ? { snapped: bestNote, snappedName: NOTES[bestNote], wasAdjusted: false } : snapToScale(bestNote);
+        melodyNotes.push({ noteIdx: bestNote, freq: avgFreq, noteName: NOTES[bestNote], count: bestCount, durationMs: segDur, ...snap });
       }
-      // Find the most common noteIdx in this segment (mode)
-      const counts = new Array(12).fill(0);
-      segSnaps.forEach(sn => counts[sn.noteIdx]++);
-      let bestNote = 0, bestCount = 0;
-      counts.forEach((c, i) => { if (c > bestCount) { bestCount = c; bestNote = i; } });
-      const avgFreq = segSnaps.filter(sn => sn.noteIdx === bestNote).reduce((s, sn) => s + sn.freq, 0) /
-                      segSnaps.filter(sn => sn.noteIdx === bestNote).length;
-      // Snap to scale (autotune)
-      const snap = freeMode ? { snapped: bestNote, snappedName: NOTES[bestNote], wasAdjusted: false } : snapToScale(bestNote);
-      melodyNotes.push({ noteIdx: bestNote, freq: avgFreq, noteName: NOTES[bestNote], count: bestCount, ...snap });
+      const results = melodyNotes.map(mn => {
+        if (!mn) return null;
+        const chord = harmonize(mn.snapped, rootIdx, scaleKey, freeMode);
+        return { ...mn, chord };
+      });
+      setDetected(results);
+    } else {
+      // ── Free length: detect note changes by tracking pitch stability ──
+      const regions = [];
+      let curNote = snapshots[0].noteIdx;
+      let regionStart = snapshots[0].time;
+      let regionSnaps = [snapshots[0]];
+
+      for (let i = 1; i < snapshots.length; i++) {
+        const sn = snapshots[i];
+        const snapped = freeMode ? sn.noteIdx : snapToScale(sn.noteIdx).snapped;
+        const curSnapped = freeMode ? curNote : snapToScale(curNote).snapped;
+        if (snapped !== curSnapped) {
+          // Note changed — close current region
+          const dur = sn.time - regionStart;
+          if (dur > 150 && regionSnaps.length > 3) { // min 150ms to count as a note
+            regions.push({ noteIdx: curNote, startMs: regionStart, durationMs: dur, snaps: regionSnaps });
+          }
+          curNote = sn.noteIdx;
+          regionStart = sn.time;
+          regionSnaps = [sn];
+        } else {
+          regionSnaps.push(sn);
+        }
+      }
+      // Close final region
+      const finalDur = totalTime - regionStart;
+      if (finalDur > 150 && regionSnaps.length > 3) {
+        regions.push({ noteIdx: curNote, startMs: regionStart, durationMs: finalDur, snaps: regionSnaps });
+      }
+
+      const results = regions.map(r => {
+        const avgFreq = r.snaps.reduce((s, sn) => s + sn.freq, 0) / r.snaps.length;
+        const snap = freeMode ? { snapped: r.noteIdx, snappedName: NOTES[r.noteIdx], wasAdjusted: false } : snapToScale(r.noteIdx);
+        const chord = harmonize(snap.snapped, rootIdx, scaleKey, freeMode);
+        return { noteIdx: r.noteIdx, freq: avgFreq, noteName: NOTES[r.noteIdx], durationMs: r.durationMs, ...snap, chord };
+      });
+      setDetected(results);
     }
-
-    // Harmonize each melody note (use snapped note for harmonization)
-    const results = melodyNotes.map(mn => {
-      if (!mn) return null;
-      const chord = harmonize(mn.snapped, rootIdx, scaleKey, freeMode);
-      return { ...mn, chord };
-    });
-
-    setDetected(results);
     setAnalyzing(false);
   };
 
   // ── Place chords in timeline ──
   const placeInTimeline = () => {
     if (!detected || detected.length === 0) return;
-    const chords = detected.map(d => d ? d.chord : null).filter(Boolean);
-    onChordsReady(chords);
+    if (freeLength) {
+      // Variable-length chords based on humming duration
+      const totalMs = detected.reduce((s, d) => s + (d?.durationMs || 0), 0);
+      const slotDurMs = totalMs / 64; // map total duration to 64 slots
+      const chords = [];
+      detected.forEach(d => {
+        if (!d) return;
+        const slots = Math.max(1, Math.round((d.durationMs || slotDurMs) / slotDurMs));
+        chords.push({ chord: d.chord, lengthSlots: Math.min(slots, 32) });
+      });
+      onChordsReady(chords);
+    } else {
+      const chords = detected.map(d => d ? d.chord : null).filter(Boolean);
+      onChordsReady(chords);
+    }
   };
 
   const durationSec = (humBars * 4 * 60) / humBpm;
@@ -2193,13 +2264,13 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         </p>
 
         <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"flex-end", marginBottom:16 }}>
-          <div>
+          {!freeLength && <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Bars</label>
             <select value={humBars} onChange={e => setHumBars(Number(e.target.value))}
               style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer" }}>
               {[2,3,4,6,8].map(n => <option key={n} value={n}>{n} bars</option>)}
             </select>
-          </div>
+          </div>}
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Tempo</label>
             <input type="number" min={40} max={200} value={humBpm} onChange={e => setHumBpm(Number(e.target.value))}
@@ -2215,10 +2286,20 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               {freeMode ? "Free detection" : "Use selected scale"}
             </button>
           </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Length</label>
+            <button onClick={() => setFreeLength(f => !f)}
+              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:10,
+                border:`1.5px solid ${freeLength ? "#34C759" : t.inputBorder}`,
+                background: freeLength ? "rgba(52,199,89,0.08)" : t.elevatedBg,
+                color: freeLength ? "#34C759" : t.textSecondary, cursor:"pointer" }}>
+              {freeLength ? "Free length" : "Fixed bars"}
+            </button>
+          </div>
         </div>
 
         <div style={{ fontSize:12, color:t.textTertiary, fontFamily:SF2, marginBottom:14 }}>
-          Recording: {durationSec.toFixed(1)}s ({humBars} bars × {humBpm} BPM)
+          {freeLength ? "Free recording — press Stop when done" : `Recording: ${durationSec.toFixed(1)}s (${humBars} bars × ${humBpm} BPM)`}
           {!freeMode && ` · Skala: ${NOTES[rootIdx]} ${SCALE_DESCRIPTIONS[scaleKey]?.label || scaleKey}`}
         </div>
 
@@ -2255,22 +2336,28 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         {/* Live recording display */}
         {recording && (
           <div style={{ marginBottom:14 }}>
-            {/* Bar indicator */}
-            <div style={{ display:"flex", justifyContent:"center", gap:8, marginBottom:12 }}>
-              {Array.from({ length: humBars }, (_, i) => (
-                <div key={i} style={{
-                  width:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center",
-                  fontSize:16, fontWeight:700, fontFamily:SF2,
-                  background: currentBar === i + 1 ? t.accent : t.elevatedBg,
-                  color: currentBar === i + 1 ? "#FFFFFF" : t.textTertiary,
-                  border: `2px solid ${currentBar === i + 1 ? t.accent : t.border}`,
-                  transition:"all 0.15s ease",
-                  boxShadow: currentBar === i + 1 ? `0 0 16px rgba(122,91,175,0.4)` : "none",
-                }}>
-                  {i + 1}
-                </div>
-              ))}
-            </div>
+            {/* Bar indicator (fixed mode) or elapsed timer (free mode) */}
+            {freeLength ? (
+              <div style={{ fontSize:36, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", marginBottom:8 }}>
+                {countdown}s
+              </div>
+            ) : (
+              <div style={{ display:"flex", justifyContent:"center", gap:8, marginBottom:12 }}>
+                {Array.from({ length: humBars }, (_, i) => (
+                  <div key={i} style={{
+                    width:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center",
+                    fontSize:16, fontWeight:700, fontFamily:SF2,
+                    background: currentBar === i + 1 ? t.accent : t.elevatedBg,
+                    color: currentBar === i + 1 ? "#FFFFFF" : t.textTertiary,
+                    border: `2px solid ${currentBar === i + 1 ? t.accent : t.border}`,
+                    transition:"all 0.15s ease",
+                    boxShadow: currentBar === i + 1 ? `0 0 16px rgba(122,91,175,0.4)` : "none",
+                  }}>
+                    {i + 1}
+                  </div>
+                ))}
+              </div>
+            )}
             <div style={{ fontSize:12, fontWeight:600, color:t.textSecondary, fontFamily:SF2, marginBottom:8 }}>
               {currentBar > 0 ? `Bar ${currentBar} of ${humBars}` : "Ready…"}
             </div>
@@ -3102,14 +3189,18 @@ export default function App() {
                 stopLoop();
                 let slot = 0;
                 const items = [];
-                chords.forEach(chord => {
+                chords.forEach(c => {
                   if (slot >= TIMELINE_SLOTS) return;
-                  const len = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
+                  // Support both plain chords and { chord, lengthSlots } objects
+                  const chord = c.chord || c;
+                  const requestedLen = c.lengthSlots || DEFAULT_CHORD_LEN;
+                  const len = Math.min(requestedLen, TIMELINE_SLOTS - slot);
                   items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len });
                   slot += len;
                 });
                 setTimelineItems(items);
-                if (chords.length > 0) setActiveChord(chords[0]);
+                const first = chords[0]?.chord || chords[0];
+                if (first) setActiveChord(first);
                 setMode("chords");
               }}
             />
