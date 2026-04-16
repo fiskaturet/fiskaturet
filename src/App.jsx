@@ -4072,6 +4072,7 @@ export default function App() {
   const clockTickTimesRef = useRef([]);
   const clockReceiveCleanup = useRef(null);
   const [externalBpm, setExternalBpm] = useState(null); // non-null = receiving clock
+  const [clockDebug, setClockDebug] = useState(""); // debug: tick rate info
   const externalBpmTimeout = useRef(null);
   useEffect(() => {
     // Clean up previous listener
@@ -4090,15 +4091,19 @@ export default function App() {
         // Clock tick — 24 PPQ
         const now = performance.now();
         tickTimes.push(now);
-        // Keep last 48 ticks (2 beats) for smooth averaging
-        if (tickTimes.length > 48) tickTimes.shift();
-        // Use 6 ticks for fast initial lock, 24 for stable average
-        const window = tickTimes.length >= 24 ? 24 : tickTimes.length >= 6 ? 6 : 0;
-        if (window > 0) {
-          const span = tickTimes[tickTimes.length - 1] - tickTimes[tickTimes.length - window];
-          const msPerTick = span / (window - 1);
-          const msPerBeat = msPerTick * 24;
+        // Keep last 96 ticks (4 beats) — discard ticks older than 3 seconds (prevents stale data)
+        if (tickTimes.length > 96) tickTimes.shift();
+        const cutoff = now - 3000;
+        while (tickTimes.length > 0 && tickTimes[0] < cutoff) tickTimes.shift();
+        // Need at least 24 ticks (1 full beat at 24 PPQ) for reliable BPM
+        if (tickTimes.length >= 24) {
+          // Use exactly 24 ticks back = 1 beat worth of ticks
+          const idx = tickTimes.length - 24;
+          const span = now - tickTimes[idx]; // time for 23 tick intervals
+          const msPerBeat = (span / 23) * 24; // scale to full 24-tick beat
           const derivedBpm = Math.round(60000 / msPerBeat);
+          const avgTickMs = span / 23;
+          setClockDebug(`${tickTimes.length} ticks, ${avgTickMs.toFixed(1)}ms/tick, beat=${msPerBeat.toFixed(0)}ms`);
           if (derivedBpm >= 30 && derivedBpm <= 300) {
             setBpm(prev => Math.abs(prev - derivedBpm) >= 1 ? derivedBpm : prev);
             setExternalBpm(derivedBpm);
@@ -4113,9 +4118,10 @@ export default function App() {
       }
     };
 
-    // Listen on ALL MIDI inputs
+    // Listen on ALL MIDI inputs (avoid duplicate handlers)
     const inputs = [];
     midiAccess.current.inputs.forEach(input => {
+      input.onmidimessage = null; // clear any previous
       input.onmidimessage = onMidiMessage;
       inputs.push(input);
     });
@@ -5799,6 +5805,9 @@ export default function App() {
                     <span style={{ fontSize:11, fontWeight:600, color: externalBpm ? "#30D158" : t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>
                       {externalBpm ? "BPM ← MPC" : "BPM"}
                     </span>
+                    {clockDebug && midiSyncMode === "receive" && (
+                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.7 }}>{clockDebug}</span>
+                    )}
                     {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
                       readOnly={!!externalBpm}
