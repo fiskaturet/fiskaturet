@@ -2868,6 +2868,9 @@ export default function App() {
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
   const [bassPattern, setBassPattern] = useState("root");
   const [bassVisible, setBassVisible] = useState(false);
+  // ── Mute controls ──
+  const [muteChords, setMuteChords] = useState(false);
+  const [muteBass, setMuteBass] = useState(false);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
@@ -3333,7 +3336,8 @@ export default function App() {
     };
 
     const doSchedule = () => {
-      timelineItems.forEach(item => {
+      // Chords (skip if muted)
+      if (!muteChords) timelineItems.forEach(item => {
         const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         // Filter out muted notes from piano roll
         const noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
@@ -3470,7 +3474,7 @@ export default function App() {
       }
 
       // ── Bass line scheduling ──
-      if (bassLine.length > 0) {
+      if (bassLine.length > 0 && !muteBass) {
         bassLine.forEach(note => {
           if (note.muted) return;
           const startSec = note.startSlot * slotSec;
@@ -3522,7 +3526,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks)]);
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass]);
 
   return (
     <>
@@ -4239,10 +4243,11 @@ export default function App() {
                     {/* BPM */}
                     <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>BPM</span>
                     <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
-                    <input type="number" min={40} max={240} value={bpm}
-                      onChange={e => { const v=parseInt(e.target.value); if(!isNaN(v)&&v>=40&&v<=240) setBpm(v); else if(e.target.value==="") setBpm(e.target.value); }}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
+                      onChange={e => { const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
                       onBlur={e => { const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:15, textAlign:"center", width:58, padding:"4px 6px", borderRadius:8, border:`1px solid rgba(122,91,175,0.3)`, background:t.inputBg, color:t.accent, colorScheme:"dark", appearance:"textfield", MozAppearance:"textfield", letterSpacing:"0.08em" }}
+                      onKeyDown={e => { if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
+                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:8, border:`1.5px solid rgba(122,91,175,0.35)`, background:t.inputBg, color:t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
                     />
                     <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
                     <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
@@ -4652,6 +4657,26 @@ export default function App() {
                       cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
                     {looping ? "⬛ Stop" : "▶  Play"}
                   </button>
+                  {/* Mute toggles */}
+                  <button onClick={() => setMuteChords(m => !m)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
+                      border:`1px solid ${muteChords ? "#FF453A" : t.btnBorder}`,
+                      background: muteChords ? "rgba(255,69,58,0.1)" : t.btnBg,
+                      color: muteChords ? "#FF453A" : t.btnColor, cursor:"pointer", transition:"all 0.12s",
+                      textDecoration: muteChords ? "line-through" : "none" }}>
+                    Chords
+                  </button>
+                  <button onClick={() => setMuteBass(m => !m)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
+                      border:`1px solid ${muteBass ? "#FF453A" : bassLine.length === 0 ? t.border : t.btnBorder}`,
+                      background: muteBass ? "rgba(255,69,58,0.1)" : t.btnBg,
+                      color: muteBass ? "#FF453A" : bassLine.length === 0 ? t.textTertiary : t.btnColor,
+                      cursor: bassLine.length === 0 ? "default" : "pointer", transition:"all 0.12s",
+                      textDecoration: muteBass ? "line-through" : "none",
+                      opacity: bassLine.length === 0 ? 0.4 : 1 }}>
+                    Bass
+                  </button>
+                  <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
                       border:`1px solid ${arpOn?t.accentBorder:t.btnBorder}`, background:arpOn?t.accentBg:t.btnBg,
