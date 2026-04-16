@@ -3974,6 +3974,7 @@ export default function App() {
   const tripletTracksRef = useRef(tripletTracks);
 
   // ── MIDI init ──
+  const [midiReady, setMidiReady] = useState(false);
   useEffect(() => {
     if (!navigator.requestMIDIAccess) {
       setMidiError("Web MIDI is not supported in this browser. Use Chrome or Edge.");
@@ -3984,6 +3985,7 @@ export default function App() {
       const refresh = () => setMidiOutputs([...access.outputs.values()]);
       refresh();
       access.onstatechange = refresh;
+      setMidiReady(true);
     }).catch(() => setMidiError("MIDI access denied. Allow MIDI in browser permissions."));
   }, []);
 
@@ -4074,7 +4076,7 @@ export default function App() {
   useEffect(() => {
     // Clean up previous listener
     if (clockReceiveCleanup.current) { clockReceiveCleanup.current(); clockReceiveCleanup.current = null; }
-    if (midiSyncMode !== "receive" || !midiAccess.current) { setExternalBpm(null); return; }
+    if (midiSyncMode !== "receive" || !midiReady || !midiAccess.current) { setExternalBpm(null); return; }
 
     const tickTimes = clockTickTimesRef.current;
     tickTimes.length = 0;
@@ -4126,7 +4128,7 @@ export default function App() {
     return () => {
       if (clockReceiveCleanup.current) { clockReceiveCleanup.current(); clockReceiveCleanup.current = null; }
     };
-  }, [midiSyncMode]);
+  }, [midiSyncMode, midiReady]);
 
   const t = THEME;
 
