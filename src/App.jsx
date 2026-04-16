@@ -5708,21 +5708,18 @@ export default function App() {
 
                 {/* ── Chord Pattern ── */}
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                  <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:4 }}>
                     <span style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, letterSpacing:"0.06em", textTransform:"uppercase", opacity:0.8 }}>
                       Chord Rhythm
                     </span>
-                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
-                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); setChordRhythmMutes({}); }}
-                        style={{ fontFamily:SF, fontSize:11, fontWeight: chordPlayPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
-                          border:`1px solid ${chordPlayPattern === key ? "rgba(122,91,175,0.4)" : t.btnBorder}`,
-                          background: chordPlayPattern === key ? "rgba(122,91,175,0.12)" : t.btnBg,
-                          color: chordPlayPattern === key ? "rgb(122,91,175)" : t.btnColor, cursor:"pointer",
-                          transition:"all 0.12s" }}
-                        title={cfg.desc}>
-                        {cfg.label}
-                      </button>
-                    ))}
+                    <select value={chordPlayPattern}
+                      onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
+                      style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                        border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                      {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
+                        <option key={key} value={key}>{cfg.label} — {cfg.desc}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -5902,21 +5899,18 @@ export default function App() {
                   </button>
                   {bassVisible && (
                     <div style={{ marginTop:6, display:"flex", flexDirection:"column", gap:8 }}>
-                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
-                        {Object.entries(BASS_PATTERNS).map(([key, cfg]) => (
-                          <button key={key} onClick={() => { setBassPattern(key); regenerateBass(key); }}
-                            style={{ fontFamily:SF, fontSize:11, fontWeight: bassPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
-                              border:`1px solid ${bassPattern === key ? t.accentBorder : t.btnBorder}`,
-                              background: bassPattern === key ? t.accentBg : t.btnBg,
-                              color: bassPattern === key ? t.accent : t.btnColor, cursor:"pointer",
-                              transition:"all 0.12s" }}
-                            title={cfg.desc}>
-                            {cfg.label}
-                          </button>
-                        ))}
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                        <select value={bassPattern}
+                          onChange={e => { setBassPattern(e.target.value); regenerateBass(e.target.value); }}
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                            border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                          {Object.entries(BASS_PATTERNS).map(([key, cfg]) => (
+                            <option key={key} value={key}>{cfg.label}</option>
+                          ))}
+                        </select>
                         {timelineItems.length > 0 && (
                           <button onClick={() => regenerateBass()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                            Regenerate
+                            Regen
                           </button>
                         )}
                         {bassLine.length > 0 && (
@@ -5925,18 +5919,14 @@ export default function App() {
                           </button>
                         )}
                         <div style={{ width:1, height:18, background:t.border }} />
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sound</span>
-                        {[{v:"piano",l:"Piano"},{v:"808",l:"808 Bass"}].map(({v,l}) => (
-                          <button key={v} onClick={() => setBassSound(v)}
-                            style={{ fontFamily:SF, fontSize:10, fontWeight: bassSound===v ? 700 : 450, padding:"4px 10px", borderRadius:6,
-                              border:`1px solid ${bassSound===v ? "rgba(52,199,89,0.5)" : t.btnBorder}`,
-                              background: bassSound===v ? "rgba(52,199,89,0.12)" : t.btnBg,
-                              color: bassSound===v ? "#34C759" : t.btnColor, cursor:"pointer" }}>
-                            {l}
-                          </button>
-                        ))}
+                        <select value={bassSound} onChange={e => setBassSound(e.target.value)}
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:6,
+                            border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                          <option value="piano">Piano</option>
+                          <option value="808">808 Bass</option>
+                        </select>
                         <div style={{ width:1, height:18, background:t.border }} />
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Octave</span>
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setBassOctaveOffset(o => Math.max(-2, o - 1)); }}
                           style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
@@ -6017,21 +6007,18 @@ export default function App() {
                   </button>
                   {melodyVisible && (
                     <div style={{ marginTop:6, display:"flex", flexDirection:"column", gap:8 }}>
-                      <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center" }}>
-                        {Object.entries(MELODY_PATTERNS).map(([key, cfg]) => (
-                          <button key={key} onClick={() => { setMelodyPattern(key); regenerateMelody(key); }}
-                            style={{ fontFamily:SF, fontSize:11, fontWeight: melodyPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
-                              border:`1px solid ${melodyPattern === key ? "rgba(255,159,10,0.5)" : t.btnBorder}`,
-                              background: melodyPattern === key ? "rgba(255,159,10,0.12)" : t.btnBg,
-                              color: melodyPattern === key ? "#FF9F0A" : t.btnColor, cursor:"pointer",
-                              transition:"all 0.12s" }}
-                            title={cfg.desc}>
-                            {cfg.label}
-                          </button>
-                        ))}
+                      <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
+                        <select value={melodyPattern}
+                          onChange={e => { setMelodyPattern(e.target.value); regenerateMelody(e.target.value); }}
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                            border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                          {Object.entries(MELODY_PATTERNS).map(([key, cfg]) => (
+                            <option key={key} value={key}>{cfg.label}</option>
+                          ))}
+                        </select>
                         {timelineItems.length > 0 && (
                           <button onClick={() => regenerateMelody()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                            Regenerate
+                            Regen
                           </button>
                         )}
                         {melodyLine.length > 0 && (
@@ -6040,18 +6027,15 @@ export default function App() {
                           </button>
                         )}
                         <div style={{ width:1, height:18, background:t.border }} />
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sound</span>
-                        {[{v:"piano",l:"Piano"},{v:"bell",l:"Bell"},{v:"pluck",l:"Pluck"}].map(({v,l}) => (
-                          <button key={v} onClick={() => setMelodySound(v)}
-                            style={{ fontFamily:SF, fontSize:10, fontWeight: melodySound===v ? 700 : 450, padding:"4px 10px", borderRadius:6,
-                              border:`1px solid ${melodySound===v ? "rgba(255,159,10,0.5)" : t.btnBorder}`,
-                              background: melodySound===v ? "rgba(255,159,10,0.12)" : t.btnBg,
-                              color: melodySound===v ? "#FF9F0A" : t.btnColor, cursor:"pointer" }}>
-                            {l}
-                          </button>
-                        ))}
+                        <select value={melodySound} onChange={e => setMelodySound(e.target.value)}
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:6,
+                            border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                          <option value="piano">Piano</option>
+                          <option value="bell">Bell</option>
+                          <option value="pluck">Pluck</option>
+                        </select>
                         <div style={{ width:1, height:18, background:t.border }} />
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Octave</span>
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setMelodyOctaveOffset(o => Math.max(-2, o - 1)); }}
                           style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
