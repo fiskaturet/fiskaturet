@@ -3981,9 +3981,10 @@ export default function App() {
 
   // ── MIDI Clock sync ──
   // Sends MIDI Start (0xFA) + Clock ticks (0xF8) at 24 PPQ, and MIDI Stop (0xFC)
+  // Returns a Promise that resolves after a 1-beat preroll so the MPC has time to arm recording
   const startMidiClock = useCallback((bpmVal) => {
     const out = getMIDIOut();
-    if (!out || !midiClockEnabled) return;
+    if (!out || !midiClockEnabled) return Promise.resolve();
     // Stop any existing clock
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
     // Send MIDI Start
@@ -3993,6 +3994,9 @@ export default function App() {
     midiClockRef.current = setInterval(() => {
       try { out.send([0xF8]); } catch(e) {}
     }, tickIntervalMs);
+    // Preroll: wait 1 beat (24 ticks) so MPC can arm recording before notes arrive
+    const prerollMs = (60 / bpmVal) * 1000; // 1 quarter note
+    return new Promise(resolve => setTimeout(resolve, prerollMs));
   }, [getMIDIOut, midiClockEnabled]);
 
   const stopMidiClock = useCallback(() => {
@@ -4374,7 +4378,7 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
-    startMidiClock(bpm);
+    await startMidiClock(bpm); // preroll: waits 1 beat so MPC can arm
 
     const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
     const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
@@ -4686,7 +4690,7 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
-    startMidiClock(bpm);
+    await startMidiClock(bpm); // preroll: waits 1 beat so MPC can arm
 
     const slotSec = (60 / bpm) * 0.25;
     const style = STYLES[playStyle] || STYLES.normal;
