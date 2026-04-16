@@ -342,6 +342,10 @@ const BASS_PATTERNS = {
   sub808: { label: "808 Sub", desc: "Long sustained sub notes — hip-hop / trap" },
   soulGroove: { label: "Soul Groove", desc: "Funky root-fifth-octave with ghost notes — soul / R&B" },
   nordicPulse: { label: "Nordic Pulse", desc: "Steady eighth-note pulse — Nordic pop drive" },
+  darkDrone: { label: "Dark Drone", desc: "Low sustained root with minor-second dissonance — dark ambient" },
+  minorCrawl: { label: "Minor Crawl", desc: "Slow chromatic descent from root — horror / tension" },
+  doomSub: { label: "Doom Sub", desc: "Heavy sub with tritone stabs — grimy / sinister" },
+  glitch808: { label: "Glitch 808", desc: "Stuttering sub hits with rests — dark trap / experimental" },
 };
 
 function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS, bassOctaveOffset = 0) {
@@ -455,6 +459,52 @@ function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, pattern
         pos += eighthLen;
         beat++;
       }
+
+    } else if (patternType === "darkDrone") {
+      // Dark drone: sustained root with a dissonant minor 2nd layered
+      const b2Midi = rootMidi + 1; // minor second above root
+      notes.push({ midi: rootMidi, startSlot: start, lengthSlots: len, velocity: 100 });
+      // Minor 2nd ghost creeps in on beat 3
+      if (len >= 12) {
+        notes.push({ midi: b2Midi, startSlot: start + 8, lengthSlots: Math.min(4, len - 8), velocity: 45 });
+      }
+
+    } else if (patternType === "minorCrawl") {
+      // Chromatic descent from root — one step per beat, creepy
+      const beatLen = 4;
+      const beats = Math.floor(len / beatLen);
+      for (let b = 0; b < Math.max(1, beats); b++) {
+        const midi = rootMidi - b; // chromatic down
+        const vel = b === 0 ? 100 : 80 - b * 5;
+        notes.push({ midi: Math.max(24, midi), startSlot: start + b * beatLen, lengthSlots: beatLen, velocity: Math.max(50, vel) });
+      }
+
+    } else if (patternType === "doomSub") {
+      // Doom sub: heavy root hit, then tritone stab, silence, root again
+      const tritone = rootMidi + 6; // tritone = 6 semitones
+      notes.push({ midi: rootMidi, startSlot: start, lengthSlots: Math.min(6, len), velocity: 115 });
+      if (len >= 10) {
+        notes.push({ midi: tritone, startSlot: start + 6, lengthSlots: 2, velocity: 85 });
+      }
+      // Second half: root with diminished feel
+      if (len >= 14) {
+        notes.push({ midi: rootMidi, startSlot: start + 12, lengthSlots: Math.min(4, len - 12), velocity: 100 });
+      }
+
+    } else if (patternType === "glitch808") {
+      // Stuttering sub: short bursts with gaps — dark trap
+      const pattern = [
+        { off: 0, dur: 2, vel: 110 },
+        { off: 3, dur: 1, vel: 70 },
+        { off: 6, dur: 2, vel: 100 },
+        { off: 10, dur: 1, vel: 55 },
+        { off: 12, dur: 3, vel: 95 },
+      ];
+      pattern.forEach(p => {
+        if (p.off < len) {
+          notes.push({ midi: rootMidi, startSlot: start + p.off, lengthSlots: Math.min(p.dur, len - p.off), velocity: p.vel });
+        }
+      });
     }
   });
 
@@ -472,6 +522,10 @@ const MELODY_PATTERNS = {
   trapFlow:    { label: "Trap Flow",     desc: "Rapid hi-hat triplet feel — hip-hop vocal cadence" },
   soulMelisma: { label: "Soul Melisma",  desc: "Ornamented runs with grace notes — R&B / soul" },
   nordicWide:  { label: "Nordic Wide",   desc: "Wide intervals, open spaces — Scandi pop feel" },
+  minorDescent:{ label: "Minor Descent", desc: "Descending minor scale — melancholy, dark" },
+  darkArp:     { label: "Dark Arp",      desc: "Minor arpeggio with chromatic passing tones — sinister" },
+  chromCreep:  { label: "Chromatic Creep",desc: "Slow chromatic movement — tension, unease" },
+  haunted:     { label: "Haunted",       desc: "Sparse, wide intervals with long silences — eerie" },
 };
 
 function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternType, TIMELINE_SLOTS, melodyOctaveOffset = 0) {
@@ -778,6 +832,114 @@ function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternTy
         degree += pick([-3, 3, -4, 4, -5, 5, 7, -7]);
         if (degree > scaleNotes.length + 3) degree -= scaleNotes.length;
         if (degree < -3) degree += scaleNotes.length;
+      }
+    });
+
+  } else if (patternType === "minorDescent") {
+    // Descending through scale degrees — melancholic, downward pull
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const chordRoot = item.chord.noteIdx % 12;
+      let degree = scaleNotes.indexOf(chordRoot);
+      if (degree < 0) degree = 0;
+      degree += 4; // start high
+
+      let pos = 0;
+      while (pos < len) {
+        const midi = clampMidi(scaleToMidi(degree, melOctave));
+        const dur = pick([3, 4, 4, 6]);
+        const actualDur = Math.min(dur, len - pos);
+        if (actualDur > 0) {
+          notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 70 + Math.floor(Math.random() * 15) });
+        }
+        pos += actualDur;
+        // Always descend, occasionally skip a step
+        degree += Math.random() < 0.3 ? -2 : -1;
+      }
+    });
+
+  } else if (patternType === "darkArp") {
+    // Dark arpeggio: minor chord tones with chromatic passing tones between them
+    timelineItems.forEach(item => {
+      const midis = chordMidis(item);
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      let pos = 0;
+      let idx = 0;
+      let goingUp = true;
+
+      while (pos < len) {
+        const chordMidi = midis[idx % midis.length];
+        // Play chord tone
+        const dur = 2;
+        const actualDur = Math.min(dur, len - pos);
+        if (actualDur > 0) {
+          notes.push({ midi: clampMidi(chordMidi), startSlot: start + pos, lengthSlots: actualDur, velocity: 85 });
+        }
+        pos += actualDur;
+
+        // Chromatic passing tone (half step below next chord tone) — 40% chance
+        if (Math.random() < 0.4 && pos < len) {
+          const nextChord = midis[(idx + 1) % midis.length];
+          const passingTone = nextChord - 1;
+          const pDur = Math.min(1, len - pos);
+          if (pDur > 0) {
+            notes.push({ midi: clampMidi(passingTone), startSlot: start + pos, lengthSlots: pDur, velocity: 55 });
+          }
+          pos += pDur;
+        }
+
+        if (goingUp) { idx++; if (idx >= midis.length) { goingUp = false; idx = midis.length - 2; } }
+        else { idx--; if (idx < 0) { goingUp = true; idx = 1; } }
+      }
+    });
+
+  } else if (patternType === "chromCreep") {
+    // Slow chromatic movement — tension builder
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const rootMidi = clampMidi(item.chord.noteIdx + melOctave * 12 + 12);
+      let current = rootMidi;
+      const dir = Math.random() < 0.5 ? 1 : -1;
+
+      let pos = 0;
+      while (pos < len) {
+        const dur = pick([4, 6, 6, 8]);
+        const actualDur = Math.min(dur, len - pos);
+        if (actualDur > 0) {
+          notes.push({ midi: clampMidi(current), startSlot: start + pos, lengthSlots: actualDur, velocity: 65 + Math.floor(Math.random() * 15) });
+        }
+        pos += actualDur;
+        current += dir; // one semitone at a time
+      }
+    });
+
+  } else if (patternType === "haunted") {
+    // Sparse, wide intervals with long silences — eerie atmosphere
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const midis = chordMidis(item);
+      let pos = 0;
+
+      while (pos < len) {
+        // 40% chance of silence
+        if (Math.random() < 0.4) {
+          pos += pick([4, 6, 8]);
+          continue;
+        }
+        // Pick a chord tone and displace it by a wide interval
+        const base = midis[Math.floor(Math.random() * midis.length)];
+        const displacement = pick([-12, -7, -5, 5, 7, 12]); // octave, fifth, fourth
+        const midi = clampMidi(base + displacement);
+        const dur = pick([6, 8, 10, 12]);
+        const actualDur = Math.min(dur, len - pos);
+        if (actualDur > 0) {
+          notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 50 + Math.floor(Math.random() * 25) });
+        }
+        pos += actualDur + pick([2, 4]); // gap after note
       }
     });
   }
@@ -1276,6 +1438,24 @@ const FAMOUS_PROGRESSIONS = [
   { name:"Northern Soul",          genre:"Soul",    degrees:[3,5,0,4]         }, // IV–vi–I–V
   { name:"Deep Soul",              genre:"Soul",    degrees:[0,3,5,4,1,4]     }, // I–IV–vi–V–ii–V
   { name:"Soul Kitchen",           genre:"Soul",    degrees:[0,5,4,3]         }, // I–vi–V–IV
+
+  // ── Dark / Minor ──────────────────────────────────────────────────
+  { name:"Descent",                genre:"Dark",    degrees:[0,6,5,4]         }, // i–VII–VI–V (Andalusian)
+  { name:"Void",                   genre:"Dark",    degrees:[0,1,0,6]         }, // i–bII–i–VII (Phrygian darkness)
+  { name:"Abyss",                  genre:"Dark",    degrees:[0,5,1,0]         }, // i–VI–bII–i (crushing return)
+  { name:"Paranoia",               genre:"Dark",    degrees:[0,1,3,0]         }, // i–bII–iv–i (claustrophobic)
+  { name:"Requiem",                genre:"Dark",    degrees:[0,4,3,0]         }, // i–V–iv–i (minor cadence)
+  { name:"Obsidian",               genre:"Dark",    degrees:[0,3,6,5]         }, // i–iv–VII–VI (noir feel)
+  { name:"Graveyard Shift",        genre:"Dark",    degrees:[0,6,3,1]         }, // i–VII–iv–bII (dark trap)
+  { name:"Nattsvart",              genre:"Dark",    degrees:[0,5,6,1]         }, // i–VI–VII–bII (Nordic noir)
+  { name:"Witch House",            genre:"Dark",    degrees:[0,1,5,6]         }, // i–bII–VI–VII (occult)
+  { name:"Sleep Paralysis",        genre:"Dark",    degrees:[0,1,0,5]         }, // i–bII–i–VI (frozen dread)
+  { name:"Undertow",               genre:"Dark",    degrees:[0,6,1,6]         }, // i–VII–bII–VII (pulling down)
+  { name:"Last Light",             genre:"Dark",    degrees:[0,5,3,6]         }, // i–VI–iv–VII (fading hope)
+  { name:"Black Ice",              genre:"Dark",    degrees:[0,3,1,6]         }, // i–iv–bII–VII (Scandinavian)
+  { name:"Hollow",                 genre:"Dark",    degrees:[0,5,0,1]         }, // i–VI–i–bII (empty, desolate)
+  { name:"Endless Tunnel",         genre:"Dark",    degrees:[0,6,0,6]         }, // i–VII–i–VII (hypnotic dark)
+  { name:"Buried Alive",           genre:"Dark",    degrees:[0,1,6,5]         }, // i–bII–VII–VI (descending terror)
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -6083,7 +6263,7 @@ export default function App() {
                   <button onClick={() => {
                     stopLoop();
                     // Weight toward preferred genres: Hip-Hop, R&B, Nordic Pop, Radiohead, Soul
-                    const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul"];
+                    const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul","Dark"];
                     const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre));
                     const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre));
                     // 80% chance preferred genre, 20% anything else
