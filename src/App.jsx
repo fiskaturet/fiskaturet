@@ -3828,6 +3828,8 @@ export default function App() {
   const [activeChord,  setActiveChord]  = useState(null);
   const [bpm,          setBpm]          = useState(90);
   const [looping,      setLooping]      = useState(false);
+  const [loopEnabled,  setLoopEnabled]  = useState(true);  // repeat vs one-shot
+  const loopEnabledRef = useRef(true);
   const [playheadPct,  setPlayheadPct]  = useState(0);
   const [arpOn,        setArpOn]        = useState(false);
   const [arpPattern,   setArpPattern]   = useState("up");
@@ -4659,19 +4661,31 @@ export default function App() {
     setLooping(true);
     const wallStart = performance.now();
     const animate = () => {
-      const elapsed = (performance.now() - wallStart) % totalMs;
-      const raw = elapsed / totalMs;
+      const elapsed = performance.now() - wallStart;
+      // If loop disabled and we've passed one full cycle, stop
+      if (!loopEnabledRef.current && elapsed >= totalMs) {
+        stopLoop();
+        return;
+      }
+      const loopElapsed = elapsed % totalMs;
+      const raw = loopElapsed / totalMs;
       // Chord playhead: scales to filled portion
       setPlayheadPct(raw * (loopSlots / TIMELINE_SLOTS));
       // Drum step marker
       if (hasDrums) {
-        const step = Math.floor((elapsed / 1000) / slotSec) % DRUM_STEPS;
+        const step = Math.floor((loopElapsed / 1000) / slotSec) % DRUM_STEPS;
         setDrumStep(step);
       }
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
-    loopRef.current = setInterval(doSchedule, totalMs);
+    loopRef.current = setInterval(() => {
+      if (loopEnabledRef.current) {
+        doSchedule();
+      } else {
+        stopLoop();
+      }
+    }, totalMs);
   };
 
   // ── Play full arrangement (all sections chained) ─────────────────────────
@@ -4856,6 +4870,7 @@ export default function App() {
   // Restart loop when swing, halftime, solo, or mute changes during playback
   const loopingRef = useRef(false);
   useEffect(() => { loopingRef.current = looping; }, [looping]);
+  useEffect(() => { loopEnabledRef.current = loopEnabled; }, [loopEnabled]);
   useEffect(() => {
     if (loopingRef.current) {
       stopLoop();
@@ -5768,6 +5783,22 @@ export default function App() {
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Loop toggle — right below timeline */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                  <button onClick={() => setLoopEnabled(e => !e)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:7,
+                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                      background: loopEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
+                      color: loopEnabled ? "#30D158" : t.textTertiary,
+                      cursor:"pointer", transition:"all 0.12s", display:"flex", alignItems:"center", gap:5 }}>
+                    <span style={{ fontSize:13 }}>🔁</span>
+                    {loopEnabled ? "Loop ON" : "Loop OFF"}
+                  </button>
+                  {!loopEnabled && (
+                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>Stops after one pass</span>
+                  )}
                 </div>
 
                 {/* ── Chord Pattern ── */}
