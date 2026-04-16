@@ -47,6 +47,110 @@ function getInstrument(soundType) {
   return soundType === "rhodes" ? getRhodesSynth() : getSampler();
 }
 
+// ─── Drum synth engine (for preview without external MIDI) ───────────────────
+
+let drumSynthsReady = false;
+const drumSynths = {};
+
+function initDrumSynths() {
+  if (drumSynthsReady) return;
+  drumSynthsReady = true;
+
+  // Kick — deep membrane hit
+  drumSynths.kick = new Tone.MembraneSynth({
+    pitchDecay: 0.06, octaves: 6, envelope: { attack:0.001, decay:0.3, sustain:0, release:0.4 }, volume:-6
+  }).toDestination();
+
+  // Snare — membrane + noise burst
+  const snareNoise = new Tone.NoiseSynth({
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.13, sustain:0, release:0.05 }, volume:-12
+  }).toDestination();
+  const snareMembrane = new Tone.MembraneSynth({
+    pitchDecay:0.01, octaves:4, envelope:{attack:0.001,decay:0.1,sustain:0,release:0.1}, volume:-16
+  }).toDestination();
+  drumSynths.snare = { trigger(dur, time, vel) { snareNoise.triggerAttackRelease(dur, time, vel); snareMembrane.triggerAttackRelease("C3", dur, time, vel*0.6); }};
+
+  // Closed hat — filtered noise
+  const hatFilter = new Tone.Filter(8000, "highpass").toDestination();
+  drumSynths.hatC = new Tone.NoiseSynth({
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.04, sustain:0, release:0.02 }, volume:-14
+  }).connect(hatFilter);
+
+  // Open hat — longer noise
+  const ohatFilter = new Tone.Filter(7000, "highpass").toDestination();
+  drumSynths.hatO = new Tone.NoiseSynth({
+    noise: { type:"white" }, envelope: { attack:0.001, decay:0.18, sustain:0.02, release:0.1 }, volume:-16
+  }).connect(ohatFilter);
+
+  // Clap — noise burst
+  drumSynths.clap = new Tone.NoiseSynth({
+    noise: { type:"pink" }, envelope: { attack:0.001, decay:0.15, sustain:0, release:0.06 }, volume:-14
+  }).toDestination();
+
+  // Ghost snare — quieter snare
+  drumSynths.ghost = { trigger(dur, time, vel) { snareNoise.triggerAttackRelease(dur, time, vel*0.3); }};
+
+  // Rim — short metallic click
+  drumSynths.rim = new Tone.MetalSynth({
+    frequency:400, envelope:{attack:0.001,decay:0.04,release:0.03}, harmonicity:0.1, modulationIndex:4, volume:-18
+  }).toDestination();
+
+  // Tom — tuned membrane
+  drumSynths.tom = new Tone.MembraneSynth({
+    pitchDecay:0.04, octaves:3, envelope:{attack:0.001,decay:0.2,sustain:0,release:0.15}, volume:-10
+  }).toDestination();
+
+  // 808 — deep sub
+  drumSynths.low808 = new Tone.MembraneSynth({
+    pitchDecay:0.08, octaves:8, envelope:{attack:0.001,decay:0.6,sustain:0.1,release:0.5}, volume:-4
+  }).toDestination();
+
+  // Ride — metallic shimmer
+  drumSynths.ride = new Tone.MetalSynth({
+    frequency:300, envelope:{attack:0.001,decay:0.6,release:0.4}, harmonicity:5.1, modulationIndex:18, volume:-22
+  }).toDestination();
+
+  // Shaker — short noise
+  const shakerFilter = new Tone.Filter(6000, "highpass").toDestination();
+  drumSynths.shaker = new Tone.NoiseSynth({
+    noise:{type:"white"}, envelope:{attack:0.001,decay:0.03,sustain:0,release:0.02}, volume:-18
+  }).connect(shakerFilter);
+
+  // Perc — metallic
+  drumSynths.perc = new Tone.MetalSynth({
+    frequency:200, envelope:{attack:0.001,decay:0.08,release:0.05}, harmonicity:2, modulationIndex:8, volume:-16
+  }).toDestination();
+
+  // Bell — bright metal
+  drumSynths.bell = new Tone.MetalSynth({
+    frequency:600, envelope:{attack:0.001,decay:0.4,release:0.3}, harmonicity:12, modulationIndex:24, volume:-20
+  }).toDestination();
+
+  // FX1, FX2 — noise sweeps
+  drumSynths.fx1 = new Tone.NoiseSynth({
+    noise:{type:"brown"}, envelope:{attack:0.01,decay:0.3,sustain:0,release:0.1}, volume:-16
+  }).toDestination();
+  drumSynths.fx2 = new Tone.NoiseSynth({
+    noise:{type:"pink"}, envelope:{attack:0.05,decay:0.4,sustain:0.05,release:0.2}, volume:-18
+  }).toDestination();
+
+  // Crash — long metallic
+  drumSynths.crash = new Tone.MetalSynth({
+    frequency:350, envelope:{attack:0.001,decay:1.2,release:0.8}, harmonicity:5.1, modulationIndex:32, volume:-20
+  }).toDestination();
+}
+
+function triggerDrumSynth(trackId, velocity, duration) {
+  const s = drumSynths[trackId];
+  if (!s) return;
+  const vel = Math.max(0.01, Math.min(1, velocity / 127));
+  const dur = duration || 0.1;
+  if (s.trigger) { s.trigger(dur, Tone.now(), vel); }
+  else if (s.triggerAttackRelease) {
+    try { s.triggerAttackRelease(trackId === "kick" ? "C1" : trackId === "tom" ? "G2" : trackId === "low808" ? "C1" : dur, dur, Tone.now(), vel); } catch(e) {}
+  }
+}
+
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
@@ -2722,15 +2826,15 @@ export default function App() {
 
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
-      if (hasDrums && midiOut) {
+      // Works with MIDI out OR built-in drum synths (no MPC needed)
+      if (hasDrums) {
+        if (!midiOut) initDrumSynths();
         const drumCh = drumChannel - 1;
-        // Read current values from refs (not stale closure state)
         const curSwing     = drumSwingRef.current;
         const curHalfTime  = drumHalfTimeRef.current;
         const curSolo      = soloTrackRef.current;
         const curMuted     = mutedTracksRef.current;
         const curTriplets  = tripletTracksRef.current;
-        // Swing: off-beat 16ths pushed late by up to 50% of a step
         const swingAmt = (curSwing / 100) * slotSec * 0.5;
         for (let step = 0; step < DRUM_STEPS; step++) {
           DRUM_TRACKS.forEach(track => {
@@ -2738,14 +2842,17 @@ export default function App() {
             if (!curSolo && curMuted[track.id]) return;
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
-            // Half-time: skip odd 16ths to halve density (except tracks with triplet mode)
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
-            const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = (step * slotSec + swingDelay) * 1000;
-            const offMs = onMs + slotSec * 0.9 * 1000;
-            schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
-            schedule(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
+            if (midiOut) {
+              const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
+              const offMs = onMs + slotSec * 0.9 * 1000;
+              schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+              schedule(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
+            } else {
+              schedule(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+            }
           });
         }
       }
@@ -3148,7 +3255,7 @@ export default function App() {
                       disabled={!drumPattern}
                       style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:drumPattern?"pointer":"not-allowed", opacity:drumPattern?1:0.4 }}>
-                      Variasjon
+                      Variation
                     </button>
                     <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0}
                       style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
@@ -3284,22 +3391,31 @@ export default function App() {
                             const isPlayhead = drumStep === step;
                             const isBeatLine = step > 0 && step % 4 === 0;
                             const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
+                            // Swing visual: shift odd steps right proportional to swing amount
+                            const isOddStep = step % 2 === 1;
+                            const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 6) : 0;
                             return (
                               <div key={step}
                                 onClick={() => toggleDrumStep(track.id, step)}
                                 style={{
-                                  height:22,
+                                  height:22, position:"relative",
                                   borderLeft: isBarLine ? `1.5px solid ${t.border}` : isBeatLine ? `0.5px solid rgba(28,24,32,0.06)` : "none",
                                   background: isPlayhead && looping
                                     ? "rgba(122,91,175,0.25)"
-                                    : vel > 0
-                                    ? `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`
+                                    : vel > 0 ? "transparent"
                                     : step % 2 === 0 ? "transparent" : "rgba(28,24,32,0.015)",
                                   cursor:"pointer",
                                   transition:"background 0.08s",
-                                  borderRadius: vel > 0 ? 1 : 0,
-                                }}
-                              />
+                                }}>
+                                {vel > 0 && (
+                                  <div style={{
+                                    position:"absolute", top:1, bottom:1, borderRadius:2,
+                                    left: swingPx, right: Math.max(0, -swingPx + 1),
+                                    background:`rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
+                                    transition:"left 0.15s ease, right 0.15s ease",
+                                  }} />
+                                )}
+                              </div>
                             );
                           })}
                         </div>
@@ -3579,11 +3695,11 @@ export default function App() {
 
                 {/* Controls */}
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
-                  <button onClick={playTimeline} disabled={timelineItems.length===0}
+                  <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
-                      background: timelineItems.length===0 ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
-                      color: timelineItems.length===0 ? t.playDisabledClr : "#FFFFFF",
-                      cursor: timelineItems.length===0 ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
+                      background: (timelineItems.length===0 && !drumPattern) ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
+                      color: (timelineItems.length===0 && !drumPattern) ? t.playDisabledClr : "#FFFFFF",
+                      cursor: (timelineItems.length===0 && !drumPattern) ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
                     {looping ? "⬛ Stop" : "▶  Play"}
                   </button>
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
