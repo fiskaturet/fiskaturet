@@ -4001,6 +4001,19 @@ export default function App() {
     }
   }, [getMIDIOut, midiClockEnabled]);
 
+  // Update MIDI Clock rate when BPM changes during playback (no Start/Stop, just adjust tick rate)
+  useEffect(() => {
+    if (!midiClockRef.current || !midiClockEnabled) return;
+    const out = getMIDIOut();
+    if (!out) return;
+    // Re-create the interval at the new BPM rate without sending Start/Stop
+    clearInterval(midiClockRef.current);
+    const tickIntervalMs = (60 / bpm / 24) * 1000;
+    midiClockRef.current = setInterval(() => {
+      try { out.send([0xF8]); } catch(e) {}
+    }, tickIntervalMs);
+  }, [bpm, midiClockEnabled, getMIDIOut]);
+
   const t = THEME;
 
   const card = {
