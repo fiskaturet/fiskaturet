@@ -207,6 +207,122 @@ function exportMpcDrumProgram(padMap, DRUM_TRACKS) {
   return xml;
 }
 
+// ─── Chord rhythm patterns ──────────────────────────────────────────────────
+// Each pattern returns an array of { offset, duration, velMult } per slot
+// offset/duration are in fractions of the chord's total length (0..1)
+
+const CHORD_PLAY_PATTERNS = {
+  sustained: {
+    label: "Sustained", desc: "Full sustained chords — default",
+    generate: () => [{ offset: 0, duration: 1, velMult: 1 }],
+  },
+  staccato: {
+    label: "Staccato", desc: "Short choppy hits on each beat — lo-fi / hip-hop",
+    generate: (lenSlots) => {
+      const hits = [];
+      const beatLen = 4; // quarter note = 4 sixteenths
+      const beats = Math.floor(lenSlots / beatLen);
+      for (let b = 0; b < Math.max(1, beats); b++) {
+        hits.push({ offset: (b * beatLen) / lenSlots, duration: 2 / lenSlots, velMult: b === 0 ? 1 : 0.7 });
+      }
+      return hits;
+    },
+  },
+  trap: {
+    label: "Trap", desc: "Hit on 1, ghost on and-of-2, hit on 3 — trap / modern rap",
+    generate: (lenSlots) => {
+      const hits = [];
+      // Beat 1 — hard hit
+      hits.push({ offset: 0, duration: 3 / lenSlots, velMult: 1 });
+      // And-of-2 — ghost
+      if (lenSlots >= 8) hits.push({ offset: 6 / lenSlots, duration: 2 / lenSlots, velMult: 0.35 });
+      // Beat 3 — hard hit
+      if (lenSlots >= 12) hits.push({ offset: 8 / lenSlots, duration: 3 / lenSlots, velMult: 0.85 });
+      // Ghost before 4
+      if (lenSlots >= 16) hits.push({ offset: 14 / lenSlots, duration: 2 / lenSlots, velMult: 0.3 });
+      return hits;
+    },
+  },
+  griselda: {
+    label: "Griselda", desc: "Gritty boom-bap stabs — Griselda / 90s NY",
+    generate: (lenSlots) => {
+      const hits = [];
+      // Hard stab on 1
+      hits.push({ offset: 0, duration: 2 / lenSlots, velMult: 1 });
+      // Stab on and-of-1
+      if (lenSlots >= 4) hits.push({ offset: 3 / lenSlots, duration: 1 / lenSlots, velMult: 0.5 });
+      // Hard stab on 3
+      if (lenSlots >= 12) hits.push({ offset: 8 / lenSlots, duration: 2 / lenSlots, velMult: 0.95 });
+      // Pickup stab on and-of-4
+      if (lenSlots >= 16) hits.push({ offset: 15 / lenSlots, duration: 1 / lenSlots, velMult: 0.6 });
+      return hits;
+    },
+  },
+  lofi: {
+    label: "Lo-Fi", desc: "Lazy offbeat hits with gaps — lo-fi hip-hop / chill",
+    generate: (lenSlots) => {
+      const hits = [];
+      // Slightly late beat 1
+      hits.push({ offset: 1 / lenSlots, duration: 3 / lenSlots, velMult: 0.75 });
+      // Beat 2 rest, hit on and-of-2
+      if (lenSlots >= 8) hits.push({ offset: 7 / lenSlots, duration: 2 / lenSlots, velMult: 0.5 });
+      // Beat 3 — slightly softer
+      if (lenSlots >= 12) hits.push({ offset: 9 / lenSlots, duration: 3 / lenSlots, velMult: 0.65 });
+      return hits;
+    },
+  },
+  rnbPulse: {
+    label: "R&B Pulse", desc: "Smooth eighth-note pumps — R&B / neo-soul",
+    generate: (lenSlots) => {
+      const hits = [];
+      const eighthLen = 2;
+      const count = Math.floor(lenSlots / eighthLen);
+      for (let i = 0; i < count; i++) {
+        hits.push({
+          offset: (i * eighthLen) / lenSlots,
+          duration: (eighthLen * 0.6) / lenSlots,
+          velMult: i % 2 === 0 ? 0.85 : 0.5,
+        });
+      }
+      return hits;
+    },
+  },
+  soulStab: {
+    label: "Soul Stab", desc: "Rhythmic stabs with anticipation — classic soul / funk",
+    generate: (lenSlots) => {
+      const hits = [];
+      // Anticipation (16th before beat 1 of next bar mapped to end of current)
+      // Beat 1 hard
+      hits.push({ offset: 0, duration: 2 / lenSlots, velMult: 1 });
+      // And-of-2
+      if (lenSlots >= 8) hits.push({ offset: 5 / lenSlots, duration: 2 / lenSlots, velMult: 0.7 });
+      // Beat 4
+      if (lenSlots >= 16) hits.push({ offset: 12 / lenSlots, duration: 2 / lenSlots, velMult: 0.8 });
+      // Anticipation hit (last 16th)
+      if (lenSlots >= 16) hits.push({ offset: (lenSlots - 1) / lenSlots, duration: 1 / lenSlots, velMult: 0.9 });
+      return hits;
+    },
+  },
+  nordicArp: {
+    label: "Nordic Arp", desc: "Broken chord arpeggiation — Nordic pop / ambient",
+    generate: (lenSlots) => {
+      // This is handled specially in scheduling — breaks chord into individual notes
+      const hits = [];
+      const eighthLen = 2;
+      const count = Math.floor(lenSlots / eighthLen);
+      for (let i = 0; i < count; i++) {
+        hits.push({
+          offset: (i * eighthLen) / lenSlots,
+          duration: (eighthLen * 1.5) / lenSlots, // overlapping sustain
+          velMult: 0.6 + (i % 3 === 0 ? 0.3 : 0),
+          _arpNote: i, // flag: use individual chord note instead of full chord
+        });
+      }
+      return hits;
+    },
+  },
+};
+
 // ─── Bass line generation ────────────────────────────────────────────────────
 
 const BASS_PATTERNS = {
@@ -3408,6 +3524,8 @@ export default function App() {
   const [arrangement, setArrangement] = useState([]); // [sectionId, sectionId, ...] — order of playback
   const [songModeOpen, setSongModeOpen] = useState(false);
   const [editingSectionId, setEditingSectionId] = useState(null);
+  // ── Chord rhythm pattern ──
+  const [chordPlayPattern, setChordPlayPattern] = useState("sustained");
   // ── Bass line ──
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
   const [bassPattern, setBassPattern] = useState("root");
@@ -3952,16 +4070,24 @@ export default function App() {
               });
             }
           } else {
-            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
-            noteNames.forEach((note,i) => {
-              const accentBoost = i===0 ? style.accentMult : 1;
-              const prVel = getNoteVelScale(note, item.startSlot);
-              const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult * prVel)));
-              const n = nameToMidi(note);
-              const onMs  = (startSec + offsets[i]) * 1000;
-              const offMs = onMs + styledDur * 1000;
-              schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
-              schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
+            // Apply chord rhythm pattern
+            const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
+            const hits = cpat.generate(item.lengthSlots);
+            hits.forEach(hit => {
+              const hitStartSec = startSec + hit.offset * durSec;
+              const hitDurSec = hit.duration * durSec * style.durMult;
+              const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
+              const offsets = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
+              hitNotes.forEach((note, i) => {
+                const accentBoost = i === 0 ? style.accentMult : 1;
+                const prVel = getNoteVelScale(note, item.startSlot);
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i] * 100 * accentBoost + 15) * style.velMult * prVel * hit.velMult)));
+                const n = nameToMidi(note);
+                const onMs = (hitStartSec + offsets[i]) * 1000;
+                const offMs = onMs + hitDurSec * 1000;
+                schedule(() => midiOut.send([0x90 | ch, n, midiVel]), onMs);
+                schedule(() => midiOut.send([0x80 | ch, n, 0]), offMs);
+              });
             });
           }
         } else {
@@ -3994,15 +4120,23 @@ export default function App() {
               });
             }
           } else {
-            const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
-            noteNames.forEach((note,i) => {
-              const accentBoost = i===0 ? style.accentMult : 1;
-              const prVel = getNoteVelScale(note, item.startSlot);
-              const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult*prVel));
-              const whenMs = (startSec + offsets[i]) * 1000;
-              schedule(() => {
-                try { inst.triggerAttackRelease(note, styledDur, Tone.now(), v); } catch(e) {}
-              }, whenMs);
+            // Apply chord rhythm pattern (Tone.js path)
+            const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
+            const hits = cpat.generate(item.lengthSlots);
+            hits.forEach(hit => {
+              const hitStartSec = startSec + hit.offset * durSec;
+              const hitDurSec = hit.duration * durSec * style.durMult;
+              const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
+              const offsets = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
+              hitNotes.forEach((note, i) => {
+                const accentBoost = i === 0 ? style.accentMult : 1;
+                const prVel = getNoteVelScale(note, item.startSlot);
+                const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult));
+                const whenMs = (hitStartSec + offsets[i]) * 1000;
+                schedule(() => {
+                  try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {}
+                }, whenMs);
+              });
             });
           }
         }
@@ -4145,28 +4279,35 @@ export default function App() {
       resolvedSecs.forEach((sec, secIdx) => {
         const offset = secIdx * slotsPerSection;
 
-        // Chords
+        // Chords (with rhythm pattern)
         if (!muteChords && sec.timelineItems) {
+          const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
           sec.timelineItems.forEach(item => {
             const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
-            const startSec = (offset + item.startSlot) * slotSec;
-            const durSec = item.lengthSlots * slotSec * style.durMult;
-            if (midiOut) {
-              const ch = midiChannel - 1;
-              const offsets2 = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
-              noteNames.forEach((note, i) => {
-                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult)));
-                const n = nameToMidi(note);
-                schedule(() => midiOut.send([0x90|ch, n, midiVel]), (startSec + offsets2[i]) * 1000);
-                schedule(() => midiOut.send([0x80|ch, n, 0]), (startSec + durSec) * 1000);
-              });
-            } else {
-              const offsets2 = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
-              noteNames.forEach((note, i) => {
-                const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult));
-                schedule(() => { try { inst.triggerAttackRelease(note, durSec, Tone.now(), v); } catch(e) {} }, (startSec + offsets2[i]) * 1000);
-              });
-            }
+            const chordStartSec = (offset + item.startSlot) * slotSec;
+            const chordDurSec = item.lengthSlots * slotSec;
+            const hits = cpat.generate(item.lengthSlots);
+            hits.forEach(hit => {
+              const hitStartSec = chordStartSec + hit.offset * chordDurSec;
+              const hitDurSec = hit.duration * chordDurSec * style.durMult;
+              const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
+              if (midiOut) {
+                const ch = midiChannel - 1;
+                const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
+                hitNotes.forEach((note, i) => {
+                  const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult)));
+                  const n = nameToMidi(note);
+                  schedule(() => midiOut.send([0x90|ch, n, midiVel]), (hitStartSec + offsets2[i]) * 1000);
+                  schedule(() => midiOut.send([0x80|ch, n, 0]), (hitStartSec + hitDurSec) * 1000);
+                });
+              } else {
+                const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
+                hitNotes.forEach((note, i) => {
+                  const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult));
+                  schedule(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, (hitStartSec + offsets2[i]) * 1000);
+                });
+              }
+            });
           });
         }
 
@@ -4255,7 +4396,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody, muteDrums]);
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody, muteDrums, chordPlayPattern]);
 
   return (
     <>
@@ -5227,6 +5368,26 @@ export default function App() {
                       )}
                     </div>
                   )}
+                </div>
+
+                {/* ── Chord Pattern ── */}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginBottom:4 }}>
+                    <span style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, letterSpacing:"0.06em", textTransform:"uppercase", opacity:0.8 }}>
+                      Chord Rhythm
+                    </span>
+                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
+                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); }}
+                        style={{ fontFamily:SF, fontSize:11, fontWeight: chordPlayPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
+                          border:`1px solid ${chordPlayPattern === key ? "rgba(122,91,175,0.4)" : t.btnBorder}`,
+                          background: chordPlayPattern === key ? "rgba(122,91,175,0.12)" : t.btnBg,
+                          color: chordPlayPattern === key ? "rgb(122,91,175)" : t.btnColor, cursor:"pointer",
+                          transition:"all 0.12s" }}
+                        title={cfg.desc}>
+                        {cfg.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* ── Bass Line ── */}
