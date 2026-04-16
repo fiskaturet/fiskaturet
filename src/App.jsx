@@ -2513,17 +2513,14 @@ function parseMusicXML(xmlStr) {
 // ─── Sheet Music Tab ──────────────────────────────────────────────────────────
 
 function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPlayStyle, styleMenuOpen, setStyleMenuOpen, STYLES,
-  drumPattern, setDrumPattern, drumGenre, setDrumGenre, padMap, drumChannel }) {
+  drumPattern, setDrumPattern, drumGenre, setDrumGenre, padMap, drumChannel,
+  parsedData, setParsedData, fileName, setFileName, userBpm, setUserBpm,
+  drumsEnabled, setDrumsEnabled, sheetOctaveOffset, setSheetOctaveOffset }) {
   const [dragOver,   setDragOver]   = useState(false);
-  const [parsedData, setParsedData] = useState(null);
-  const [fileName,   setFileName]   = useState(null);
   const [parseError, setParseError] = useState(null);
   const [playing,    setPlaying]    = useState(false);
-  const [userBpm,    setUserBpm]    = useState(120);
   const [activeEventIdx, setActiveEventIdx] = useState(-1);
   const [progressPct, setProgressPct] = useState(0);
-  const [drumsEnabled, setDrumsEnabled] = useState(false);
-  const [sheetOctaveOffset, setSheetOctaveOffset] = useState(0);
   const playTimerRef  = useRef(null);
   const timeoutsRef   = useRef([]);
   const loopTimerRef  = useRef(null);
@@ -3671,6 +3668,12 @@ export default function App() {
   const [lockedTracks,   setLockedTracks]   = useState({});
   const [mutedTracks,    setMutedTracks]    = useState({});
   const [padMapperOpen,  setPadMapperOpen]  = useState(false);
+  // ── Sheet Music state (lifted so it persists across tab switches) ──
+  const [sheetParsedData,     setSheetParsedData]     = useState(null);
+  const [sheetFileName,       setSheetFileName]       = useState(null);
+  const [sheetUserBpm,        setSheetUserBpm]        = useState(120);
+  const [sheetDrumsEnabled,   setSheetDrumsEnabled]   = useState(false);
+  const [sheetOctaveOffset,   setSheetOctaveOffset]   = useState(0);
   // ── Piano Roll state ──
   const [pianoRollOpen,  setPianoRollOpen]   = useState(false);
   const [pianoRollEdits, setPianoRollEdits]  = useState({}); // key: "noteNum-startSlot" → { velocity, lengthSlots, muted }
@@ -4792,6 +4795,16 @@ export default function App() {
               setDrumGenre={setDrumGenre}
               padMap={padMap}
               drumChannel={drumChannel}
+              parsedData={sheetParsedData}
+              setParsedData={setSheetParsedData}
+              fileName={sheetFileName}
+              setFileName={setSheetFileName}
+              userBpm={sheetUserBpm}
+              setUserBpm={setSheetUserBpm}
+              drumsEnabled={sheetDrumsEnabled}
+              setDrumsEnabled={setSheetDrumsEnabled}
+              sheetOctaveOffset={sheetOctaveOffset}
+              setSheetOctaveOffset={setSheetOctaveOffset}
             />
           )}
 
