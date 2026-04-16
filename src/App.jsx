@@ -2595,7 +2595,9 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
       const midiOut = getMIDIOut();
       if (midiOut) { for (let c=0;c<16;c++) { midiOut.send([0xB0|c,120,0]); midiOut.send([0xB0|c,123,0]); } }
     } catch(e) {}
+    // Release instrument + all drum synths
     try { getInstrument(soundType)?.releaseAll?.(); } catch(e) {}
+    try { Object.values(drumSynths).forEach(s => { if (s?.triggerRelease) s.triggerRelease(); }); } catch(e) {}
     setPlaying(false);
     setActiveEventIdx(-1);
     setProgressPct(0);
@@ -2645,7 +2647,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         if (inst.attack !== undefined) inst.attack = style.attackSec || 0;
         if (inst.set) inst.set({ envelope: { attack: Math.max(0.005, style.attackSec || 0.005) } });
       } catch(e2) {}
-      const now = Tone.now();
+      // Schedule via setTimeout so notes can be cancelled on loop/stop
       parsedData.events.forEach((e, idx) => {
         const startMs = e.time * scale * 1000;
         const tTrack = setTimeout(() => setActiveEventIdx(idx), startMs);
@@ -2654,7 +2656,10 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
           const accentBoost = i === 0 ? style.accentMult : 1;
           const v = Math.max(0.02, Math.min(1, 0.7 * accentBoost * style.velMult));
           const dur = e.duration * scale * style.durMult;
-          inst.triggerAttackRelease(noteName, String(dur), now + e.time * scale + i * 0.008, v);
+          const t1 = setTimeout(() => {
+            try { inst.triggerAttackRelease(noteName, dur, Tone.now(), v); } catch(e3) {}
+          }, startMs + i * 8);
+          timeoutsRef.current.push(t1);
         });
       });
     }
@@ -2808,12 +2813,24 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                       style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
                     <input
-                      type="number" min={20} max={300} value={userBpm}
-                      onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 20 && v <= 300) setUserBpm(v); }}
+                      type="text" inputMode="numeric"
+                      value={userBpm}
+                      onChange={e => {
+                        const raw = e.target.value.replace(/[^0-9]/g, "");
+                        if (raw === "") return;
+                        const v = parseInt(raw);
+                        if (!isNaN(v) && v >= 1 && v <= 999) setUserBpm(v);
+                      }}
+                      onBlur={() => { if (userBpm < 20) setUserBpm(20); if (userBpm > 300) setUserBpm(300); }}
+                      onKeyDown={e => {
+                        if (e.key === "ArrowUp") { e.preventDefault(); setUserBpm(b => Math.min(300, b + 1)); }
+                        if (e.key === "ArrowDown") { e.preventDefault(); setUserBpm(b => Math.max(20, b - 1)); }
+                        if (e.key === "Enter") e.target.blur();
+                      }}
                       style={{ fontFamily:SF2, fontSize:14, fontWeight:700, textAlign:"center",
                         width:58, padding:"4px 6px", borderRadius:8,
                         border:`1px solid ${t.inputBorder}`, background:t.inputBg,
-                        color:t.inputColor, appearance:"textfield", MozAppearance:"textfield" }}
+                        color:t.inputColor }}
                     />
                     <button onClick={() => setUserBpm(b => Math.min(300, b + 1))}
                       style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
@@ -3620,6 +3637,7 @@ export default function App() {
   const [editingSectionId, setEditingSectionId] = useState(null);
   // ── Chord rhythm pattern ──
   const [chordPlayPattern, setChordPlayPattern] = useState("sustained");
+  const [chordRhythmMutes, setChordRhythmMutes] = useState({}); // { [itemId]: { [hitIndex]: true } }
   // ── Bass line ──
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
   const [bassPattern, setBassPattern] = useState("root");
@@ -3636,6 +3654,15 @@ export default function App() {
   const [muteBass, setMuteBass] = useState(false);
   const [muteMelody, setMuteMelody] = useState(false);
   const [muteDrums, setMuteDrums] = useState(false);
+  // Refs for live mute — read inside schedule callbacks so toggling doesn't restart the loop
+  const muteChordsRef = useRef(false);
+  const muteBassRef = useRef(false);
+  const muteMelodyRef = useRef(false);
+  const muteDrumsRef = useRef(false);
+  useEffect(() => { muteChordsRef.current = muteChords; }, [muteChords]);
+  useEffect(() => { muteBassRef.current = muteBass; }, [muteBass]);
+  useEffect(() => { muteMelodyRef.current = muteMelody; }, [muteMelody]);
+  useEffect(() => { muteDrumsRef.current = muteDrums; }, [muteDrums]);
   // ── Arrangement playback ──
   const [arrangementPlaying, setArrangementPlaying] = useState(false);
   // ── Pad-to-chord mode ──
@@ -4086,6 +4113,11 @@ export default function App() {
       tlTimeoutsRef.current.push(id);
       return id;
     };
+    // Mute-aware schedulers — check ref at fire time, not schedule time
+    const scheduleChord = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms);
+    const scheduleBass = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms);
+    const scheduleMelody = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
+    const scheduleDrum = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
 
     const style = STYLES[playStyle] || STYLES.normal;
 
@@ -4116,8 +4148,8 @@ export default function App() {
     };
 
     const doSchedule = () => {
-      // Chords (skip if muted)
-      if (!muteChords) timelineItems.forEach(item => {
+      // Chords — always schedule, check mute ref at fire time
+      timelineItems.forEach(item => {
         const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         // Filter out muted notes from piano roll
         const noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
@@ -4129,8 +4161,8 @@ export default function App() {
 
         // Sustain pedal (MIDI only): press at chord start, release just before end
         if (midiOut && style.sustain) {
-          schedule(() => midiOut.send([0xB0|ch, 64, 127]), startSec*1000);
-          schedule(() => midiOut.send([0xB0|ch, 64, 0]),   (startSec + durSec*0.97)*1000);
+          scheduleChord(() => midiOut.send([0xB0|ch, 64, 127]), startSec*1000);
+          scheduleChord(() => midiOut.send([0xB0|ch, 64, 0]),   (startSec + durSec*0.97)*1000);
         }
 
         if (midiOut) {
@@ -4145,8 +4177,8 @@ export default function App() {
               const midiVel = Math.max(1, Math.min(127, Math.round((vel*100*accentBoost + 15) * style.velMult)));
               const onMs  = (startSec + i*rateSec + offsetSec) * 1000;
               const offMs = onMs + rateMs * style.durMult;
-              schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
-              schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
+              scheduleChord(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+              scheduleChord(() => midiOut.send([0x80|ch, n, 0]),       offMs);
             }
           } else if (style.tremoloHz > 0) {
             const repSec = 1 / style.tremoloHz;
@@ -4159,15 +4191,17 @@ export default function App() {
                 const n = nameToMidi(note);
                 const onMs  = (startSec + r*repSec + offsets[i]) * 1000;
                 const offMs = onMs + repSec * 0.7 * 1000;
-                schedule(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
-                schedule(() => midiOut.send([0x80|ch, n, 0]),       offMs);
+                scheduleChord(() => midiOut.send([0x90|ch, n, midiVel]), onMs);
+                scheduleChord(() => midiOut.send([0x80|ch, n, 0]),       offMs);
               });
             }
           } else {
             // Apply chord rhythm pattern
             const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
             const hits = cpat.generate(item.lengthSlots);
-            hits.forEach(hit => {
+            const itemMutes = chordRhythmMutes[item.id] || {};
+            hits.forEach((hit, hIdx) => {
+              if (itemMutes[hIdx]) return; // muted hit
               const hitStartSec = startSec + hit.offset * durSec;
               const hitDurSec = hit.duration * durSec * style.durMult;
               const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
@@ -4179,8 +4213,8 @@ export default function App() {
                 const n = nameToMidi(note);
                 const onMs = (hitStartSec + offsets[i]) * 1000;
                 const offMs = onMs + hitDurSec * 1000;
-                schedule(() => midiOut.send([0x90 | ch, n, midiVel]), onMs);
-                schedule(() => midiOut.send([0x80 | ch, n, 0]), offMs);
+                scheduleChord(() => midiOut.send([0x90 | ch, n, midiVel]), onMs);
+                scheduleChord(() => midiOut.send([0x80 | ch, n, 0]), offMs);
               });
             });
           }
@@ -4195,7 +4229,7 @@ export default function App() {
               const noteDur = rateSec * style.durMult;
               const whenMs = (startSec + i*rateSec + offsetSec) * 1000;
               const note = ordered[i%ordered.length];
-              schedule(() => {
+              scheduleChord(() => {
                 try { inst.triggerAttackRelease(note, noteDur, Tone.now(), v); } catch(e) {}
               }, whenMs);
             }
@@ -4208,7 +4242,7 @@ export default function App() {
                 const accentBoost = i===0 ? style.accentMult : 1;
                 const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult));
                 const whenMs = (startSec + r*repSec + offsets[i]) * 1000;
-                schedule(() => {
+                scheduleChord(() => {
                   try { inst.triggerAttackRelease(note, repSec*0.7, Tone.now(), v); } catch(e) {}
                 }, whenMs);
               });
@@ -4217,7 +4251,9 @@ export default function App() {
             // Apply chord rhythm pattern (Tone.js path)
             const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
             const hits = cpat.generate(item.lengthSlots);
-            hits.forEach(hit => {
+            const itemMutes = chordRhythmMutes[item.id] || {};
+            hits.forEach((hit, hIdx) => {
+              if (itemMutes[hIdx]) return; // muted hit
               const hitStartSec = startSec + hit.offset * durSec;
               const hitDurSec = hit.duration * durSec * style.durMult;
               const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
@@ -4227,7 +4263,7 @@ export default function App() {
                 const prVel = getNoteVelScale(note, item.startSlot);
                 const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult));
                 const whenMs = (hitStartSec + offsets[i]) * 1000;
-                schedule(() => {
+                scheduleChord(() => {
                   try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {}
                 }, whenMs);
               });
@@ -4239,7 +4275,7 @@ export default function App() {
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
       // Works with MIDI out OR built-in drum synths (no MPC needed)
-      if (hasDrums && !muteDrums) {
+      if (hasDrums) {
         if (!midiOut) initDrumSynths();
         const drumCh = drumChannel - 1;
         const curSwing     = drumSwingRef.current;
@@ -4260,17 +4296,17 @@ export default function App() {
             if (midiOut) {
               const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
               const offMs = onMs + slotSec * 0.9 * 1000;
-              schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
-              schedule(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
+              scheduleDrum(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+              scheduleDrum(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
             } else {
-              schedule(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+              scheduleDrum(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
             }
           });
         }
       }
 
       // ── Bass line scheduling ──
-      if (bassLine.length > 0 && !muteBass) {
+      if (bassLine.length > 0) {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
         bassLine.forEach(note => {
           if (note.muted) return;
@@ -4281,10 +4317,10 @@ export default function App() {
           if (midiOut) {
             const ch = (midiChannel - 1);
             const midiVel = Math.max(1, Math.min(127, note.velocity));
-            schedule(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
-            schedule(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
+            scheduleBass(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
+            scheduleBass(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
           } else {
-            schedule(() => {
+            scheduleBass(() => {
               try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
             }, startSec * 1000);
           }
@@ -4292,7 +4328,7 @@ export default function App() {
       }
 
       // ── Melody / topline scheduling ──
-      if (melodyLine.length > 0 && !muteMelody) {
+      if (melodyLine.length > 0) {
         const melInst = midiOut ? null : getMelodyInstrument(melodySound);
         melodyLine.forEach(note => {
           if (note.muted) return;
@@ -4303,10 +4339,10 @@ export default function App() {
           if (midiOut) {
             const ch = (midiChannel - 1);
             const midiVel = Math.max(1, Math.min(127, note.velocity));
-            schedule(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
-            schedule(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
+            scheduleMelody(() => midiOut.send([0x90 | ch, note.midi, midiVel]), startSec * 1000);
+            scheduleMelody(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
           } else {
-            schedule(() => {
+            scheduleMelody(() => {
               try { melInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
             }, startSec * 1000);
           }
@@ -4368,20 +4404,27 @@ export default function App() {
       const id = setTimeout(() => { tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id); cb(); }, ms);
       tlTimeoutsRef.current.push(id);
     };
+    // Mute-aware schedulers for arrangement
+    const scheduleChordA = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms);
+    const scheduleBassA = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms);
+    const scheduleMelodyA = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
+    const scheduleDrumA = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
 
     const doScheduleArrangement = () => {
       resolvedSecs.forEach((sec, secIdx) => {
         const offset = secIdx * slotsPerSection;
 
         // Chords (with rhythm pattern)
-        if (!muteChords && sec.timelineItems) {
+        if (sec.timelineItems) {
           const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
           sec.timelineItems.forEach(item => {
             const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
             const chordStartSec = (offset + item.startSlot) * slotSec;
             const chordDurSec = item.lengthSlots * slotSec;
             const hits = cpat.generate(item.lengthSlots);
-            hits.forEach(hit => {
+            const itemMutes = chordRhythmMutes[item.id] || {};
+            hits.forEach((hit, hIdx) => {
+              if (itemMutes[hIdx]) return; // muted hit
               const hitStartSec = chordStartSec + hit.offset * chordDurSec;
               const hitDurSec = hit.duration * chordDurSec * style.durMult;
               const hitNotes = hit._arpNote != null ? [noteNames[hit._arpNote % noteNames.length]] : noteNames;
@@ -4391,14 +4434,14 @@ export default function App() {
                 hitNotes.forEach((note, i) => {
                   const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult)));
                   const n = nameToMidi(note);
-                  schedule(() => midiOut.send([0x90|ch, n, midiVel]), (hitStartSec + offsets2[i]) * 1000);
-                  schedule(() => midiOut.send([0x80|ch, n, 0]), (hitStartSec + hitDurSec) * 1000);
+                  scheduleChordA(() => midiOut.send([0x90|ch, n, midiVel]), (hitStartSec + offsets2[i]) * 1000);
+                  scheduleChordA(() => midiOut.send([0x80|ch, n, 0]), (hitStartSec + hitDurSec) * 1000);
                 });
               } else {
                 const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
                 hitNotes.forEach((note, i) => {
                   const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult));
-                  schedule(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, (hitStartSec + offsets2[i]) * 1000);
+                  scheduleChordA(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, (hitStartSec + offsets2[i]) * 1000);
                 });
               }
             });
@@ -4406,7 +4449,7 @@ export default function App() {
         }
 
         // Bass
-        if (!muteBass && sec.bassLine) {
+        if (sec.bassLine) {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
@@ -4415,16 +4458,16 @@ export default function App() {
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
             const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
             if (midiOut) {
-              schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, note.velocity]), startSec * 1000);
-              schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+              scheduleBassA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, note.velocity]), startSec * 1000);
+              scheduleBassA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
             } else {
-              schedule(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              scheduleBassA(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
             }
           });
         }
 
         // Melody
-        if (!muteMelody && sec.melodyLine) {
+        if (sec.melodyLine) {
           const melInst2 = midiOut ? null : getMelodyInstrument(melodySound);
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
@@ -4433,16 +4476,16 @@ export default function App() {
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
             const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
             if (midiOut) {
-              schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, note.velocity)]), startSec * 1000);
-              schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, note.velocity)]), startSec * 1000);
+              scheduleMelodyA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
             } else {
-              schedule(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              scheduleMelodyA(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
             }
           });
         }
 
         // Drums
-        if (sec.drumPattern && !muteDrums) {
+        if (sec.drumPattern) {
           if (!midiOut) initDrumSynths();
           const drumCh = drumChannel - 1;
           DRUM_TRACKS.forEach(track => {
@@ -4453,10 +4496,10 @@ export default function App() {
               const onMs = (offset + step) * slotSec * 1000;
               const note = padMap[track.id]?.midiNote ?? track.defaultNote;
               if (midiOut) {
-                schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
-                schedule(() => midiOut.send([0x80 | drumCh, note, 0]), onMs + slotSec * 0.9 * 1000);
+                scheduleDrumA(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+                scheduleDrumA(() => midiOut.send([0x80 | drumCh, note, 0]), onMs + slotSec * 0.9 * 1000);
               } else {
-                schedule(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+                scheduleDrumA(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
               }
             });
           });
@@ -4490,7 +4533,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), muteChords, muteBass, muteMelody, muteDrums, chordPlayPattern]);
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
 
   return (
     <>
@@ -5252,10 +5295,17 @@ export default function App() {
                       return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                     })}
                     {/* Chord blocks */}
-                    {timelineItems.map(item => (
+                    {timelineItems.map(item => {
+                      const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
+                      const hits = cpat.generate(item.lengthSlots);
+                      const isSustained = chordPlayPattern === "sustained";
+                      const itemMutes = chordRhythmMutes[item.id] || {};
+
+                      return (
                       <div key={item.id}
-                        onMouseDown={e => { if(e.target.dataset.resize) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                        onMouseDown={e => { if(e.target.dataset.resize || e.target.dataset.rhythmhit) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
                         onDoubleClick={e => {
+                          if (e.target.dataset.rhythmhit) return;
                           e.preventDefault(); e.stopPropagation();
                           dragRef.current = null;
                           setTimelineItems(prev => {
@@ -5273,25 +5323,85 @@ export default function App() {
                           left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
                           width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
                           top:6, height:"calc(100% - 12px)",
-                          background:`linear-gradient(180deg,${t.accentCardHover} 0%,${t.accentCardBg} 100%)`,
-                          border:`1px solid ${t.accentBorder}`,
+                          background: isSustained ? `linear-gradient(180deg,${t.accentCardHover} 0%,${t.accentCardBg} 100%)` : "transparent",
+                          border: isSustained ? `1px solid ${t.accentBorder}` : "none",
                           borderRadius:6, cursor:"grab",
-                          display:"flex", alignItems:"center", justifyContent:"space-between",
-                          padding:"0 4px 0 8px", overflow:"hidden",
-                          boxShadow:`0 0 8px rgba(122,91,175,0.1)`,
+                          overflow:"hidden",
+                          boxShadow: isSustained ? `0 0 8px rgba(122,91,175,0.1)` : "none",
                         }}>
-                        <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
-                          {item.chord.display}
-                        </span>
-                        <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
-                          <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
-                            style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
-                          <div data-resize="1"
-                            onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                            style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
-                        </div>
+                        {/* Sustained mode — original look */}
+                        {isSustained && (
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", height:"100%", padding:"0 4px 0 8px" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
+                              {item.chord.display}
+                            </span>
+                            <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
+                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
+                              <div data-resize="1"
+                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                                style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
+                            </div>
+                          </div>
+                        )}
+                        {/* Rhythm pattern mode — show hits as sub-blocks */}
+                        {!isSustained && (
+                          <div style={{ position:"relative", width:"100%", height:"100%" }}>
+                            {/* Chord label floating top-left */}
+                            <span style={{ position:"absolute", top:1, left:4, fontSize:9, fontWeight:700, color:t.accent, fontFamily:SF, opacity:0.7, zIndex:2, pointerEvents:"none" }}>
+                              {item.chord.display}
+                            </span>
+                            {/* Hit sub-blocks */}
+                            {hits.map((hit, hIdx) => {
+                              const isMuted = !!itemMutes[hIdx];
+                              const leftPct = hit.offset * 100;
+                              const widthPct = Math.max(hit.duration * 100, 2); // min 2% so it's visible
+                              return (
+                                <div key={hIdx}
+                                  data-rhythmhit="1"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setChordRhythmMutes(prev => {
+                                      const cur = prev[item.id] || {};
+                                      const next = { ...cur };
+                                      if (next[hIdx]) delete next[hIdx];
+                                      else next[hIdx] = true;
+                                      return { ...prev, [item.id]: next };
+                                    });
+                                  }}
+                                  title={isMuted ? `Hit ${hIdx+1} — muted (click to unmute)` : `Hit ${hIdx+1} — vel ${Math.round(hit.velMult*100)}% (click to mute)`}
+                                  style={{
+                                    position:"absolute",
+                                    left:`${leftPct}%`,
+                                    width:`${widthPct}%`,
+                                    top:2, bottom:2,
+                                    background: isMuted
+                                      ? "rgba(128,128,128,0.15)"
+                                      : `rgba(122,91,175,${0.25 + hit.velMult * 0.45})`,
+                                    border: isMuted
+                                      ? "1px dashed rgba(128,128,128,0.3)"
+                                      : `1px solid rgba(122,91,175,${0.3 + hit.velMult * 0.3})`,
+                                    borderRadius:4,
+                                    cursor:"pointer",
+                                    transition:"all 0.1s",
+                                    boxShadow: isMuted ? "none" : `0 0 4px rgba(122,91,175,${hit.velMult * 0.2})`,
+                                  }}
+                                />
+                              );
+                            })}
+                            {/* Controls: delete + resize handle */}
+                            <div style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:1, zIndex:3 }}>
+                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
+                              <div data-resize="1"
+                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                                style={{ width:5, height:20, borderRadius:2, background:"rgba(122,91,175,0.2)", cursor:"ew-resize", flexShrink:0 }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                    );})}
+
                     {/* Playhead */}
                     {looping && (
                       <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none", boxShadow:`0 0 6px ${t.accent}` }} />
@@ -5477,7 +5587,7 @@ export default function App() {
                       Chord Rhythm
                     </span>
                     {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
-                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); }}
+                      <button key={key} onClick={() => { if(looping) stopLoop(); setChordPlayPattern(key); setChordRhythmMutes({}); }}
                         style={{ fontFamily:SF, fontSize:11, fontWeight: chordPlayPattern === key ? 700 : 450, padding:"5px 12px", borderRadius:7,
                           border:`1px solid ${chordPlayPattern === key ? "rgba(122,91,175,0.4)" : t.btnBorder}`,
                           background: chordPlayPattern === key ? "rgba(122,91,175,0.12)" : t.btnBg,
