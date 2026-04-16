@@ -2337,6 +2337,12 @@ export default function App() {
   const midiAccess = useRef(null);
   const instRef    = useRef(null);
   const tlTimeoutsRef = useRef([]);
+  // Live refs for values read inside scheduling closures
+  const drumSwingRef    = useRef(drumSwing);
+  const drumHalfTimeRef = useRef(drumHalfTime);
+  const soloTrackRef    = useRef(soloTrack);
+  const mutedTracksRef  = useRef(mutedTracks);
+  const tripletTracksRef = useRef(tripletTracks);
 
   // ── MIDI init ──
   useEffect(() => {
@@ -2351,6 +2357,13 @@ export default function App() {
       access.onstatechange = refresh;
     }).catch(() => setMidiError("MIDI access denied. Allow MIDI in browser permissions."));
   }, []);
+
+  // Keep refs in sync with state for live scheduling reads
+  useEffect(() => { drumSwingRef.current = drumSwing; }, [drumSwing]);
+  useEffect(() => { drumHalfTimeRef.current = drumHalfTime; }, [drumHalfTime]);
+  useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
+  useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
+  useEffect(() => { tripletTracksRef.current = tripletTracks; }, [tripletTracks]);
 
   const getMIDIOut = useCallback(() => {
     if (midiOutputId === "off" || !midiAccess.current) return null;
@@ -2708,22 +2721,26 @@ export default function App() {
       });
 
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
+      // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
       if (hasDrums && midiOut) {
         const drumCh = drumChannel - 1;
+        // Read current values from refs (not stale closure state)
+        const curSwing     = drumSwingRef.current;
+        const curHalfTime  = drumHalfTimeRef.current;
+        const curSolo      = soloTrackRef.current;
+        const curMuted     = mutedTracksRef.current;
+        const curTriplets  = tripletTracksRef.current;
         // Swing: off-beat 16ths pushed late by up to 50% of a step
-        const swingAmt = (drumSwing / 100) * slotSec * 0.5; // seconds of delay on odd steps
-        // Half-time: effectively double the step spacing (skip odd steps → 8th notes only)
+        const swingAmt = (curSwing / 100) * slotSec * 0.5;
         for (let step = 0; step < DRUM_STEPS; step++) {
           DRUM_TRACKS.forEach(track => {
-            // Solo: if a track is soloed, only that track plays
-            if (soloTrack && soloTrack !== track.id) return;
-            if (!soloTrack && mutedTracks[track.id]) return;
+            if (curSolo && curSolo !== track.id) return;
+            if (!curSolo && curMuted[track.id]) return;
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
             // Half-time: skip odd 16ths to halve density (except tracks with triplet mode)
-            if (drumHalfTime && !tripletTracks[track.id] && step % 2 !== 0) return;
+            if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
             const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
-            // Apply swing: odd 16th-note steps get pushed late
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = (step * slotSec + swingDelay) * 1000;
             const offMs = onMs + slotSec * 0.9 * 1000;
@@ -2754,6 +2771,18 @@ export default function App() {
   };
 
   useEffect(() => () => stopLoop(), []);
+
+  // Restart loop when swing, halftime, solo, or mute changes during playback
+  const loopingRef = useRef(false);
+  useEffect(() => { loopingRef.current = looping; }, [looping]);
+  useEffect(() => {
+    if (loopingRef.current) {
+      stopLoop();
+      // Small delay to let cleanup finish, then restart
+      const t = setTimeout(() => playTimeline(), 50);
+      return () => clearTimeout(t);
+    }
+  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks)]);
 
   return (
     <>
