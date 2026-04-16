@@ -5455,7 +5455,13 @@ export default function App() {
                     return (
                       <div key={i}
                         onClick={() => addChord(c)}
-                        onMouseEnter={() => setHoveredChord(c)}
+                        onMouseEnter={() => {
+                          setHoveredChord(c);
+                          if (!looping) {
+                            const names = getChordNoteNames(c.noteIdx, c.quality, chordOctave);
+                            playChord(names, soundType);
+                          }
+                        }}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
                           border: accent ? `1px solid rgba(122,91,175,0.55)` : `1px solid rgba(28,24,32,0.08)`,
