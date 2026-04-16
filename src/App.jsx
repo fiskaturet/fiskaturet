@@ -7,6 +7,9 @@ import JSZip from "jszip";
 let sampler = null;
 function getSampler() {
   if (!sampler) {
+    // Soft piano chain: Sampler → LPF (warmth) → Reverb (space) → Destination
+    const pianoReverb = new Tone.Reverb({ decay: 3.2, wet: 0.25 }).toDestination();
+    const pianoFilter = new Tone.Filter({ frequency: 4200, type: "lowpass", rolloff: -12 }).connect(pianoReverb);
     sampler = new Tone.Sampler({
       urls: {
         A1:"A1.mp3", A2:"A2.mp3", A3:"A3.mp3", A4:"A4.mp3", A5:"A5.mp3", A6:"A6.mp3", A7:"A7.mp3",
@@ -14,9 +17,11 @@ function getSampler() {
         "D#1":"Ds1.mp3","D#2":"Ds2.mp3","D#3":"Ds3.mp3","D#4":"Ds4.mp3","D#5":"Ds5.mp3","D#6":"Ds6.mp3","D#7":"Ds7.mp3",
         "F#1":"Fs1.mp3","F#2":"Fs2.mp3","F#3":"Fs3.mp3","F#4":"Fs4.mp3","F#5":"Fs5.mp3","F#6":"Fs6.mp3","F#7":"Fs7.mp3",
       },
-      release: 1,
+      release: 1.8,
+      attack: 0.01,
+      volume: -3,
       baseUrl: "https://tonejs.github.io/audio/salamander/",
-    }).toDestination();
+    }).connect(pianoFilter);
   }
   return sampler;
 }
@@ -811,47 +816,115 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
       blackKeys.push({ noteIdx:ni, leftPct:(BLACK_OFFSETS[bi]+oct*7)*wkw, octave:oct+4, name:BLACK_NAMES[bi] }));
   }
 
+  const [hoveredKey, setHoveredKey] = useState(null);
+
   return (
-    <div style={{ position:"relative", width:"100%", height:130, userSelect:"none" }}>
+    <div style={{ position:"relative", width:"100%", height:150, userSelect:"none" }}>
       {whiteKeys.map((k,i) => {
         const hl = highlightedNotes.includes(k.noteIdx) && (highlightAllOctaves || k.octave===4);
         const sc = !highlightAllOctaves && scaleNoteIndices.includes(k.noteIdx);
+        const hovered = hoveredKey === `w${i}`;
+        const isActive = hl || sc;
         return (
-          <div key={i} onClick={() => onNoteClick?.(k.name+k.octave)} style={{
-            position:"absolute", left:`calc(${k.pos*wkw}% + 1px)`, width:`calc(${wkw}% - 2px)`,
-            height:"100%",
-            background: hl ? t.whiteKeyAllScaleBg : sc ? t.whiteKeyScaleBg : t.whiteKeyBg,
-            border:`1px solid ${t.whiteKeyBorder}`, borderTop:"none",
-            borderRadius:"0 0 8px 8px", cursor:"pointer",
-            transition:"background 0.12s ease",
-            display:"flex", alignItems:"flex-end", justifyContent:"center",
-            paddingBottom:8, boxSizing:"border-box",
-          }}>
-            {k.noteIdx===0 && (
-              <span style={{ fontSize:8.5, fontFamily:"SF Pro Text,-apple-system,sans-serif",
-                color: hl ? t.whiteKeyLabelHl : t.whiteKeyLabel, fontWeight:hl?600:400 }}>
-                C{k.octave}
-              </span>
+          <div key={i}
+            onClick={() => onNoteClick?.(k.name+k.octave)}
+            onMouseEnter={() => setHoveredKey(`w${i}`)}
+            onMouseLeave={() => setHoveredKey(null)}
+            style={{
+              position:"absolute", left:`calc(${k.pos*wkw}% + 1px)`, width:`calc(${wkw}% - 2px)`,
+              height:"100%",
+              background: hl
+                ? "linear-gradient(180deg, #C4AADF 0%, #9B7CC8 60%, #7A5BAF 100%)"
+                : sc
+                  ? "linear-gradient(180deg, #F5F0FA 0%, rgba(122,91,175,0.18) 100%)"
+                  : hovered
+                    ? "linear-gradient(180deg, #FEFEFF 0%, #F5F3F8 100%)"
+                    : "linear-gradient(180deg, #FFFFFF 0%, #F8F6FA 60%, #F0EDF4 100%)",
+              border: hl
+                ? "1px solid rgba(122,91,175,0.5)"
+                : sc
+                  ? "1px solid rgba(122,91,175,0.3)"
+                  : `1px solid ${t.whiteKeyBorder}`,
+              borderTop:"none",
+              borderRadius:"0 0 10px 10px", cursor:"pointer",
+              transition:"all 0.15s ease",
+              display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end",
+              paddingBottom:10, boxSizing:"border-box",
+              boxShadow: hovered
+                ? "0 2px 8px rgba(122,91,175,0.15), inset 0 -4px 8px rgba(0,0,0,0.03)"
+                : "inset 0 -4px 8px rgba(0,0,0,0.02)",
+              transform: hovered ? "scaleY(0.98)" : "none",
+              transformOrigin: "top",
+            }}>
+            {/* Note dot for scale/highlighted */}
+            {isActive && (
+              <div style={{
+                width: 6, height: 6, borderRadius: "50%",
+                background: hl ? "#fff" : t.accent,
+                opacity: hl ? 0.9 : 0.5,
+                marginBottom: 5,
+                boxShadow: hl ? "0 0 6px rgba(255,255,255,0.5)" : "none",
+              }} />
             )}
+            <span style={{
+              fontSize: 9.5,
+              fontFamily: "'SF Pro Text',-apple-system,system-ui,sans-serif",
+              fontWeight: hl ? 700 : isActive ? 550 : 420,
+              color: hl ? "#fff" : sc ? t.accent : "rgba(28,24,32,0.35)",
+              letterSpacing: "0.02em",
+              lineHeight: 1,
+            }}>
+              {k.name}{k.noteIdx === 0 ? k.octave : ""}
+            </span>
           </div>
         );
       })}
       {blackKeys.map((k,i) => {
         const hl = highlightedNotes.includes(k.noteIdx) && (highlightAllOctaves || k.octave===4);
         const sc = !highlightAllOctaves && scaleNoteIndices.includes(k.noteIdx);
+        const hovered = hoveredKey === `b${i}`;
         return (
-          <div key={i} onClick={e => { e.stopPropagation(); onNoteClick?.(k.name+k.octave); }} style={{
-            position:"absolute", left:`${k.leftPct}%`, width:`${wkw*0.56}%`, height:"60%",
-            background: hl ? t.blackKeyAllScaleBg : sc ? t.blackKeyScaleBg : t.blackKeyBg,
-            borderRadius:"0 0 5px 5px", zIndex:2, cursor:"pointer",
-            transition:"background 0.12s ease",
-            boxShadow:"0 4px 10px rgba(0,0,0,0.5),inset 0 -1px 0 rgba(255,255,255,0.07)",
-            display:"flex", alignItems:"flex-end", justifyContent:"center", paddingBottom:4,
-          }}>
+          <div key={i}
+            onClick={e => { e.stopPropagation(); onNoteClick?.(k.name+k.octave); }}
+            onMouseEnter={() => setHoveredKey(`b${i}`)}
+            onMouseLeave={() => setHoveredKey(null)}
+            style={{
+              position:"absolute", left:`${k.leftPct}%`, width:`${wkw*0.58}%`, height:"62%",
+              background: hl
+                ? "linear-gradient(180deg, #9B7CC8 0%, #6B4B9A 50%, #5B3F8A 100%)"
+                : sc
+                  ? "linear-gradient(180deg, #8B6CB8 0%, #6B4B9A 100%)"
+                  : hovered
+                    ? "linear-gradient(180deg, #3A3340 0%, #2A2530 60%, #222025 100%)"
+                    : "linear-gradient(180deg, #353040 0%, #2A2530 55%, #1E1C22 100%)",
+              borderRadius:"0 0 6px 6px", zIndex:2, cursor:"pointer",
+              transition:"all 0.15s ease",
+              boxShadow: hl
+                ? "0 3px 8px rgba(90,60,140,0.5), inset 0 1px 0 rgba(255,255,255,0.12)"
+                : hovered
+                  ? "0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)"
+                  : "0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -2px 4px rgba(0,0,0,0.2)",
+              display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end",
+              paddingBottom:6,
+              transform: hovered ? "scaleY(0.97)" : "none",
+              transformOrigin: "top",
+            }}>
+            {(hl || sc) && (
+              <div style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: "#fff",
+                opacity: hl ? 0.9 : 0.4,
+                marginBottom: 4,
+                boxShadow: hl ? "0 0 5px rgba(255,255,255,0.4)" : "none",
+              }} />
+            )}
             <span style={{
-              fontSize:7, fontFamily:"SF Pro Text,-apple-system,sans-serif", lineHeight:1,
-              color: hl ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.38)",
-              fontWeight: hl ? 700 : 400, userSelect:"none",
+              fontSize: 7.5,
+              fontFamily: "'SF Pro Text',-apple-system,system-ui,sans-serif",
+              fontWeight: hl ? 700 : sc ? 600 : 450,
+              color: hl ? "rgba(255,255,255,0.95)" : sc ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.32)",
+              letterSpacing: "0.01em",
+              lineHeight: 1,
             }}>
               {k.name}
             </span>
@@ -2512,6 +2585,10 @@ export default function App() {
   const [lockedTracks,   setLockedTracks]   = useState({});
   const [mutedTracks,    setMutedTracks]    = useState({});
   const [padMapperOpen,  setPadMapperOpen]  = useState(false);
+  // ── Piano Roll state ──
+  const [pianoRollOpen,  setPianoRollOpen]   = useState(false);
+  const [pianoRollEdits, setPianoRollEdits]  = useState({}); // key: "noteNum-startSlot" → { velocity, lengthSlots, muted }
+  const pianoRollRef = useRef(null);
   const [drumStep,       setDrumStep]       = useState(-1);
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
@@ -2643,6 +2720,55 @@ export default function App() {
     }
     return true;
   };
+
+  // ── Piano Roll helpers ──────────────────────────────────────────────────────
+  // Compute note blocks from timeline items for the piano roll view
+  const computePianoRollNotes = useCallback(() => {
+    const notes = [];
+    timelineItems.forEach(item => {
+      const intervals = CHORD_INTERVALS[item.chord.quality] || CHORD_INTERVALS["maj"];
+      let octave = chordOctave;
+      let prev = -1;
+      intervals.forEach(iv => {
+        const ni = (item.chord.noteIdx + iv) % 12;
+        if (ni < prev) octave++;
+        prev = ni;
+        const midiNum = ni + (octave * 12) + 12; // MIDI note number
+        const key = `${midiNum}-${item.startSlot}`;
+        const edit = pianoRollEdits[key];
+        notes.push({
+          key,
+          midiNum,
+          noteName: NOTES[ni] + octave,
+          noteIdx: ni,
+          startSlot: item.startSlot,
+          lengthSlots: edit?.lengthSlots ?? item.lengthSlots,
+          velocity: edit?.velocity ?? 100,
+          muted: edit?.muted ?? false,
+          chordId: item.id,
+        });
+        octave = ni < prev ? octave : octave; // reset after use
+      });
+    });
+    return notes;
+  }, [timelineItems, chordOctave, pianoRollEdits]);
+
+  const pianoRollNotes = computePianoRollNotes();
+
+  // Get the range of MIDI notes to display
+  const getPianoRollRange = useCallback(() => {
+    if (pianoRollNotes.length === 0) {
+      const low = chordOctave * 12 + 12; // C of current octave
+      return { low, high: low + 24 };
+    }
+    const midiNums = pianoRollNotes.map(n => n.midiNum);
+    const minNote = Math.min(...midiNums);
+    const maxNote = Math.max(...midiNums);
+    // Pad 2 semitones each side, quantize to nearest C
+    const low = Math.max(24, Math.floor((minNote - 2) / 12) * 12);
+    const high = Math.min(108, Math.ceil((maxNote + 3) / 12) * 12);
+    return { low, high: Math.max(high, low + 12) };
+  }, [pianoRollNotes, chordOctave]);
 
   const addChord = (chord) => {
     setActiveChord(chord);
@@ -2812,9 +2938,24 @@ export default function App() {
       } catch(e) {}
     }
 
+    // Pre-compute piano roll edits lookup for this scheduling pass
+    const prEdits = pianoRollEdits;
+    const getNoteVelScale = (noteName, startSlot) => {
+      // Convert note name to MIDI num for lookup
+      const midi = nameToMidi(noteName);
+      const key = `${midi}-${startSlot}`;
+      const edit = prEdits[key];
+      if (edit?.muted) return 0; // muted
+      if (edit?.velocity != null) return edit.velocity / 100;
+      return 1; // default
+    };
+
     const doSchedule = () => {
       timelineItems.forEach(item => {
-        const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+        const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+        // Filter out muted notes from piano roll
+        const noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
+        if (noteNames.length === 0) return; // all muted, skip this chord
         const startSec  = item.startSlot * slotSec;
         const durSec    = item.lengthSlots * slotSec;
         const styledDur = durSec * style.durMult;
@@ -2860,7 +3001,8 @@ export default function App() {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
               const accentBoost = i===0 ? style.accentMult : 1;
-              const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult)));
+              const prVel = getNoteVelScale(note, item.startSlot);
+              const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult * prVel)));
               const n = nameToMidi(note);
               const onMs  = (startSec + offsets[i]) * 1000;
               const offMs = onMs + styledDur * 1000;
@@ -2901,7 +3043,8 @@ export default function App() {
             const offsets = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
             noteNames.forEach((note,i) => {
               const accentBoost = i===0 ? style.accentMult : 1;
-              const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult));
+              const prVel = getNoteVelScale(note, item.startSlot);
+              const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult*prVel));
               const whenMs = (startSec + offsets[i]) * 1000;
               schedule(() => {
                 try { inst.triggerAttackRelease(note, styledDur, Tone.now(), v); } catch(e) {}
@@ -3778,10 +3921,175 @@ export default function App() {
                     {/* Empty state */}
                     {timelineItems.length===0 && (
                       <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Klikk en akkord i rutenettet over for å legge den til ↑</span>
+                        <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Click a chord above to add it to the timeline ↑</span>
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* ── Piano Roll ── */}
+                <div style={{ marginBottom: 12 }}>
+                  <button onClick={() => setPianoRollOpen(o => !o)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, background:"none", border:"none",
+                      cursor:"pointer", padding:"4px 0", letterSpacing:"0.06em", textTransform:"uppercase",
+                      display:"flex", alignItems:"center", gap:6, opacity:0.8 }}>
+                    <span style={{ fontSize:8, transition:"transform 0.2s", transform: pianoRollOpen ? "rotate(90deg)" : "rotate(0)" }}>▶</span>
+                    Piano Roll {pianoRollNotes.length > 0 ? `(${pianoRollNotes.length} notes)` : ""}
+                  </button>
+                  {pianoRollOpen && (() => {
+                    const range = getPianoRollRange();
+                    const noteCount = range.high - range.low;
+                    const ROW_H = 16;
+                    const LABEL_W = 42;
+                    const VEL_STEPS = [40, 70, 100, 127]; // pp mp mf ff
+                    const VEL_LABELS = ["pp","mp","mf","ff"];
+                    const isBlack = (midi) => [1,3,6,8,10].includes(midi % 12);
+                    const midiToName = (midi) => NOTES[midi % 12] + Math.floor((midi - 12) / 12);
+
+                    return (
+                      <div ref={pianoRollRef} style={{ display:"flex", borderRadius:8, overflow:"hidden", border:`1px solid ${t.border}`, marginTop:4 }}>
+                        {/* Note labels (left) */}
+                        <div style={{ width:LABEL_W, flexShrink:0, background:t.elevatedBg, borderRight:`1px solid ${t.border}` }}>
+                          {Array.from({length:noteCount}, (_,i) => {
+                            const midi = range.high - 1 - i;
+                            const black = isBlack(midi);
+                            const isC = midi % 12 === 0;
+                            return (
+                              <div key={midi} style={{
+                                height:ROW_H, display:"flex", alignItems:"center", justifyContent:"flex-end",
+                                paddingRight:6, boxSizing:"border-box",
+                                borderBottom: isC ? `1px solid ${t.border}` : `1px solid rgba(28,24,32,0.03)`,
+                                background: black ? "rgba(28,24,32,0.04)" : "transparent",
+                              }}>
+                                <span style={{
+                                  fontSize: 8.5, fontFamily:"'SF Pro Text',-apple-system,sans-serif",
+                                  fontWeight: isC ? 700 : 450,
+                                  color: isC ? t.textPrimary : black ? t.textTertiary : t.textSecondary,
+                                }}>{midiToName(midi)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Grid area */}
+                        <div style={{ flex:1, position:"relative", overflow:"hidden" }}>
+                          {/* Background rows */}
+                          {Array.from({length:noteCount}, (_,i) => {
+                            const midi = range.high - 1 - i;
+                            const black = isBlack(midi);
+                            const isC = midi % 12 === 0;
+                            return (
+                              <div key={midi} style={{
+                                height:ROW_H,
+                                background: black ? "rgba(28,24,32,0.025)" : i % 2 === 0 ? "rgba(28,24,32,0.008)" : "transparent",
+                                borderBottom: isC ? `1px solid rgba(28,24,32,0.08)` : `1px solid rgba(28,24,32,0.02)`,
+                              }} />
+                            );
+                          })}
+                          {/* Vertical slot lines */}
+                          {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
+                            if (i === 0) return null;
+                            let bg;
+                            if (i % SLOTS_PER_BAR === 0) bg = "rgba(28,24,32,0.12)";
+                            else if (i % (SLOTS_PER_BAR/2) === 0) bg = "rgba(28,24,32,0.06)";
+                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(28,24,32,0.03)";
+                            else return null;
+                            return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
+                          })}
+                          {/* Note blocks */}
+                          {pianoRollNotes.filter(n => !n.muted).map(note => {
+                            const row = range.high - 1 - note.midiNum;
+                            if (row < 0 || row >= noteCount) return null;
+                            const velIdx = VEL_STEPS.findIndex(v => note.velocity <= v);
+                            const velOpacity = 0.4 + (velIdx >= 0 ? velIdx : 3) * 0.18;
+                            return (
+                              <div key={note.key}
+                                onClick={() => {
+                                  // Cycle velocity on click
+                                  const curIdx = VEL_STEPS.findIndex(v => note.velocity <= v);
+                                  const nextIdx = (curIdx + 1) % VEL_STEPS.length;
+                                  setPianoRollEdits(prev => ({
+                                    ...prev,
+                                    [note.key]: { ...(prev[note.key] || {}), velocity: VEL_STEPS[nextIdx] }
+                                  }));
+                                }}
+                                onContextMenu={(e) => {
+                                  e.preventDefault();
+                                  // Right-click to mute/unmute
+                                  setPianoRollEdits(prev => ({
+                                    ...prev,
+                                    [note.key]: { ...(prev[note.key] || {}), muted: true }
+                                  }));
+                                }}
+                                title={`${note.noteName} vel:${note.velocity} (${VEL_LABELS[velIdx >= 0 ? velIdx : 3]}) — click to cycle, right-click to mute`}
+                                style={{
+                                  position:"absolute",
+                                  top: row * ROW_H + 1,
+                                  left: `${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  height: ROW_H - 2,
+                                  background: `rgba(122,91,175,${velOpacity})`,
+                                  borderRadius: 3,
+                                  cursor: "pointer",
+                                  border: "1px solid rgba(122,91,175,0.5)",
+                                  transition: "opacity 0.12s",
+                                  display:"flex", alignItems:"center", paddingLeft:3,
+                                  overflow:"hidden",
+                                }}>
+                                <span style={{ fontSize:7.5, color:"#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
+                                  {note.noteName}
+                                </span>
+                              </div>
+                            );
+                          })}
+                          {/* Muted notes (dimmed) */}
+                          {pianoRollNotes.filter(n => n.muted).map(note => {
+                            const row = range.high - 1 - note.midiNum;
+                            if (row < 0 || row >= noteCount) return null;
+                            return (
+                              <div key={note.key}
+                                onClick={() => {
+                                  setPianoRollEdits(prev => ({
+                                    ...prev,
+                                    [note.key]: { ...(prev[note.key] || {}), muted: false }
+                                  }));
+                                }}
+                                title={`${note.noteName} (muted) — click to unmute`}
+                                style={{
+                                  position:"absolute",
+                                  top: row * ROW_H + 1,
+                                  left: `${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  height: ROW_H - 2,
+                                  background: "rgba(28,24,32,0.08)",
+                                  borderRadius: 3,
+                                  cursor: "pointer",
+                                  border: "1px dashed rgba(28,24,32,0.15)",
+                                }} />
+                            );
+                          })}
+                          {/* Playhead */}
+                          {looping && (
+                            <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.7, pointerEvents:"none" }} />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  {pianoRollOpen && pianoRollNotes.length > 0 && (
+                    <div style={{ display:"flex", gap:8, marginTop:6, alignItems:"center", flexWrap:"wrap" }}>
+                      <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>
+                        Click = cycle velocity (pp→mp→mf→ff) · Right-click = mute
+                      </span>
+                      <div style={{ flex:1 }} />
+                      {Object.keys(pianoRollEdits).length > 0 && (
+                        <button onClick={() => setPianoRollEdits({})}
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:6,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textSecondary, cursor:"pointer" }}>
+                          Reset edits
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Controls */}
