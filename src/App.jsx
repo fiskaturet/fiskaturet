@@ -1783,6 +1783,333 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   );
 }
 
+// ─── Hum-to-Chord Tab ─────────────────────────────────────────────────────────
+
+function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
+  const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
+  const [recording, setRecording]   = useState(false);
+  const [analyzing, setAnalyzing]   = useState(false);
+  const [humBars,   setHumBars]     = useState(4);
+  const [humBpm,    setHumBpm]      = useState(90);
+  const [freeMode,  setFreeMode]    = useState(false); // false = use scale, true = chromatic
+  const [detected,  setDetected]    = useState(null);  // [{ freq, note, noteIdx, chord }]
+  const [countdown, setCountdown]   = useState(0);
+  const [level,     setLevel]       = useState(0);     // mic input level 0-1
+  const streamRef      = useRef(null);
+  const audioCtxRef    = useRef(null);
+  const analyserRef    = useRef(null);
+  const rafRef         = useRef(null);
+  const recordBufRef   = useRef([]);
+  const countdownRef   = useRef(null);
+
+  // ── Cleanup on unmount ──
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
+    if (countdownRef.current) clearInterval(countdownRef.current);
+  }, []);
+
+  // ── Harmonize a melody note into a chord from the scale ──
+  function harmonize(melodyNoteIdx, rootIdx, scaleKey, freeMode) {
+    const scale   = SCALES[scaleKey];
+    const scaleNotes = scale.intervals.map(iv => (rootIdx + iv) % 12);
+
+    // Find nearest scale degree for the melody note
+    let bestDeg = 0, bestDist = 99;
+    scaleNotes.forEach((sn, deg) => {
+      const dist = Math.min(Math.abs(melodyNoteIdx - sn), 12 - Math.abs(melodyNoteIdx - sn));
+      if (dist < bestDist) { bestDist = dist; bestDeg = deg; }
+    });
+
+    // Strategy: pick a chord where the melody note is a chord tone (root, 3rd, or 5th)
+    // Try: degree where melody=root, degree where melody=3rd, degree where melody=5th
+    const candidates = [];
+    for (let deg = 0; deg < 7; deg++) {
+      const chordRoot = scaleNotes[deg];
+      const quality   = scale.qualities[deg];
+      const intervals = CHORD_INTERVALS[quality] || CHORD_INTERVALS["maj"];
+      const chordTones = intervals.map(iv => (chordRoot + iv) % 12);
+      // Is the melody note (or nearest scale match) in this chord?
+      const target = freeMode ? melodyNoteIdx : scaleNotes[bestDeg];
+      if (chordTones.includes(target)) {
+        // Prefer root > 5th > 3rd for a grounded feel
+        const toneIdx = chordTones.indexOf(target);
+        const priority = toneIdx === 0 ? 0 : toneIdx === 2 ? 1 : 2; // root=best, fifth=good, third=ok
+        candidates.push({ deg, quality, noteIdx: chordRoot, priority, display: NOTES[chordRoot] + (quality === "maj" ? "" : quality === "min" ? "m" : quality === "dim" ? "\u00B0" : quality) });
+      }
+    }
+    candidates.sort((a, b) => a.priority - b.priority);
+    // If we have candidates, pick best; add some variety with weighted random
+    if (candidates.length > 0) {
+      // 60% best candidate, 40% second-best for variety
+      const pick = candidates.length > 1 && Math.random() > 0.6 ? candidates[1] : candidates[0];
+      return { noteIdx: pick.noteIdx, quality: pick.quality, degree: scale.degrees[pick.deg], display: pick.display };
+    }
+    // Fallback: tonic chord
+    return { noteIdx: scaleNotes[0], quality: scale.qualities[0], degree: "I", display: NOTES[scaleNotes[0]] + (scale.qualities[0] === "min" ? "m" : "") };
+  }
+
+  // ── Record & analyze ──
+  const startRecording = async () => {
+    setDetected(null);
+    setAnalyzing(false);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 4096;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      streamRef.current  = stream;
+      audioCtxRef.current = audioCtx;
+      analyserRef.current = analyser;
+
+      const sampleRate = audioCtx.sampleRate;
+      const buf = new Float32Array(analyser.fftSize);
+      const durationSec = (humBars * 4 * 60) / humBpm; // bars * beats * seconds/beat
+      const startTime = Date.now();
+      recordBufRef.current = [];
+
+      // Countdown
+      setCountdown(Math.ceil(durationSec));
+      countdownRef.current = setInterval(() => {
+        const remaining = Math.max(0, Math.ceil(durationSec - (Date.now() - startTime) / 1000));
+        setCountdown(remaining);
+      }, 250);
+
+      setRecording(true);
+
+      // Capture pitch snapshots at ~30fps
+      const snapshots = [];
+      const captureLoop = () => {
+        if (Date.now() - startTime > durationSec * 1000) {
+          // Done recording
+          setRecording(false);
+          clearInterval(countdownRef.current);
+          setCountdown(0);
+          stream.getTracks().forEach(tr => tr.stop());
+          if (audioCtx.state !== "closed") audioCtx.close();
+          analyzeSnapshots(snapshots, sampleRate);
+          return;
+        }
+        analyser.getFloatTimeDomainData(buf);
+        // Level meter
+        let rms = 0;
+        for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+        setLevel(Math.min(1, Math.sqrt(rms / buf.length) * 10));
+        // Detect pitch
+        const freq = detectPitchAutocorr(buf, sampleRate);
+        if (freq && freq > 60 && freq < 1200) {
+          const midi = 12 * Math.log2(freq / 440) + 69;
+          const noteIdx = Math.round(midi) % 12;
+          snapshots.push({ time: Date.now() - startTime, freq, midi, noteIdx: ((noteIdx % 12) + 12) % 12 });
+        }
+        rafRef.current = requestAnimationFrame(captureLoop);
+      };
+      rafRef.current = requestAnimationFrame(captureLoop);
+    } catch (e) {
+      console.error("Mic error:", e);
+      setRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (streamRef.current) streamRef.current.getTracks().forEach(tr => tr.stop());
+    if (audioCtxRef.current && audioCtxRef.current.state !== "closed") audioCtxRef.current.close();
+    clearInterval(countdownRef.current);
+    setRecording(false);
+    setCountdown(0);
+  };
+
+  // ── Analyze captured pitch snapshots → melody notes → chords ──
+  const analyzeSnapshots = (snapshots, sampleRate) => {
+    setAnalyzing(true);
+    if (snapshots.length < 4) {
+      setDetected([]); setAnalyzing(false); return;
+    }
+
+    // Segment into N equal time slices (one per bar)
+    const totalTime = snapshots[snapshots.length - 1].time;
+    const segments = humBars;
+    const segDur = totalTime / segments;
+
+    const melodyNotes = [];
+    for (let s = 0; s < segments; s++) {
+      const segStart = s * segDur;
+      const segEnd   = (s + 1) * segDur;
+      const segSnaps = snapshots.filter(sn => sn.time >= segStart && sn.time < segEnd);
+      if (segSnaps.length === 0) {
+        melodyNotes.push(null);
+        continue;
+      }
+      // Find the most common noteIdx in this segment (mode)
+      const counts = new Array(12).fill(0);
+      segSnaps.forEach(sn => counts[sn.noteIdx]++);
+      let bestNote = 0, bestCount = 0;
+      counts.forEach((c, i) => { if (c > bestCount) { bestCount = c; bestNote = i; } });
+      const avgFreq = segSnaps.filter(sn => sn.noteIdx === bestNote).reduce((s, sn) => s + sn.freq, 0) /
+                      segSnaps.filter(sn => sn.noteIdx === bestNote).length;
+      melodyNotes.push({ noteIdx: bestNote, freq: avgFreq, noteName: NOTES[bestNote], count: bestCount });
+    }
+
+    // Harmonize each melody note
+    const results = melodyNotes.map(mn => {
+      if (!mn) return null;
+      const chord = harmonize(mn.noteIdx, rootIdx, scaleKey, freeMode);
+      return { ...mn, chord };
+    });
+
+    setDetected(results);
+    setAnalyzing(false);
+  };
+
+  // ── Place chords in timeline ──
+  const placeInTimeline = () => {
+    if (!detected || detected.length === 0) return;
+    const chords = detected.map(d => d ? d.chord : null).filter(Boolean);
+    onChordsReady(chords);
+  };
+
+  const durationSec = (humBars * 4 * 60) / humBpm;
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+      {/* ── Settings card ── */}
+      <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
+        <div style={{ fontSize:18, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
+          Nynn til akkorder
+        </div>
+        <p style={{ fontSize:13, color:t.textSecondary, lineHeight:1.6, marginBottom:16, fontFamily:SF2 }}>
+          Nynn en melodi — én tone per takt. Appen lytter, finner tonene, og foreslår akkorder som passer under melodien i den valgte skalaen.
+        </p>
+
+        <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"flex-end", marginBottom:16 }}>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Takter</label>
+            <select value={humBars} onChange={e => setHumBars(Number(e.target.value))}
+              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer" }}>
+              {[2,3,4,6,8].map(n => <option key={n} value={n}>{n} takter</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Tempo</label>
+            <input type="number" min={40} max={200} value={humBpm} onChange={e => setHumBpm(Number(e.target.value))}
+              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, width:80 }} />
+          </div>
+          <div>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Modus</label>
+            <button onClick={() => setFreeMode(f => !f)}
+              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:10,
+                border:`1.5px solid ${freeMode ? "#FF9500" : t.accentBorder}`,
+                background: freeMode ? "rgba(255,149,0,0.10)" : t.accentBg,
+                color: freeMode ? "#FF9500" : t.accent, cursor:"pointer" }}>
+              {freeMode ? "Fri deteksjon" : "Bruk valgt skala"}
+            </button>
+          </div>
+        </div>
+
+        <div style={{ fontSize:12, color:t.textTertiary, fontFamily:SF2, marginBottom:12 }}>
+          Opptak: {durationSec.toFixed(1)}s ({humBars} takter × {humBpm} BPM)
+          {!freeMode && ` · Skala: ${NOTES[rootIdx]} ${SCALE_DESCRIPTIONS[scaleKey]?.label || scaleKey}`}
+        </div>
+      </div>
+
+      {/* ── Record card ── */}
+      <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}`, textAlign:"center" }}>
+        {/* Level meter */}
+        {recording && (
+          <div style={{ marginBottom:14 }}>
+            <div style={{ fontSize:42, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", marginBottom:6 }}>
+              {countdown}s
+            </div>
+            <div style={{ height:8, borderRadius:4, background:t.elevatedBg, overflow:"hidden", maxWidth:300, margin:"0 auto" }}>
+              <div style={{ height:"100%", borderRadius:4, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
+                width:`${Math.min(100, level * 100)}%`, transition:"width 0.05s" }} />
+            </div>
+            <div style={{ fontSize:11, color:t.textTertiary, marginTop:6, fontFamily:SF2 }}>Nynn én tone per takt…</div>
+          </div>
+        )}
+
+        <button onClick={recording ? stopRecording : startRecording} disabled={analyzing}
+          style={{ fontFamily:SF2, fontSize:16, fontWeight:700, padding:"14px 36px", borderRadius:14, border:"none",
+            background: recording ? "#FF453A" : analyzing ? t.playDisabledBg : t.accent,
+            color: recording || !analyzing ? "#FFFFFF" : t.playDisabledClr,
+            cursor: analyzing ? "not-allowed" : "pointer", transition:"all 0.15s ease",
+            boxShadow: recording ? "0 0 20px rgba(255,69,58,0.4)" : `0 4px 16px rgba(122,91,175,0.3)`,
+            letterSpacing:"0.05em" }}>
+          {recording ? "Stopp" : analyzing ? "Analyserer…" : "Start opptak"}
+        </button>
+
+        {!recording && !analyzing && !detected && (
+          <div style={{ fontSize:12, color:t.textTertiary, marginTop:10, fontFamily:SF2 }}>
+            Trykk for å starte. Nynn tydelig — én tone om gangen.
+          </div>
+        )}
+      </div>
+
+      {/* ── Results card ── */}
+      {detected && (
+        <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
+          <div style={{ fontSize:16, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
+            Resultat
+          </div>
+
+          {detected.length === 0 ? (
+            <div style={{ fontSize:13, color:t.textSecondary, fontFamily:SF2 }}>
+              Ingen toner ble oppdaget. Prøv igjen — nynn høyere og tydeligere.
+            </div>
+          ) : (
+            <>
+              <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:16 }}>
+                {detected.map((d, i) => (
+                  <div key={i} style={{ background:t.elevatedBg, borderRadius:14, padding:"14px 18px", minWidth:100,
+                    border:`1px solid ${t.border}`, textAlign:"center" }}>
+                    <div style={{ fontSize:11, fontWeight:600, color:t.textTertiary, textTransform:"uppercase",
+                      letterSpacing:"0.1em", marginBottom:4, fontFamily:SF2 }}>
+                      Takt {i + 1}
+                    </div>
+                    {d ? (
+                      <>
+                        <div style={{ fontSize:13, color:t.textSecondary, marginBottom:2, fontFamily:SF2 }}>
+                          Melodi: <strong style={{ color:t.textPrimary }}>{d.noteName}</strong>
+                          <span style={{ fontSize:11, color:t.textTertiary }}> ({d.freq.toFixed(0)} Hz)</span>
+                        </div>
+                        <div style={{ fontSize:22, fontWeight:700, color:t.accent, fontFamily:SF2 }}>
+                          {d.chord.display}
+                        </div>
+                        <div style={{ fontSize:11, color:t.textTertiary, fontFamily:SF2 }}>
+                          {d.chord.degree}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize:13, color:t.textTertiary, fontFamily:SF2 }}>Stille</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div style={{ display:"flex", gap:10 }}>
+                <button onClick={placeInTimeline}
+                  style={{ fontFamily:SF2, fontSize:14, fontWeight:700, padding:"10px 24px", borderRadius:12,
+                    border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer",
+                    boxShadow:`0 4px 12px rgba(122,91,175,0.25)` }}>
+                  Legg i tidslinje
+                </button>
+                <button onClick={() => startRecording()}
+                  style={{ fontFamily:SF2, fontSize:14, fontWeight:500, padding:"10px 24px", borderRadius:12,
+                    border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                  Prøv igjen
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 
 const SF = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
@@ -2292,6 +2619,7 @@ export default function App() {
               <p style={{ fontSize:11, color:"rgba(255,255,255,0.82)", margin:"5px 0 0", fontWeight:600,
                 letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
+                  : mode==="hum" ? "Nynn til akkorder · Mikrofon"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
                   : mode==="drums" ? `Trommemønster · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
                   : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
@@ -2316,6 +2644,7 @@ export default function App() {
               { key:"scales",  label:"Scale Explorer" },
               { key:"detect",  label:"Key Detector" },
               { key:"sheet",   label:"Sheet Music" },
+              { key:"hum",     label:"Nynn" },
             ].map(({ key: m, label }) => (
               <button key={m} onClick={() => setMode(m)} style={{
                 fontFamily:SF, fontSize:14, fontWeight: mode===m ? 600 : 400,
@@ -2370,7 +2699,7 @@ export default function App() {
                   />
                 </div>
               )}
-              {mode !== "drums" && <div>
+              {mode !== "drums" && mode !== "hum" && <div>
                 <label style={labelStyle}>Sound</label>
                 <SegmentedControl
                   value={soundType}
@@ -2448,6 +2777,29 @@ export default function App() {
               styleMenuOpen={styleMenuOpen}
               setStyleMenuOpen={setStyleMenuOpen}
               STYLES={STYLES}
+            />
+          )}
+
+          {/* ════════════════ HUM-TO-CHORD MODE ════════════════ */}
+          {mode === "hum" && (
+            <HumToChordTab
+              t={t}
+              rootIdx={rootIdx}
+              scaleKey={scaleKey}
+              onChordsReady={(chords) => {
+                stopLoop();
+                let slot = 0;
+                const items = [];
+                chords.forEach(chord => {
+                  if (slot >= TIMELINE_SLOTS) return;
+                  const len = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
+                  items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len });
+                  slot += len;
+                });
+                setTimelineItems(items);
+                if (chords.length > 0) setActiveChord(chords[0]);
+                setMode("chords");
+              }}
             />
           )}
 
