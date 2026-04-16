@@ -483,7 +483,7 @@ const DRUM_GENRES = {
   drill:           { label:"Drill",               bpm:140, generate: genDrill          },
   experimental:    { label:"Eksperimentell",      bpm:88,  generate: genExperimental   },
   drumless:        { label:"Drumless",            bpm:88,  generate: genDrumless       },
-  halftime:        { label:"Halvtempo",           bpm:75,  generate: genHalftime       },
+  halftime:        { label:"Halftime",             bpm:75,  generate: genHalftime       },
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1680,7 +1680,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                       border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
                       background:playStyle!=="normal"?t.accentBg:t.btnBg,
                       color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
-                    <span style={{ fontSize:10, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Stil:</span>
+                    <span style={{ fontSize:10, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Style:</span>
                     <span>{STYLES[playStyle]?.label || "Normal"}</span>
                     <span style={{ fontSize:9, opacity:0.6 }}>▾</span>
                   </button>
@@ -2082,18 +2082,18 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
       {/* ── Settings card ── */}
       <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
         <div style={{ fontSize:18, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
-          Nynn til akkorder
+          Hum to Chords
         </div>
         <p style={{ fontSize:13, color:t.textSecondary, lineHeight:1.6, marginBottom:16, fontFamily:SF2 }}>
-          Nynn en melodi — én tone per takt. Appen lytter, finner tonene, og foreslår akkorder som passer under melodien i den valgte skalaen.
+          Hum a melody — one note per bar. The app listens, detects the pitches, and suggests chords that fit under your melody in the selected scale.
         </p>
 
         <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"flex-end", marginBottom:16 }}>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Takter</label>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Bars</label>
             <select value={humBars} onChange={e => setHumBars(Number(e.target.value))}
               style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer" }}>
-              {[2,3,4,6,8].map(n => <option key={n} value={n}>{n} takter</option>)}
+              {[2,3,4,6,8].map(n => <option key={n} value={n}>{n} bars</option>)}
             </select>
           </div>
           <div>
@@ -2102,19 +2102,19 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, width:80 }} />
           </div>
           <div>
-            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Modus</label>
+            <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Mode</label>
             <button onClick={() => setFreeMode(f => !f)}
               style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:10,
                 border:`1.5px solid ${freeMode ? "#FF9500" : t.accentBorder}`,
                 background: freeMode ? "rgba(255,149,0,0.10)" : t.accentBg,
                 color: freeMode ? "#FF9500" : t.accent, cursor:"pointer" }}>
-              {freeMode ? "Fri deteksjon" : "Bruk valgt skala"}
+              {freeMode ? "Free detection" : "Use selected scale"}
             </button>
           </div>
         </div>
 
         <div style={{ fontSize:12, color:t.textTertiary, fontFamily:SF2, marginBottom:14 }}>
-          Opptak: {durationSec.toFixed(1)}s ({humBars} takter × {humBpm} BPM)
+          Recording: {durationSec.toFixed(1)}s ({humBars} bars × {humBpm} BPM)
           {!freeMode && ` · Skala: ${NOTES[rootIdx]} ${SCALE_DESCRIPTIONS[scaleKey]?.label || scaleKey}`}
         </div>
 
@@ -2126,14 +2126,14 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               background: playingRef_ ? "rgba(52,199,89,0.08)" : t.elevatedBg,
               color: playingRef_ ? "#34C759" : t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
               opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
-            {playingRef_ ? "Stopp" : `Spill grunntone (${NOTES[rootIdx]})`}
+            {playingRef_ ? "Stop" : `Play root (${NOTES[rootIdx]})`}
           </button>
           <button onClick={playScale} disabled={recording}
             style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
               border:`1.5px solid ${t.inputBorder}`, background:t.elevatedBg,
               color:t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
               opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
-            Spill skala
+            Play scale
           </button>
           <div style={{ width:1, height:24, background:t.border }} />
           <button onClick={() => setMetronome(m => !m)}
@@ -2141,7 +2141,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               border:`1.5px solid ${metronome ? "#34C759" : t.inputBorder}`,
               background: metronome ? "rgba(52,199,89,0.08)" : t.elevatedBg,
               color: metronome ? "#34C759" : t.textTertiary, cursor:"pointer", transition:"all 0.15s ease" }}>
-            Metronom {metronome ? "på" : "av"}
+            Metronome {metronome ? "on" : "off"}
           </button>
         </div>
       </div>
@@ -2168,7 +2168,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               ))}
             </div>
             <div style={{ fontSize:12, fontWeight:600, color:t.textSecondary, fontFamily:SF2, marginBottom:8 }}>
-              {currentBar > 0 ? `Takt ${currentBar} av ${humBars}` : "Klar…"}
+              {currentBar > 0 ? `Bar ${currentBar} of ${humBars}` : "Ready…"}
             </div>
 
             {/* Live detected note */}
@@ -2181,7 +2181,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                   </div>
                   {liveNote.wasAdjusted && (
                     <div style={{ fontSize:11, color:t.textTertiary, fontFamily:SF2, marginTop:2 }}>
-                      du sang {liveNote.raw} → snappet til {liveNote.snapped}
+                      sang {liveNote.raw} → snapped to {liveNote.snapped}
                     </div>
                   )}
                   <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace" }}>
@@ -2198,7 +2198,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               <div style={{ height:"100%", borderRadius:3, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
                 width:`${Math.min(100, level * 100)}%`, transition:"width 0.05s" }} />
             </div>
-            <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF2 }}>{countdown}s igjen</div>
+            <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF2 }}>{countdown}s remaining</div>
           </div>
         )}
 
@@ -2209,12 +2209,12 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
             cursor: analyzing ? "not-allowed" : "pointer", transition:"all 0.15s ease",
             boxShadow: recording ? "0 0 20px rgba(255,69,58,0.4)" : `0 4px 16px rgba(122,91,175,0.3)`,
             letterSpacing:"0.05em" }}>
-          {recording ? "Stopp" : analyzing ? "Analyserer…" : "Start opptak"}
+          {recording ? "Stop" : analyzing ? "Analyzing…" : "Start recording"}
         </button>
 
         {!recording && !analyzing && !detected && (
           <div style={{ fontSize:12, color:t.textTertiary, marginTop:10, fontFamily:SF2 }}>
-            Trykk for å starte. Nynn tydelig — én tone om gangen.
+            Press to start. Hum clearly — one note at a time.
           </div>
         )}
       </div>
@@ -2223,12 +2223,12 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
       {detected && (
         <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
           <div style={{ fontSize:16, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
-            Resultat
+            Results
           </div>
 
           {detected.length === 0 ? (
             <div style={{ fontSize:13, color:t.textSecondary, fontFamily:SF2 }}>
-              Ingen toner ble oppdaget. Prøv igjen — nynn høyere og tydeligere.
+              No notes detected. Try again — hum louder and more clearly.
             </div>
           ) : (
             <>
@@ -2238,18 +2238,18 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                     border:`1px solid ${t.border}`, textAlign:"center" }}>
                     <div style={{ fontSize:11, fontWeight:600, color:t.textTertiary, textTransform:"uppercase",
                       letterSpacing:"0.1em", marginBottom:4, fontFamily:SF2 }}>
-                      Takt {i + 1}
+                      Bar {i + 1}
                     </div>
                     {d ? (
                       <>
                         <div style={{ fontSize:13, color:t.textSecondary, marginBottom:2, fontFamily:SF2 }}>
-                          Nynnet: <strong style={{ color: d.wasAdjusted ? "#FF9500" : t.textPrimary }}>{d.noteName}</strong>
+                          Hummed: <strong style={{ color: d.wasAdjusted ? "#FF9500" : t.textPrimary }}>{d.noteName}</strong>
                           {d.wasAdjusted && (
                             <span style={{ fontSize:11, color:"#FF9500" }}> → {d.snappedName}</span>
                           )}
                         </div>
                         <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", marginBottom:4 }}>
-                          {d.freq.toFixed(0)} Hz {d.wasAdjusted ? "(justert)" : ""}
+                          {d.freq.toFixed(0)} Hz {d.wasAdjusted ? "(adjusted)" : ""}
                         </div>
                         <div style={{ fontSize:22, fontWeight:700, color:t.accent, fontFamily:SF2 }}>
                           {d.chord.display}
@@ -2259,7 +2259,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                         </div>
                       </>
                     ) : (
-                      <div style={{ fontSize:13, color:t.textTertiary, fontFamily:SF2 }}>Stille</div>
+                      <div style={{ fontSize:13, color:t.textTertiary, fontFamily:SF2 }}>Silent</div>
                     )}
                   </div>
                 ))}
@@ -2270,12 +2270,12 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                   style={{ fontFamily:SF2, fontSize:14, fontWeight:700, padding:"10px 24px", borderRadius:12,
                     border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer",
                     boxShadow:`0 4px 12px rgba(122,91,175,0.25)` }}>
-                  Legg i tidslinje
+                  Place in timeline
                 </button>
                 <button onClick={() => startRecording()}
                   style={{ fontFamily:SF2, fontSize:14, fontWeight:500, padding:"10px 24px", borderRadius:12,
                     border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                  Prøv igjen
+                  Try again
                 </button>
               </div>
             </>
@@ -2430,19 +2430,19 @@ export default function App() {
   const DEFAULT_CHORD_LEN  = 16;  // one bar by default
 
   // Playing styles — affect duration, velocity, attack character, sustain and tremolo
-  // velMult: hvor hardt tangentene treffes (0.3 = sart, 1.5 = veldig kraftig)
-  // accentMult: ekstra boost på første tone i akkorden (1.0 = ingen aksent)
-  // attackSec: fade-in tid i sekunder (0 = instant, 0.15 = forsiktig innsving)
+  // velMult: how hard the keys are struck (0.3 = gentle, 1.5 = very strong)
+  // accentMult: extra boost on first note in chord (1.0 = no accent)
+  // attackSec: fade-in time in seconds (0 = instant, 0.15 = gentle fade)
   const STYLES = {
     normal:    { label:"Normal",    durMult:0.85, velMult:1.00, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
-    sart:      { label:"Sart",      durMult:1.05, velMult:0.38, accentMult:1.00, attackSec:0.18, sustain:true,  tremoloHz:0  },
+    sart:      { label:"Gentle",    durMult:1.05, velMult:0.38, accentMult:1.00, attackSec:0.18, sustain:true,  tremoloHz:0  },
     staccato:  { label:"Staccato",  durMult:0.18, velMult:0.80, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
     legato:    { label:"Legato",    durMult:1.10, velMult:0.85, accentMult:1.00, attackSec:0.04, sustain:true,  tremoloHz:0  },
     tenuto:    { label:"Tenuto",    durMult:0.95, velMult:0.95, accentMult:1.00, attackSec:0.02, sustain:true,  tremoloHz:0  },
     portato:   { label:"Portato",   durMult:0.55, velMult:0.85, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
-    accents:   { label:"Aksenter",  durMult:0.85, velMult:0.78, accentMult:1.55, attackSec:0,    sustain:true,  tremoloHz:0  },
+    accents:   { label:"Accents",   durMult:0.85, velMult:0.78, accentMult:1.55, attackSec:0,    sustain:true,  tremoloHz:0  },
     tremolo:   { label:"Tremolo",   durMult:0.85, velMult:0.70, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:14 },
-    dramatisk: { label:"Dramatisk", durMult:1.00, velMult:1.55, accentMult:1.70, attackSec:0,    sustain:true,  tremoloHz:0  },
+    dramatisk: { label:"Dramatic",  durMult:1.00, velMult:1.55, accentMult:1.70, attackSec:0,    sustain:true,  tremoloHz:0  },
   };
 
   const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
@@ -2824,9 +2824,9 @@ export default function App() {
               <p style={{ fontSize:11, color:"rgba(255,255,255,0.82)", margin:"5px 0 0", fontWeight:600,
                 letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
-                  : mode==="hum" ? "Nynn til akkorder · Mikrofon"
+                  : mode==="hum" ? "Hum to Chords · Microphone"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
-                  : mode==="drums" ? `Trommemønster · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
+                  : mode==="drums" ? `Drum Pattern · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
                   : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
               </p>
             </div>
@@ -2845,11 +2845,11 @@ export default function App() {
           <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
             {[
               { key:"chords",  label:"Chords" },
-              { key:"drums",   label:"Trommer" },
+              { key:"drums",   label:"Drums" },
               { key:"scales",  label:"Scale Explorer" },
               { key:"detect",  label:"Key Detector" },
               { key:"sheet",   label:"Sheet Music" },
-              { key:"hum",     label:"Nynn" },
+              { key:"hum",     label:"Hum" },
             ].map(({ key: m, label }) => (
               <button key={m} onClick={() => setMode(m)} style={{
                 fontFamily:SF, fontSize:14, fontWeight: mode===m ? 600 : 400,
@@ -3186,7 +3186,7 @@ export default function App() {
                       border:`1px solid ${drumHalfTime?t.accentBorder:t.btnBorder}`,
                       background:drumHalfTime?t.accentBg:t.btnBg,
                       color:drumHalfTime?t.accent:t.btnColor, cursor:"pointer" }}>
-                    ½ Halvtempo
+                    ½ Half-time
                   </button>
                   <div style={{ width:1, height:20, background:t.border }} />
                   {/* Favorite */}
@@ -3313,7 +3313,7 @@ export default function App() {
               {!drumPattern && (
                 <div style={{ ...card, textAlign:"center", padding:"48px 20px" }}>
                   <p style={{ fontSize:15, color:t.textTertiary, fontFamily:SF, margin:0 }}>
-                    Velg en sjanger og trykk <strong>Generate</strong> for å lage et trommemønster
+                    Select a genre and press <strong>Generate</strong> to create a drum pattern
                   </p>
                 </div>
               )}
@@ -3635,28 +3635,29 @@ export default function App() {
                     const scaleObj = SCALES[scaleKey];
                     const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
                     const ninthList   = scaleKey==="major" ? NINTHS_MAJOR   : scaleKey==="minor" ? NINTHS_MINOR   : NINTHS_OTHER;
-                    // Weighted variant pool — triads most common, sus/5/7/9 sprinkled in
-                    const VARIANT_POOL = ["triad","triad","triad","sus2","sus4","5","7","7","9"];
+                    // Heavily weighted toward triads for musical coherence
+                    // Only allow 1 embellishment per progression max
                     const suffixOf = q =>
                       q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
                       q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
                       q==="m7b5"?"m7b5": q==="maj9"?"maj9":
                       q==="m9"?"m9": q==="9"?"9":
                       q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
-                    const cs = pick.degrees.map(d => {
+                    // Pick at most one chord to embellish (70% chance all triads, 30% one embellishment)
+                    const embellishIdx = Math.random() < 0.7 ? -1 : Math.floor(Math.random() * pick.degrees.length);
+                    const EMBELLISH_POOL = ["7","7","sus4","sus2","5"];
+                    const cs = pick.degrees.map((d, idx) => {
                       const i = d % 7;
                       const noteIdx = (rootIdx + scaleObj.intervals[i]) % 12;
                       const baseQ   = scaleObj.qualities[i];
-                      let v = VARIANT_POOL[Math.floor(Math.random()*VARIANT_POOL.length)];
-                      // dim degree doesn't tolerate sus/5 — fall back to triad
-                      if (baseQ === "dim" && (v==="sus2" || v==="sus4" || v==="5")) v = "triad";
-                      let quality;
-                      if      (v==="triad") quality = baseQ;
-                      else if (v==="sus2")  quality = "sus2";
-                      else if (v==="sus4")  quality = "sus4";
-                      else if (v==="5")     quality = "5";
-                      else if (v==="7")     quality = seventhList[i];
-                      else /* "9" */        quality = ninthList[i];
+                      let quality = baseQ; // default: plain triad
+                      if (idx === embellishIdx && baseQ !== "dim") {
+                        const v = EMBELLISH_POOL[Math.floor(Math.random()*EMBELLISH_POOL.length)];
+                        if      (v==="7")    quality = seventhList[i];
+                        else if (v==="sus4") quality = "sus4";
+                        else if (v==="sus2") quality = "sus2";
+                        else if (v==="5")    quality = "5";
+                      }
                       return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
                     });
                     let slot = 0;
@@ -3678,7 +3679,7 @@ export default function App() {
                         border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
                         background:playStyle!=="normal"?t.accentBg:t.btnBg,
                         color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
-                      <span style={{ fontSize:11, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Stil:</span>
+                      <span style={{ fontSize:11, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Style:</span>
                       <span>{STYLES[playStyle].label}</span>
                       <span style={{ fontSize:9, opacity:0.6 }}>▾</span>
                     </button>
@@ -3710,14 +3711,14 @@ export default function App() {
                   {/* Chord text input */}
                   <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
                     onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
-                    placeholder="Skriv akkord, f.eks. Fmaj7…"
+                    placeholder="Type chord, e.g. Fmaj7…"
                     style={{ fontFamily:SF, fontSize:13, padding:"7px 12px", borderRadius:10, border:`1.5px solid ${chordInputErr?"#FF453A":t.inputBorder}`, background:t.inputBg, color:t.inputColor, outline:"none", width:180 }}
                   />
                   <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"7px 16px", borderRadius:10, border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
                     Add
                   </button>
-                  {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Ukjent akkord</span>}
+                  {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Unknown chord</span>}
                 </div>
               </div>
             </>
