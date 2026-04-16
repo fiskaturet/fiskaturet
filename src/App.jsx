@@ -2523,6 +2523,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   const [activeEventIdx, setActiveEventIdx] = useState(-1);
   const [progressPct, setProgressPct] = useState(0);
   const [drumsEnabled, setDrumsEnabled] = useState(false);
+  const [sheetOctaveOffset, setSheetOctaveOffset] = useState(0);
   const playTimerRef  = useRef(null);
   const timeoutsRef   = useRef([]);
   const loopTimerRef  = useRef(null);
@@ -2622,10 +2623,22 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   useEffect(() => { padMapRef2.current = padMap; }, [padMap]);
   useEffect(() => { drumChannelRef2.current = drumChannel; }, [drumChannel]);
   useEffect(() => { userBpmRef.current = userBpm; }, [userBpm]);
+  const sheetOctaveRef = useRef(sheetOctaveOffset);
+  useEffect(() => { sheetOctaveRef.current = sheetOctaveOffset; }, [sheetOctaveOffset]);
+
+  // Transpose a note name by octave offset, e.g. "C4" + 1 => "C5"
+  const transposeNote = useCallback((noteName, offset) => {
+    if (!offset) return noteName;
+    const m = noteName.match(/^([A-G]#?)(\d)$/);
+    if (!m) return noteName;
+    const newOct = Math.max(0, Math.min(8, parseInt(m[2]) + offset));
+    return m[1] + newOct;
+  }, []);
 
   const scheduleOnce = useCallback((scale) => {
     const midiOut = getMIDIOut();
     const style   = STYLES?.[playStyle] || { durMult:0.85, velMult:1.0, accentMult:1.0, attackSec:0 };
+    const octOff  = sheetOctaveRef.current || 0;
     timeoutsRef.current = [];
 
     if (midiOut) {
@@ -2637,7 +2650,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         const tTrack = setTimeout(() => setActiveEventIdx(idx), startMs);
         timeoutsRef.current.push(tTrack);
         e.notes.forEach((noteName, i) => {
-          const n = nameToMidi(noteName);
+          const n = Math.max(0, Math.min(127, nameToMidi(transposeNote(noteName, octOff))));
           const accentBoost = i === 0 ? style.accentMult : 1;
           const vel = Math.max(1, Math.min(127, Math.round((80 * accentBoost) * style.velMult)));
           const t1 = setTimeout(() => {
@@ -2661,11 +2674,12 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         const tTrack = setTimeout(() => setActiveEventIdx(idx), startMs);
         timeoutsRef.current.push(tTrack);
         e.notes.forEach((noteName, i) => {
+          const transposed = transposeNote(noteName, octOff);
           const accentBoost = i === 0 ? style.accentMult : 1;
           const v = Math.max(0.02, Math.min(1, 0.7 * accentBoost * style.velMult));
           const dur = e.duration * scale * style.durMult;
           const t1 = setTimeout(() => {
-            try { inst.triggerAttackRelease(noteName, dur, Tone.now(), v); } catch(e3) {}
+            try { inst.triggerAttackRelease(transposed, dur, Tone.now(), v); } catch(e3) {}
           }, startMs + i * 8);
           timeoutsRef.current.push(t1);
         });
@@ -2939,6 +2953,29 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                     </span>
                   )}
                 </>
+              )}
+            </div>
+
+            {/* ── Octave Offset ── */}
+            <div style={{ marginTop:10, display:"flex", gap:8, alignItems:"center" }}>
+              <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 }}>Octave</span>
+              <button onClick={() => setSheetOctaveOffset(o => Math.max(-3, o - 1))}
+                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:7,
+                  border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
+              <span style={{ fontFamily:SF2, fontSize:13, fontWeight:600, color:t.textPrimary, minWidth:32, textAlign:"center" }}>
+                {sheetOctaveOffset === 0 ? "0" : (sheetOctaveOffset > 0 ? `+${sheetOctaveOffset}` : sheetOctaveOffset)}
+              </span>
+              <button onClick={() => setSheetOctaveOffset(o => Math.min(3, o + 1))}
+                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:7,
+                  border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer",
+                  display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
+              {sheetOctaveOffset !== 0 && (
+                <button onClick={() => setSheetOctaveOffset(0)}
+                  style={{ fontFamily:SF2, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:6,
+                    border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
+                  Reset
+                </button>
               )}
             </div>
           </div>
