@@ -1397,15 +1397,21 @@ function parseMusicXML(xmlStr) {
 
 // ─── Sheet Music Tab ──────────────────────────────────────────────────────────
 
-function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
+function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPlayStyle, styleMenuOpen, setStyleMenuOpen, STYLES }) {
   const [dragOver,   setDragOver]   = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [fileName,   setFileName]   = useState(null);
   const [parseError, setParseError] = useState(null);
   const [playing,    setPlaying]    = useState(false);
   const [userBpm,    setUserBpm]    = useState(120);
+  const [activeEventIdx, setActiveEventIdx] = useState(-1);
+  const [progressPct, setProgressPct] = useState(0);
   const playTimerRef  = useRef(null);
   const timeoutsRef   = useRef([]);
+  const loopTimerRef  = useRef(null);
+  const rafRef2       = useRef(null);
+  const wallStartRef  = useRef(0);
+  const totalDurRef   = useRef(0);
 
   const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
   const card2 = { background:t.cardBg, borderRadius:18, padding:"20px 24px", boxShadow:t.cardShadow, marginBottom:12 };
@@ -1473,27 +1479,38 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
     if (playTimerRef.current) clearTimeout(playTimerRef.current);
+    if (loopTimerRef.current) clearInterval(loopTimerRef.current);
+    if (rafRef2.current) cancelAnimationFrame(rafRef2.current);
+    // Kill all MIDI sound
+    try {
+      const midiOut = getMIDIOut();
+      if (midiOut) { for (let c=0;c<16;c++) { midiOut.send([0xB0|c,120,0]); midiOut.send([0xB0|c,123,0]); } }
+    } catch(e) {}
+    try { getInstrument(soundType)?.releaseAll?.(); } catch(e) {}
     setPlaying(false);
-  }, []);
+    setActiveEventIdx(-1);
+    setProgressPct(0);
+  }, [getMIDIOut, soundType]);
 
-  const playSheet = useCallback(async () => {
-    if (playing) { stopSheet(); return; }
-    if (!parsedData) return;
-
-    // Scale all times by original_tempo / user_tempo
-    const scale = parsedData.tempo / userBpm;
+  const scheduleOnce = useCallback((scale) => {
     const midiOut = getMIDIOut();
+    const style   = STYLES?.[playStyle] || { durMult:0.85, velMult:1.0, accentMult:1.0, attackSec:0 };
+    timeoutsRef.current = [];
 
     if (midiOut) {
       const ch = midiChannel - 1;
-      timeoutsRef.current = [];
-      parsedData.events.forEach(e => {
+      parsedData.events.forEach((e, idx) => {
         const startMs = e.time * scale * 1000;
-        const durMs   = e.duration * scale * 900;
+        const durMs   = e.duration * scale * style.durMult * 1000;
+        // Track active event
+        const tTrack = setTimeout(() => setActiveEventIdx(idx), startMs);
+        timeoutsRef.current.push(tTrack);
         e.notes.forEach((noteName, i) => {
           const n = nameToMidi(noteName);
+          const accentBoost = i === 0 ? style.accentMult : 1;
+          const vel = Math.max(1, Math.min(127, Math.round((80 * accentBoost) * style.velMult)));
           const t1 = setTimeout(() => {
-            midiOut.send([0x90 | ch, n, 90]);
+            midiOut.send([0x90 | ch, n, vel]);
             const t2 = setTimeout(() => midiOut.send([0x80 | ch, n, 0]), durMs);
             timeoutsRef.current.push(t2);
           }, startMs + i * 8);
@@ -1501,20 +1518,69 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
         });
       });
     } else {
-      await Tone.start();
       const inst = getInstrument(soundType);
-      if (soundType === "piano") await Tone.loaded();
+      // Apply attack envelope
+      try {
+        if (inst.attack !== undefined) inst.attack = style.attackSec || 0;
+        if (inst.set) inst.set({ envelope: { attack: Math.max(0.005, style.attackSec || 0.005) } });
+      } catch(e2) {}
       const now = Tone.now();
-      parsedData.events.forEach(e => {
+      parsedData.events.forEach((e, idx) => {
+        const startMs = e.time * scale * 1000;
+        const tTrack = setTimeout(() => setActiveEventIdx(idx), startMs);
+        timeoutsRef.current.push(tTrack);
         e.notes.forEach((noteName, i) => {
-          inst.triggerAttackRelease(noteName, String(e.duration * scale * 0.9), now + e.time * scale + i * 0.008);
+          const accentBoost = i === 0 ? style.accentMult : 1;
+          const v = Math.max(0.02, Math.min(1, 0.7 * accentBoost * style.velMult));
+          const dur = e.duration * scale * style.durMult;
+          inst.triggerAttackRelease(noteName, String(dur), now + e.time * scale + i * 0.008, v);
         });
       });
     }
+  }, [parsedData, getMIDIOut, midiChannel, soundType, playStyle, STYLES]);
 
+  const playSheet = useCallback(async () => {
+    if (playing) { stopSheet(); return; }
+    if (!parsedData) return;
+    await Tone.start();
+    if (soundType === "piano") { const inst = getInstrument(soundType); await Tone.loaded(); }
+
+    const scale = parsedData.tempo / userBpm;
+    const totalMs = (parsedData.duration * scale + 0.3) * 1000;
+    totalDurRef.current = totalMs;
+
+    scheduleOnce(scale);
     setPlaying(true);
-    playTimerRef.current = setTimeout(stopSheet, (parsedData.duration * scale + 0.8) * 1000);
-  }, [playing, parsedData, userBpm, soundType, getMIDIOut, midiChannel, stopSheet]);
+    wallStartRef.current = performance.now();
+
+    // Animate progress
+    const animate = () => {
+      const elapsed = (performance.now() - wallStartRef.current) % totalMs;
+      setProgressPct(elapsed / totalMs);
+      rafRef2.current = requestAnimationFrame(animate);
+    };
+    rafRef2.current = requestAnimationFrame(animate);
+
+    // Loop: re-schedule at end of piece
+    loopTimerRef.current = setInterval(() => {
+      // Clear old timeouts before re-scheduling
+      timeoutsRef.current.forEach(clearTimeout);
+      timeoutsRef.current = [];
+      wallStartRef.current = performance.now();
+      const freshScale = parsedData.tempo / userBpm;
+      scheduleOnce(freshScale);
+    }, totalMs);
+  }, [playing, parsedData, userBpm, soundType, stopSheet, scheduleOnce]);
+
+  // Restart playback when tempo changes during play
+  useEffect(() => {
+    if (playing && parsedData) {
+      stopSheet();
+      // Small delay to let stop complete
+      const restart = setTimeout(() => playSheet(), 50);
+      return () => clearTimeout(restart);
+    }
+  }, [userBpm]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => () => stopSheet(), [stopSheet]);
 
@@ -1580,22 +1646,21 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
                     Tempo {parsedData.tempo !== userBpm && <span style={{ color:t.textTertiary, fontWeight:400, textTransform:"none" }}>(original: {parsedData.tempo})</span>}
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <button onClick={() => !playing && setUserBpm(b => Math.max(20, b - 1))}
+                    <button onClick={() => setUserBpm(b => Math.max(20, b - 1))}
                       style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
                     <input
                       type="number" min={20} max={300} value={userBpm}
-                      disabled={playing}
                       onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v) && v >= 20 && v <= 300) setUserBpm(v); }}
                       style={{ fontFamily:SF2, fontSize:14, fontWeight:700, textAlign:"center",
                         width:58, padding:"4px 6px", borderRadius:8,
-                        border:`1px solid ${t.inputBorder}`, background: playing ? t.elevatedBg : t.inputBg,
+                        border:`1px solid ${t.inputBorder}`, background:t.inputBg,
                         color:t.inputColor, appearance:"textfield", MozAppearance:"textfield" }}
                     />
-                    <button onClick={() => !playing && setUserBpm(b => Math.min(300, b + 1))}
+                    <button onClick={() => setUserBpm(b => Math.min(300, b + 1))}
                       style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
-                    {parsedData.tempo !== userBpm && !playing && (
+                    {parsedData.tempo !== userBpm && (
                       <button onClick={() => setUserBpm(parsedData.tempo)}
                         style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:8,
                           border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textSecondary, cursor:"pointer" }}>
@@ -1606,26 +1671,100 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel }) {
                 </div>
               </div>
             </div>
-            <button onClick={playSheet} style={{
-              fontFamily:SF2, fontSize:14, fontWeight:600,
-              padding:"11px 30px", borderRadius:12, border:"none",
-              background: playing ? "#FF453A" : t.accent,
-              color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
-              flexShrink:0, alignSelf:"flex-start",
-            }}>
-              {playing ? "⬛ Stop" : "▶  Play"}
-            </button>
+            <div style={{ display:"flex", gap:8, alignItems:"center", flexShrink:0, alignSelf:"flex-start" }}>
+              {/* Style dropdown */}
+              {STYLES && (
+                <div style={{ position:"relative" }}>
+                  <button onClick={() => setStyleMenuOpen(o => !o)}
+                    style={{ fontFamily:SF2, fontSize:12, fontWeight:500, padding:"8px 12px", borderRadius:10,
+                      border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
+                      background:playStyle!=="normal"?t.accentBg:t.btnBg,
+                      color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
+                    <span style={{ fontSize:10, opacity:0.7, textTransform:"uppercase", letterSpacing:"0.05em" }}>Stil:</span>
+                    <span>{STYLES[playStyle]?.label || "Normal"}</span>
+                    <span style={{ fontSize:9, opacity:0.6 }}>▾</span>
+                  </button>
+                  {styleMenuOpen && (
+                    <>
+                      <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
+                      <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:51, minWidth:170,
+                          background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:12,
+                          boxShadow:`0 8px 24px rgba(28,24,32,0.12)`, padding:6, display:"flex", flexDirection:"column", gap:2 }}>
+                        {Object.entries(STYLES).map(([key, cfg]) => (
+                          <button key={key} onClick={() => { setPlayStyle(key); setStyleMenuOpen(false); }}
+                            style={{ fontFamily:SF2, fontSize:12, fontWeight:playStyle===key?700:500,
+                              padding:"7px 11px", borderRadius:8, border:"none", textAlign:"left",
+                              background:playStyle===key?t.accentBg:"transparent",
+                              color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer" }}
+                            onMouseEnter={e=>{ if(playStyle!==key) e.currentTarget.style.background=t.elevatedBg; }}
+                            onMouseLeave={e=>{ if(playStyle!==key) e.currentTarget.style.background="transparent"; }}>
+                            {cfg.label} {playStyle===key && "✓"}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              <button onClick={playSheet} style={{
+                fontFamily:SF2, fontSize:14, fontWeight:600,
+                padding:"11px 30px", borderRadius:12, border:"none",
+                background: playing ? "#FF453A" : t.accent,
+                color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
+              }}>
+                {playing ? "⬛ Stop" : "▶  Play"}
+              </button>
+            </div>
           </div>
+          {/* Progress bar + now-playing notes */}
           {playing && (
-            <div style={{ marginTop:14, display:"flex", alignItems:"center", gap:8 }}>
-              <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
-                boxShadow:"0 0 0 2px rgba(48,209,88,0.3)", display:"inline-block",
-                animation:"pulse 1.2s ease-in-out infinite" }} />
-              <span style={{ fontSize:12, fontWeight:600, color:"#30D158", fontFamily:SF2, letterSpacing:"0.05em" }}>
-                PLAYING
-              </span>
+            <div style={{ marginTop:14 }}>
+              {/* Progress bar */}
+              <div style={{ height:4, borderRadius:2, background:t.elevatedBg, overflow:"hidden", marginBottom:10 }}>
+                <div style={{ height:"100%", width:`${progressPct*100}%`, background:t.accent, borderRadius:2, transition:"width 0.1s linear" }} />
+              </div>
+              {/* Now playing */}
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
+                  boxShadow:"0 0 0 2px rgba(48,209,88,0.3)", display:"inline-block",
+                  animation:"pulse 1.2s ease-in-out infinite" }} />
+                <span style={{ fontSize:12, fontWeight:600, color:"#30D158", fontFamily:SF2, letterSpacing:"0.05em" }}>
+                  PLAYING
+                </span>
+                {activeEventIdx >= 0 && parsedData?.events?.[activeEventIdx] && (
+                  <span style={{ fontSize:14, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", letterSpacing:"0.06em" }}>
+                    {parsedData.events[activeEventIdx].notes.join(" · ")}
+                  </span>
+                )}
+              </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Note events display */}
+      {parsedData && parsedData.events.length > 0 && (
+        <div style={{ ...card2, padding:"14px 18px", maxHeight:200, overflowY:"auto" }}>
+          <div style={{ ...lbl, marginBottom:10 }}>Note Events ({parsedData.events.length})</div>
+          <div style={{ display:"flex", flexWrap:"wrap", gap:4 }}>
+            {parsedData.events.map((e, idx) => {
+              const isActive = idx === activeEventIdx;
+              const isPast   = idx < activeEventIdx;
+              return (
+                <div key={idx} style={{
+                  padding:"4px 8px", borderRadius:6, fontSize:11, fontWeight:isActive?700:500,
+                  fontFamily:"'Share Tech Mono',monospace",
+                  background: isActive ? t.accent : isPast ? t.accentBg : t.elevatedBg,
+                  color: isActive ? "#FFFFFF" : isPast ? t.accent : t.textSecondary,
+                  border: isActive ? `1px solid ${t.accent}` : `1px solid transparent`,
+                  transition:"all 0.1s",
+                  transform: isActive ? "scale(1.1)" : "scale(1)",
+                }}>
+                  {e.notes.join("+")}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
@@ -1774,19 +1913,20 @@ export default function App() {
   const SLOTS_PER_BAR      = 16;  // 16 sixteenth-notes per bar
   const DEFAULT_CHORD_LEN  = 16;  // one bar by default
 
-  // Playing styles — affect duration, velocity (anslagskraft), sustain pedal and tremolo
+  // Playing styles — affect duration, velocity, attack character, sustain and tremolo
   // velMult: hvor hardt tangentene treffes (0.3 = sart, 1.5 = veldig kraftig)
   // accentMult: ekstra boost på første tone i akkorden (1.0 = ingen aksent)
+  // attackSec: fade-in tid i sekunder (0 = instant, 0.15 = forsiktig innsving)
   const STYLES = {
-    normal:    { label:"Normal",    durMult:0.85, velMult:1.00, accentMult:1.00, sustain:false, tremoloHz:0  },
-    sart:      { label:"Sart",      durMult:1.05, velMult:0.38, accentMult:1.00, sustain:true,  tremoloHz:0  },
-    staccato:  { label:"Staccato",  durMult:0.18, velMult:0.80, accentMult:1.00, sustain:false, tremoloHz:0  },
-    legato:    { label:"Legato",    durMult:1.10, velMult:0.85, accentMult:1.00, sustain:true,  tremoloHz:0  },
-    tenuto:    { label:"Tenuto",    durMult:0.95, velMult:0.95, accentMult:1.00, sustain:true,  tremoloHz:0  },
-    portato:   { label:"Portato",   durMult:0.55, velMult:0.85, accentMult:1.00, sustain:false, tremoloHz:0  },
-    accents:   { label:"Aksenter",  durMult:0.85, velMult:0.78, accentMult:1.55, sustain:true,  tremoloHz:0  },
-    tremolo:   { label:"Tremolo",   durMult:0.85, velMult:0.70, accentMult:1.00, sustain:false, tremoloHz:14 },
-    dramatisk: { label:"Dramatisk", durMult:1.00, velMult:1.55, accentMult:1.70, sustain:true,  tremoloHz:0  },
+    normal:    { label:"Normal",    durMult:0.85, velMult:1.00, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
+    sart:      { label:"Sart",      durMult:1.05, velMult:0.38, accentMult:1.00, attackSec:0.18, sustain:true,  tremoloHz:0  },
+    staccato:  { label:"Staccato",  durMult:0.18, velMult:0.80, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
+    legato:    { label:"Legato",    durMult:1.10, velMult:0.85, accentMult:1.00, attackSec:0.04, sustain:true,  tremoloHz:0  },
+    tenuto:    { label:"Tenuto",    durMult:0.95, velMult:0.95, accentMult:1.00, attackSec:0.02, sustain:true,  tremoloHz:0  },
+    portato:   { label:"Portato",   durMult:0.55, velMult:0.85, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:0  },
+    accents:   { label:"Aksenter",  durMult:0.85, velMult:0.78, accentMult:1.55, attackSec:0,    sustain:true,  tremoloHz:0  },
+    tremolo:   { label:"Tremolo",   durMult:0.85, velMult:0.70, accentMult:1.00, attackSec:0,    sustain:false, tremoloHz:14 },
+    dramatisk: { label:"Dramatisk", durMult:1.00, velMult:1.55, accentMult:1.70, attackSec:0,    sustain:true,  tremoloHz:0  },
   };
 
   const isSlotFree = (items, startSlot, lengthSlots, excludeId = null) => {
@@ -1950,6 +2090,20 @@ export default function App() {
     };
 
     const style = STYLES[playStyle] || STYLES.normal;
+
+    // Apply attack envelope to Tone.js instrument for soft/hard feel
+    if (inst) {
+      try {
+        if (inst.attack !== undefined) {
+          // Sampler: direct .attack property controls amplitude envelope attack
+          inst.attack = style.attackSec || 0;
+        }
+        if (inst.set) {
+          // PolySynth (Rhodes): set envelope.attack on all voices
+          inst.set({ envelope: { attack: Math.max(0.005, style.attackSec || 0.005) } });
+        }
+      } catch(e) {}
+    }
 
     const doSchedule = () => {
       timelineItems.forEach(item => {
@@ -2289,6 +2443,11 @@ export default function App() {
               soundType={soundType}
               getMIDIOut={getMIDIOut}
               midiChannel={midiChannel}
+              playStyle={playStyle}
+              setPlayStyle={setPlayStyle}
+              styleMenuOpen={styleMenuOpen}
+              setStyleMenuOpen={setStyleMenuOpen}
+              STYLES={STYLES}
             />
           )}
 
