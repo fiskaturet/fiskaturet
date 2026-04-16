@@ -1486,6 +1486,51 @@ const DRUM_STEPS = 64;       // 4 bars × 16 sixteenth-notes
 const DRUM_BAR_STEPS = 16;
 function emptyDrumTrack() { return new Array(DRUM_STEPS).fill(0); }
 
+// ── MPC Pad ↔ MIDI note mapping ──
+// MPC banks: A=36-51, B=52-67, C=68-83, D=84-99
+const MPC_BANKS = ["A","B","C","D"];
+const MPC_PADS = [];
+MPC_BANKS.forEach((bank, bi) => {
+  for (let p = 1; p <= 16; p++) {
+    MPC_PADS.push({ label: `${bank}${p}`, midi: 36 + bi * 16 + (p - 1) });
+  }
+});
+const midiToPadLabel = (midi) => {
+  const entry = MPC_PADS.find(p => p.midi === midi);
+  return entry ? entry.label : `N${midi}`;
+};
+const padLabelToMidi = (label) => {
+  const entry = MPC_PADS.find(p => p.label === label);
+  return entry ? entry.midi : 36;
+};
+
+// ── Pad Map Presets ──
+const PAD_MAP_PRESETS = [
+  { id:"default", label:"Fiskaturet Default", desc:"A1-A16 chromatic",
+    map: DRUM_TRACKS.reduce((a,t) => ({...a,[t.id]:{padId:t.defaultPad, midiNote:t.defaultNote}}),{}) },
+  { id:"gm", label:"General MIDI", desc:"Standard GM drum map",
+    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38}, hatC:{padId:"A7",midiNote:42},
+           ghost:{padId:"A4",midiNote:40}, clap:{padId:"A4",midiNote:39}, rim:{padId:"B1",midiNote:37},
+           tom:{padId:"A10",midiNote:45}, low808:{padId:"A1",midiNote:36}, hatO:{padId:"A11",midiNote:46},
+           ride:{padId:"B5",midiNote:51}, shaker:{padId:"B7",midiNote:70}, perc:{padId:"A16",midiNote:67},
+           bell:{padId:"B7",midiNote:53}, fx1:{padId:"A14",midiNote:49}, fx2:{padId:"B3",midiNote:55},
+           crash:{padId:"A14",midiNote:49} }},
+  { id:"mpc_classic", label:"MPC 60/2000", desc:"Classic Akai layout",
+    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A2",midiNote:37}, hatC:{padId:"A3",midiNote:38},
+           ghost:{padId:"A4",midiNote:39}, clap:{padId:"A5",midiNote:40}, rim:{padId:"A6",midiNote:41},
+           tom:{padId:"A7",midiNote:42}, low808:{padId:"A8",midiNote:43}, hatO:{padId:"A9",midiNote:44},
+           ride:{padId:"A10",midiNote:45}, shaker:{padId:"A11",midiNote:46}, perc:{padId:"A12",midiNote:47},
+           bell:{padId:"A13",midiNote:48}, fx1:{padId:"A14",midiNote:49}, fx2:{padId:"A15",midiNote:50},
+           crash:{padId:"A16",midiNote:51} }},
+  { id:"tr808", label:"TR-808 Style", desc:"808 machine layout",
+    map: { kick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38}, hatC:{padId:"A7",midiNote:42},
+           ghost:{padId:"A3",midiNote:38}, clap:{padId:"A4",midiNote:39}, rim:{padId:"B2",midiNote:56},
+           tom:{padId:"A10",midiNote:45}, low808:{padId:"A1",midiNote:36}, hatO:{padId:"A11",midiNote:46},
+           ride:{padId:"A14",midiNote:49}, shaker:{padId:"B7",midiNote:70}, perc:{padId:"B1",midiNote:54},
+           bell:{padId:"B1",midiNote:53}, fx1:{padId:"B3",midiNote:55}, fx2:{padId:"B4",midiNote:75},
+           crash:{padId:"A14",midiNote:49} }},
+];
+
 const D_PROB = (p) => Math.random() < p;
 const D_PICK = (arr) => arr[Math.floor(Math.random()*arr.length)];
 const D_VEL  = (base, jitter=20) => Math.max(1, Math.min(127, base + Math.floor((Math.random()-0.5)*jitter*2)));
@@ -5493,51 +5538,59 @@ export default function App() {
                 <>
                   <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:100 }} />
                   <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
-                    width:520, maxHeight:"90vh", overflow:"auto",
+                    width:440, maxHeight:"90vh", overflow:"auto",
                     background:t.cardBg, borderRadius:16, padding:24, border:`1px solid ${t.border}`,
                     boxShadow:"0 16px 48px rgba(28,24,32,0.2)" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
-                      <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:t.textPrimary, fontFamily:SF }}>Pad Mapping · MPC Live 3</h3>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                      <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:t.textPrimary, fontFamily:SF }}>Pad Map</h3>
                       <button onClick={() => setPadMapperOpen(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:t.textSecondary }}>✕</button>
                     </div>
-                    {/* 4×4 visual pad grid — bottom row = A1-A4, top row = A13-A16 */}
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
-                      {[3,2,1,0].map(row => (
-                        [0,1,2,3].map(col => {
-                          const padIdx = row * 4 + col;
-                          const track = DRUM_TRACKS[padIdx];
-                          const mapping = padMap[track.id];
-                          return (
-                            <div key={track.id} style={{
-                              background: t.elevatedBg, border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 8px",
-                              display:"flex", flexDirection:"column", alignItems:"center", gap:4, minHeight:80
-                            }}>
-                              <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.1em" }}>{track.defaultPad}</span>
-                              <span style={{ fontSize:12, fontWeight:600, color:t.accent, textAlign:"center" }}>{track.label}</span>
-                              <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
-                                <span style={{ fontSize:9, color:t.textTertiary }}>MIDI</span>
-                                <input type="number" min={0} max={127}
-                                  value={mapping.midiNote}
-                                  onChange={e => {
-                                    const v = Math.max(0, Math.min(127, Number(e.target.value) || 0));
-                                    setPadMap(p => ({ ...p, [track.id]: { ...p[track.id], midiNote: v }}));
-                                  }}
-                                  style={{ width:42, fontSize:12, fontFamily:"'Share Tech Mono',monospace", textAlign:"center",
-                                    padding:"3px 4px", borderRadius:6, border:`1px solid ${t.inputBorder}`,
-                                    background:t.inputBg, color:t.inputColor }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })
-                      ).flat())}
+
+                    {/* Preset selector */}
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+                      {PAD_MAP_PRESETS.map(preset => {
+                        const isActive = DRUM_TRACKS.every(tr => padMap[tr.id]?.midiNote === preset.map[tr.id]?.midiNote);
+                        return (
+                          <button key={preset.id} onClick={() => setPadMap({...preset.map})}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                              background: isActive ? "rgba(48,209,88,0.12)" : t.btnBg,
+                              color: isActive ? "#30D158" : t.btnColor, cursor:"pointer", transition:"all 0.12s" }}>
+                            {preset.label}
+                          </button>
+                        );
+                      })}
                     </div>
-                    <div style={{ marginTop:14, display:"flex", justifyContent:"space-between" }}>
-                      <button onClick={() => setPadMap(DRUM_TRACKS.reduce((acc,tr) => ({ ...acc, [tr.id]: { padId:tr.defaultPad, midiNote:tr.defaultNote }}), {}))}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
-                          border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                        Reset defaults
-                      </button>
+
+                    {/* Simple list: Sound → Pad dropdown */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      {DRUM_TRACKS.map(track => {
+                        const mapping = padMap[track.id];
+                        const currentPadLabel = midiToPadLabel(mapping.midiNote);
+                        return (
+                          <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px",
+                            background:t.elevatedBg, borderRadius:8, border:`1px solid ${t.border}` }}>
+                            <span style={{ fontSize:12, fontWeight:600, color:t.accent, fontFamily:SF, width:75, flexShrink:0 }}>{track.label}</span>
+                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>→</span>
+                            <select value={currentPadLabel}
+                              onChange={e => {
+                                const midi = padLabelToMidi(e.target.value);
+                                setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
+                              }}
+                              style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:13, fontWeight:700,
+                                padding:"4px 6px", borderRadius:6, border:`1px solid ${t.inputBorder}`,
+                                background:t.inputBg, color:t.inputColor, cursor:"pointer", width:70 }}>
+                              {MPC_PADS.map(pad => (
+                                <option key={pad.label} value={pad.label}>{pad.label}</option>
+                              ))}
+                            </select>
+                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.6 }}>({mapping.midiNote})</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}>
                       <button onClick={() => setPadMapperOpen(false)}
                         style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
                           border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
