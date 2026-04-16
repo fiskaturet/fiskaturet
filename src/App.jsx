@@ -4100,12 +4100,12 @@ export default function App() {
           // Use exactly 24 ticks back = 1 beat worth of ticks
           const idx = tickTimes.length - 24;
           const span = now - tickTimes[idx]; // time for 23 tick intervals
-          const derivedBpm = Math.round(60000 / msPerBeatCorrected);
           const avgTickMs = span / 23;
           // Auto-detect PPQ: if avg tick interval suggests 48 PPQ (< 20ms at reasonable tempos), use 48
           const detectedPpq = avgTickMs < 20 ? 48 : 24;
-          const msPerBeatCorrected = (span / 23) * detectedPpq;
-          setClockDebug(`${detectedPpq}ppq, ${avgTickMs.toFixed(1)}ms/tick`);
+          const msPerBeatCorrected = avgTickMs * detectedPpq;
+          const derivedBpm = Math.round(60000 / msPerBeatCorrected);
+          setClockDebug(`${detectedPpq}ppq, ${avgTickMs.toFixed(1)}ms/tick → ${derivedBpm}bpm`);
           if (derivedBpm >= 30 && derivedBpm <= 300) {
             setBpm(prev => Math.abs(prev - derivedBpm) >= 1 ? derivedBpm : prev);
             setExternalBpm(derivedBpm);
@@ -4120,16 +4120,16 @@ export default function App() {
       }
     };
 
-    // Listen on ALL MIDI inputs (avoid duplicate handlers)
+    // Listen on ALL MIDI inputs using addEventListener (not onmidimessage)
+    // so we don't conflict with the chord-pad handler which uses onmidimessage
     const inputs = [];
     midiAccess.current.inputs.forEach(input => {
-      input.onmidimessage = null; // clear any previous
-      input.onmidimessage = onMidiMessage;
+      input.addEventListener("midimessage", onMidiMessage);
       inputs.push(input);
     });
 
     clockReceiveCleanup.current = () => {
-      inputs.forEach(input => { input.onmidimessage = null; });
+      inputs.forEach(input => { input.removeEventListener("midimessage", onMidiMessage); });
       if (externalBpmTimeout.current) clearTimeout(externalBpmTimeout.current);
     };
 
