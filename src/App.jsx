@@ -3888,7 +3888,7 @@ export default function App() {
   const [bassChannel,  setBassChannel]  = useState(2);
   const [melodyChannel2, setMelodyChannel2] = useState(3); // "melodyChannel2" to avoid collision with "melodyChannel" in SheetMusicTab
   const [midiError,    setMidiError]    = useState(null);
-  const [midiSyncMode, setMidiSyncMode] = useState("off"); // "off" | "send" | "receive"
+  const [midiSyncMode, setMidiSyncMode] = useState("receive"); // "off" | "send" | "receive"
   const midiClockEnabled = midiSyncMode === "send"; // backward compat
   const midiClockRef = useRef(null); // interval ID for clock ticks
   // ── Drum state ──
@@ -4069,10 +4069,12 @@ export default function App() {
   // ── MIDI Clock Receive — derive BPM from incoming 0xF8 ticks ──
   const clockTickTimesRef = useRef([]);
   const clockReceiveCleanup = useRef(null);
+  const [externalBpm, setExternalBpm] = useState(null); // non-null = receiving clock
+  const externalBpmTimeout = useRef(null);
   useEffect(() => {
     // Clean up previous listener
     if (clockReceiveCleanup.current) { clockReceiveCleanup.current(); clockReceiveCleanup.current = null; }
-    if (midiSyncMode !== "receive" || !midiAccess.current) return;
+    if (midiSyncMode !== "receive" || !midiAccess.current) { setExternalBpm(null); return; }
 
     const tickTimes = clockTickTimesRef.current;
     tickTimes.length = 0;
@@ -4086,19 +4088,24 @@ export default function App() {
         // Clock tick — 24 PPQ
         const now = performance.now();
         tickTimes.push(now);
-        // Keep last 48 ticks (2 beats) for averaging
+        // Keep last 48 ticks (2 beats) for smooth averaging
         if (tickTimes.length > 48) tickTimes.shift();
-        // Need at least 24 ticks (1 beat) to calculate BPM
-        if (tickTimes.length >= 24) {
-          const span = tickTimes[tickTimes.length - 1] - tickTimes[tickTimes.length - 24];
-          const msPerBeat = span; // 24 ticks = 1 beat
+        // Use 6 ticks for fast initial lock, 24 for stable average
+        const window = tickTimes.length >= 24 ? 24 : tickTimes.length >= 6 ? 6 : 0;
+        if (window > 0) {
+          const span = tickTimes[tickTimes.length - 1] - tickTimes[tickTimes.length - window];
+          const msPerTick = span / (window - 1);
+          const msPerBeat = msPerTick * 24;
           const derivedBpm = Math.round(60000 / msPerBeat);
           if (derivedBpm >= 30 && derivedBpm <= 300) {
-            setBpm(prev => {
-              // Only update if it actually changed (avoid render thrash)
-              if (Math.abs(prev - derivedBpm) >= 1) return derivedBpm;
-              return prev;
-            });
+            setBpm(prev => Math.abs(prev - derivedBpm) >= 1 ? derivedBpm : prev);
+            setExternalBpm(derivedBpm);
+            // Reset "lost clock" timeout
+            if (externalBpmTimeout.current) clearTimeout(externalBpmTimeout.current);
+            externalBpmTimeout.current = setTimeout(() => {
+              setExternalBpm(null);
+              tickTimes.length = 0;
+            }, 2000); // 2s without ticks = clock lost
           }
         }
       }
@@ -4113,6 +4120,7 @@ export default function App() {
 
     clockReceiveCleanup.current = () => {
       inputs.forEach(input => { input.onmidimessage = null; });
+      if (externalBpmTimeout.current) clearTimeout(externalBpmTimeout.current);
     };
 
     return () => {
@@ -5786,15 +5794,22 @@ export default function App() {
                   </div>
                   <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
                     {/* BPM */}
-                    <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>BPM</span>
-                    <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
+                    <span style={{ fontSize:11, fontWeight:600, color: externalBpm ? "#30D158" : t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>
+                      {externalBpm ? "BPM ← MPC" : "BPM"}
+                    </span>
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
-                      onChange={e => { const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
-                      onBlur={e => { const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      onKeyDown={e => { if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:8, border:`1.5px solid rgba(122,91,175,0.35)`, background:t.inputBg, color:t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
+                      readOnly={!!externalBpm}
+                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
+                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
+                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
+                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:8,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(122,91,175,0.35)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
+                        color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
+                        cursor: externalBpm ? "default" : "text" }}
                     />
-                    <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
                     <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
                     {/* Octave */}
                     <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
