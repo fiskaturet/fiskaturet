@@ -3839,7 +3839,9 @@ export default function App() {
   const [chordInputErr,setChordInputErr]= useState(false);
   const [midiOutputs,  setMidiOutputs]  = useState([]);
   const [midiOutputId, setMidiOutputId] = useState("off");
-  const [midiChannel,  setMidiChannel]  = useState(1);
+  const [midiChannel,  setMidiChannel]  = useState(1);   // chord channel
+  const [bassChannel,  setBassChannel]  = useState(2);
+  const [melodyChannel2, setMelodyChannel2] = useState(3); // "melodyChannel2" to avoid collision with "melodyChannel" in SheetMusicTab
   const [midiError,    setMidiError]    = useState(null);
   const [midiClockEnabled, setMidiClockEnabled] = useState(false);
   const midiClockRef = useRef(null); // interval ID for clock ticks
@@ -4611,10 +4613,10 @@ export default function App() {
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
           const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
-            const ch = (midiChannel - 1);
+            const bCh = (bassChannel - 1);
             const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hzV)));
-            scheduleBass(() => midiOut.send([0x90 | ch, note.midi, midiVel]), onMs);
-            scheduleBass(() => midiOut.send([0x80 | ch, note.midi, 0]), onMs + durSec * 1000);
+            scheduleBass(() => midiOut.send([0x90 | bCh, note.midi, midiVel]), onMs);
+            scheduleBass(() => midiOut.send([0x80 | bCh, note.midi, 0]), onMs + durSec * 1000);
           } else {
             scheduleBass(() => {
               try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
@@ -4636,10 +4638,10 @@ export default function App() {
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
           const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
-            const ch = (midiChannel - 1);
+            const mCh = (melodyChannel2 - 1);
             const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVel * hzV)));
-            scheduleMelody(() => midiOut.send([0x90 | ch, note.midi, midiVel]), onMs);
-            scheduleMelody(() => midiOut.send([0x80 | ch, note.midi, 0]), onMs + durSec * 1000);
+            scheduleMelody(() => midiOut.send([0x90 | mCh, note.midi, midiVel]), onMs);
+            scheduleMelody(() => midiOut.send([0x80 | mCh, note.midi, 0]), onMs + durSec * 1000);
           } else {
             scheduleMelody(() => {
               try { melInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
@@ -4776,8 +4778,8 @@ export default function App() {
             const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
               const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hv)));
-              scheduleBassA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, midiVel]), onMs);
-              scheduleBassA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), onMs + durSec * 1000);
+              scheduleBassA(() => midiOut.send([0x90 | (bassChannel-1), note.midi, midiVel]), onMs);
+              scheduleBassA(() => midiOut.send([0x80 | (bassChannel-1), note.midi, 0]), onMs + durSec * 1000);
             } else {
               scheduleBassA(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, onMs);
             }
@@ -4798,8 +4800,8 @@ export default function App() {
             const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
               const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVelA * hv)));
-              scheduleMelodyA(() => midiOut.send([0x90 | (midiChannel-1), note.midi, midiVel]), onMs);
-              scheduleMelodyA(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), onMs + durSec * 1000);
+              scheduleMelodyA(() => midiOut.send([0x90 | (melodyChannel2-1), note.midi, midiVel]), onMs);
+              scheduleMelodyA(() => midiOut.send([0x80 | (melodyChannel2-1), note.midi, 0]), onMs + durSec * 1000);
             } else {
               scheduleMelodyA(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, onMs);
             }
@@ -4989,18 +4991,6 @@ export default function App() {
                 />
               </div>}
 
-              {/* Drum channel (drums mode only) */}
-              {mode === "drums" && midiOutputId !== "off" && (
-                <div>
-                  <label style={labelStyle}>Drum Ch</label>
-                  <select value={drumChannel} onChange={e => setDrumChannel(Number(e.target.value))} style={{ ...selectStyle, width:90 }}>
-                    {Array.from({length:16},(_,i)=>i+1).map(ch => (
-                      <option key={ch} value={ch}>Ch {ch}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {/* MIDI Output */}
               <div>
                 <label style={labelStyle}>
@@ -5026,15 +5016,6 @@ export default function App() {
                       </select>
                       {midiOutputId !== "off" && (
                         <>
-                          <select
-                            value={midiChannel}
-                            onChange={e => setMidiChannel(Number(e.target.value))}
-                            style={{ ...selectStyle, width:90 }}
-                          >
-                            {Array.from({length:16},(_,i)=>i+1).map(ch => (
-                              <option key={ch} value={ch}>Ch {ch}</option>
-                            ))}
-                          </select>
                           <button onClick={() => setMidiClockEnabled(c => !c)}
                             style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 10px", borderRadius:7,
                               border:`1px solid ${midiClockEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
@@ -5048,6 +5029,26 @@ export default function App() {
                     </>
                   )}
                 </div>
+                {midiOutputId !== "off" && (
+                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", marginTop:6 }}>
+                    {[
+                      { label:"Chords", value:midiChannel, set:setMidiChannel },
+                      { label:"Bass",   value:bassChannel, set:setBassChannel },
+                      { label:"Melody", value:melodyChannel2, set:setMelodyChannel2 },
+                      { label:"Drums",  value:drumChannel, set:setDrumChannel },
+                    ].map(({label, value, set}) => (
+                      <div key={label} style={{ display:"flex", alignItems:"center", gap:3 }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.05em", fontFamily:SF }}>{label}</span>
+                        <select value={value} onChange={e => set(Number(e.target.value))}
+                          style={{ ...selectStyle, width:58, fontSize:11, padding:"3px 4px" }}>
+                          {Array.from({length:16},(_,i)=>i+1).map(ch => (
+                            <option key={ch} value={ch}>{ch}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>}
