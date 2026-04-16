@@ -3154,6 +3154,8 @@ export default function App() {
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
   const [muteMelody, setMuteMelody] = useState(false);
+  // ── Arrangement playback ──
+  const [arrangementPlaying, setArrangementPlaying] = useState(false);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
@@ -3540,6 +3542,7 @@ export default function App() {
       }
     } catch(e) {}
     setLooping(false);
+    setArrangementPlaying(false);
     setPlayheadPct(0);
     setDrumStep(-1);
   };
@@ -3828,6 +3831,142 @@ export default function App() {
     };
     rafRef.current = requestAnimationFrame(animate);
     loopRef.current = setInterval(doSchedule, totalMs);
+  };
+
+  // ── Play full arrangement (all sections chained) ─────────────────────────
+  const playArrangement = async () => {
+    if (looping) { stopLoop(); setArrangementPlaying(false); return; }
+    if (arrangement.length === 0) return;
+
+    const resolvedSecs = arrangement.map(id => sections.find(s => s.id === id)).filter(Boolean);
+    if (resolvedSecs.length === 0) return;
+
+    await Tone.start();
+    const midiOut = getMIDIOut();
+    let inst = null;
+    if (!midiOut) {
+      inst = getInstrument(soundType);
+      if (soundType === "piano") await Tone.loaded();
+    }
+    instRef.current = inst;
+
+    const slotSec = (60 / bpm) * 0.25;
+    const style = STYLES[playStyle] || STYLES.normal;
+    const slotsPerSection = TIMELINE_SLOTS;
+    const totalSlots = slotsPerSection * resolvedSecs.length;
+    const totalSec = totalSlots * slotSec;
+    const totalMs = totalSec * 1000;
+
+    if (inst) {
+      try {
+        if (inst.attack !== undefined) inst.attack = style.attackSec || 0;
+        if (inst.set) inst.set({ envelope: { attack: Math.max(0.005, style.attackSec || 0.005) } });
+      } catch(e) {}
+    }
+
+    const schedule = (cb, ms) => {
+      const id = setTimeout(() => { tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id); cb(); }, ms);
+      tlTimeoutsRef.current.push(id);
+    };
+
+    const doScheduleArrangement = () => {
+      resolvedSecs.forEach((sec, secIdx) => {
+        const offset = secIdx * slotsPerSection;
+
+        // Chords
+        if (!muteChords && sec.timelineItems) {
+          sec.timelineItems.forEach(item => {
+            const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+            const startSec = (offset + item.startSlot) * slotSec;
+            const durSec = item.lengthSlots * slotSec * style.durMult;
+            if (midiOut) {
+              const ch = midiChannel - 1;
+              const offsets2 = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+              noteNames.forEach((note, i) => {
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult)));
+                const n = nameToMidi(note);
+                schedule(() => midiOut.send([0x90|ch, n, midiVel]), (startSec + offsets2[i]) * 1000);
+                schedule(() => midiOut.send([0x80|ch, n, 0]), (startSec + durSec) * 1000);
+              });
+            } else {
+              const offsets2 = strumOffsets(noteNames.length), vels = humanVelocities(noteNames.length);
+              noteNames.forEach((note, i) => {
+                const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult));
+                schedule(() => { try { inst.triggerAttackRelease(note, durSec, Tone.now(), v); } catch(e) {} }, (startSec + offsets2[i]) * 1000);
+              });
+            }
+          });
+        }
+
+        // Bass
+        if (!muteBass && sec.bassLine) {
+          sec.bassLine.forEach(note => {
+            if (note.muted) return;
+            const startSec = (offset + note.startSlot) * slotSec;
+            const durSec = note.lengthSlots * slotSec * style.durMult;
+            const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+            if (midiOut) {
+              schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, note.velocity]), startSec * 1000);
+              schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+            } else {
+              schedule(() => { try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+            }
+          });
+        }
+
+        // Melody
+        if (!muteMelody && sec.melodyLine) {
+          sec.melodyLine.forEach(note => {
+            if (note.muted) return;
+            const startSec = (offset + note.startSlot) * slotSec;
+            const durSec = note.lengthSlots * slotSec * style.durMult;
+            const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult));
+            if (midiOut) {
+              schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, note.velocity)]), startSec * 1000);
+              schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
+            } else {
+              schedule(() => { try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+            }
+          });
+        }
+
+        // Drums
+        if (sec.drumPattern) {
+          if (!midiOut) initDrumSynths();
+          const drumCh = drumChannel - 1;
+          DRUM_TRACKS.forEach(track => {
+            const steps = sec.drumPattern[track.id];
+            if (!steps) return;
+            steps.forEach((vel, step) => {
+              if (vel === 0) return;
+              const onMs = (offset + step) * slotSec * 1000;
+              const note = padMap[track.id]?.midiNote ?? track.defaultNote;
+              if (midiOut) {
+                schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+                schedule(() => midiOut.send([0x80 | drumCh, note, 0]), onMs + slotSec * 0.9 * 1000);
+              } else {
+                schedule(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+              }
+            });
+          });
+        }
+      });
+    };
+
+    doScheduleArrangement();
+    setLooping(true);
+    setArrangementPlaying(true);
+    const wallStart = performance.now();
+    const animate = () => {
+      const elapsed = (performance.now() - wallStart) % totalMs;
+      const raw = elapsed / totalMs;
+      setPlayheadPct(raw);
+      rafRef.current = requestAnimationFrame(animate);
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    loopRef.current = setInterval(doScheduleArrangement, totalMs);
   };
 
   useEffect(() => () => stopLoop(), []);
@@ -5070,11 +5209,24 @@ export default function App() {
                               );
                             })}
                           </div>
-                          <button onClick={() => setArrangement([])}
-                            style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:5,
-                              border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer", alignSelf:"flex-start" }}>
-                            Clear arrangement
-                          </button>
+                          <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:4 }}>
+                            <button onClick={playArrangement}
+                              style={{ fontFamily:SF, fontSize:13, fontWeight:700, padding:"8px 22px", borderRadius:10, border:"none",
+                                background: arrangementPlaying ? "#FF453A" : "#34C759",
+                                color: "#FFFFFF", cursor:"pointer", transition:"all 0.15s ease",
+                                boxShadow: arrangementPlaying ? "0 0 12px rgba(255,69,58,0.3)" : "0 0 12px rgba(52,199,89,0.3)" }}>
+                              {arrangementPlaying ? "⬛ Stop" : "▶  Play Arrangement"}
+                            </button>
+                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>
+                              {arrangement.length} sections · {Math.round(arrangement.length * TIMELINE_SLOTS * (60/bpm) * 0.25)}s
+                            </span>
+                            <div style={{ flex:1 }} />
+                            <button onClick={() => setArrangement([])}
+                              style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:5,
+                                border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
+                              Clear
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
