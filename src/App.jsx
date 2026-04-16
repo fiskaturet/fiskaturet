@@ -6408,45 +6408,51 @@ export default function App() {
                       cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
                     {looping ? "⬛ Stop" : "▶  Play"}
                   </button>
-                  {/* Mute toggles */}
-                  <button onClick={() => setMuteChords(m => !m)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
-                      border:`1px solid ${muteChords ? "#FF453A" : t.btnBorder}`,
-                      background: muteChords ? "rgba(255,69,58,0.1)" : t.btnBg,
-                      color: muteChords ? "#FF453A" : t.btnColor, cursor:"pointer", transition:"all 0.12s",
-                      textDecoration: muteChords ? "line-through" : "none" }}>
-                    Chords
-                  </button>
-                  <button onClick={() => setMuteBass(m => !m)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
-                      border:`1px solid ${muteBass ? "#FF453A" : bassLine.length === 0 ? t.border : t.btnBorder}`,
-                      background: muteBass ? "rgba(255,69,58,0.1)" : t.btnBg,
-                      color: muteBass ? "#FF453A" : bassLine.length === 0 ? t.textTertiary : t.btnColor,
-                      cursor: bassLine.length === 0 ? "default" : "pointer", transition:"all 0.12s",
-                      textDecoration: muteBass ? "line-through" : "none",
-                      opacity: bassLine.length === 0 ? 0.4 : 1 }}>
-                    Bass
-                  </button>
-                  <button onClick={() => setMuteMelody(m => !m)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
-                      border:`1px solid ${muteMelody ? "#FF453A" : melodyLine.length === 0 ? t.border : t.btnBorder}`,
-                      background: muteMelody ? "rgba(255,69,58,0.1)" : t.btnBg,
-                      color: muteMelody ? "#FF453A" : melodyLine.length === 0 ? t.textTertiary : t.btnColor,
-                      cursor: melodyLine.length === 0 ? "default" : "pointer", transition:"all 0.12s",
-                      textDecoration: muteMelody ? "line-through" : "none",
-                      opacity: melodyLine.length === 0 ? 0.4 : 1 }}>
-                    Melody
-                  </button>
-                  <button onClick={() => setMuteDrums(m => !m)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:8,
-                      border:`1px solid ${muteDrums ? "#FF453A" : !drumPattern ? t.border : t.btnBorder}`,
-                      background: muteDrums ? "rgba(255,69,58,0.1)" : t.btnBg,
-                      color: muteDrums ? "#FF453A" : !drumPattern ? t.textTertiary : t.btnColor,
-                      cursor: !drumPattern ? "default" : "pointer", transition:"all 0.12s",
-                      textDecoration: muteDrums ? "line-through" : "none",
-                      opacity: !drumPattern ? 0.4 : 1 }}>
-                    Drums
-                  </button>
+                  {/* Mute/Solo toggles — click to mute, Shift+click (or S button) to solo */}
+                  {[
+                    { key:"chords", label:"Chords", muted:muteChords, setMute:setMuteChords, disabled:false },
+                    { key:"bass",   label:"Bass",   muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0 },
+                    { key:"melody", label:"Melody", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0 },
+                    { key:"drums",  label:"Drums",  muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern },
+                  ].map(({ key, label, muted, setMute, disabled }) => {
+                    const soloThis = () => {
+                      // If already solo'd (this unmuted, all others muted), unsolo all
+                      const others = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
+                      delete others[key];
+                      const isSolo = !muted && Object.values(others).every(m => m);
+                      if (isSolo) {
+                        setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
+                      } else {
+                        setMuteChords(key!=="chords"); setMuteBass(key!=="bass");
+                        setMuteMelody(key!=="melody"); setMuteDrums(key!=="drums");
+                      }
+                    };
+                    const others2 = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
+                    delete others2[key];
+                    const isSolod = !muted && Object.values(others2).every(m => m);
+                    return (
+                      <div key={key} style={{ display:"flex", gap:2 }}>
+                        <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:"8px 0 0 8px",
+                            border:`1px solid ${muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.border : t.btnBorder}`,
+                            background: muted ? "rgba(255,69,58,0.1)" : isSolod ? "rgba(255,214,10,0.1)" : t.btnBg,
+                            color: muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.textTertiary : t.btnColor,
+                            cursor: disabled && !muted ? "default" : "pointer", transition:"all 0.12s",
+                            textDecoration: muted ? "line-through" : "none",
+                            opacity: disabled && !muted ? 0.4 : 1, borderRight:"none" }}>
+                          {label}
+                        </button>
+                        <button onClick={soloThis} title={`Solo ${label}`}
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:700, padding:"6px 5px", borderRadius:"0 8px 8px 0",
+                            border:`1px solid ${isSolod ? "#FFD60A" : t.btnBorder}`,
+                            background: isSolod ? "rgba(255,214,10,0.15)" : t.btnBg,
+                            color: isSolod ? "#FFD60A" : t.textTertiary,
+                            cursor:"pointer", transition:"all 0.12s", minWidth:22 }}>
+                          S
+                        </button>
+                      </div>
+                    );
+                  })}
                   <div style={{ width:1, height:20, background:t.border }} />
                   {/* Humanize slider */}
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
