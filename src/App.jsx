@@ -4024,10 +4024,11 @@ export default function App() {
 
   // ── MIDI Clock sync ──
   // Sends MIDI Start (0xFA) + Clock ticks (0xF8) at 24 PPQ, and MIDI Stop (0xFC)
-  // Returns a Promise that resolves after a 1-beat preroll so the MPC has time to arm recording
+  // Returns prerollMs (0 if clock disabled) — callers add this to all note timestamps
+  const midiPrerollMs = useRef(0);
   const startMidiClock = useCallback((bpmVal) => {
     const out = getMIDIOut();
-    if (!out || !midiClockEnabled) return Promise.resolve();
+    if (!out || !midiClockEnabled) { midiPrerollMs.current = 0; return; }
     // Stop any existing clock
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
     // Send MIDI Start
@@ -4037,9 +4038,8 @@ export default function App() {
     midiClockRef.current = setInterval(() => {
       try { out.send([0xF8]); } catch(e) {}
     }, tickIntervalMs);
-    // Preroll: wait 1 beat (24 ticks) so MPC can arm recording before notes arrive
-    const prerollMs = (60 / bpmVal) * 1000; // 1 quarter note
-    return new Promise(resolve => setTimeout(resolve, prerollMs));
+    // Preroll: 1 beat of clock ticks before notes start — added to all note timestamps
+    midiPrerollMs.current = (60 / bpmVal) * 1000; // 1 quarter note
   }, [getMIDIOut, midiClockEnabled]);
 
   const stopMidiClock = useCallback(() => {
@@ -4421,7 +4421,8 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
-    await startMidiClock(bpm); // preroll: waits 1 beat so MPC can arm
+    startMidiClock(bpm);
+    const preroll = midiPrerollMs.current; // offset all notes by this much
 
     const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
     const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
@@ -4442,24 +4443,27 @@ export default function App() {
       return id;
     };
     // For MIDI: schedule send using Web MIDI timestamps (driver-level precision)
+    // Preroll is added so first notes don't arrive before MPC starts recording
     // Mute is checked ~50ms before the note, giving time to react to live mute toggles
     const MUTE_CHECK_LEAD = 50; // ms before note to check mute state
     const scheduleMidi = (muteRef, out, msg, ms) => {
-      const checkMs = Math.max(0, ms - MUTE_CHECK_LEAD);
+      const actualMs = ms + preroll; // shift all notes by preroll amount
+      const checkMs = Math.max(0, actualMs - MUTE_CHECK_LEAD);
       const id = setTimeout(() => {
         tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id);
         if (muteRef.current) return; // muted — skip
         const now = performance.now();
-        const sendAt = Math.max(now, now + (ms - checkMs - MUTE_CHECK_LEAD));
+        const sendAt = Math.max(now, now + (actualMs - checkMs - MUTE_CHECK_LEAD));
         try { out.send(msg, sendAt); } catch(e) {}
       }, checkMs);
       tlTimeoutsRef.current.push(id);
     };
     // Mute-aware schedulers — for browser audio, use setTimeout; for MIDI, use timestamp scheduling
-    const scheduleChord = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms);
-    const scheduleBass = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms);
-    const scheduleMelody = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
-    const scheduleDrum = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms);
+    // Preroll added so browser audio stays in sync with MIDI output
+    const scheduleChord = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms + preroll);
+    const scheduleBass = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms + preroll);
+    const scheduleMelody = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms + preroll);
+    const scheduleDrum = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms + preroll);
     // MIDI-specific schedulers — use hardware timestamps
     const midiChord  = midiOut ? (msg, ms) => scheduleMidi(muteChordsRef, midiOut, msg, ms) : null;
     const midiBass   = midiOut ? (msg, ms) => scheduleMidi(muteBassRef,   midiOut, msg, ms) : null;
@@ -4720,14 +4724,17 @@ export default function App() {
     doSchedule();
     setLooping(true);
     const wallStart = performance.now();
+    const totalMsWithPreroll = totalMs + preroll;
     const animate = () => {
       const elapsed = performance.now() - wallStart;
-      // If loop disabled and we've passed one full cycle, stop
-      if (!loopEnabledRef.current && elapsed >= totalMs) {
+      // During preroll, don't move playhead
+      const musicElapsed = Math.max(0, elapsed - preroll);
+      // If loop disabled and we've passed one full cycle (after preroll), stop
+      if (!loopEnabledRef.current && musicElapsed >= totalMs) {
         stopLoop();
         return;
       }
-      const loopElapsed = elapsed % totalMs;
+      const loopElapsed = musicElapsed % totalMs;
       const raw = loopElapsed / totalMs;
       // Chord playhead: scales to filled portion
       setPlayheadPct(raw * (loopSlots / TIMELINE_SLOTS));
@@ -4764,7 +4771,8 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
-    await startMidiClock(bpm); // preroll: waits 1 beat so MPC can arm
+    startMidiClock(bpm);
+    const preroll = midiPrerollMs.current;
 
     const slotSec = (60 / bpm) * 0.25;
     const style = STYLES[playStyle] || STYLES.normal;
@@ -4784,19 +4792,20 @@ export default function App() {
       const id = setTimeout(() => { tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id); cb(); }, ms);
       tlTimeoutsRef.current.push(id);
     };
-    // Mute-aware schedulers for arrangement
-    const scheduleChordA = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms);
-    const scheduleBassA = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms);
-    const scheduleMelodyA = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms);
+    // Mute-aware schedulers for arrangement (preroll added for sync)
+    const scheduleChordA = (cb, ms) => schedule(() => { if (!muteChordsRef.current) cb(); }, ms + preroll);
+    const scheduleBassA = (cb, ms) => schedule(() => { if (!muteBassRef.current) cb(); }, ms + preroll);
+    const scheduleMelodyA = (cb, ms) => schedule(() => { if (!muteMelodyRef.current) cb(); }, ms + preroll);
     // MIDI timestamp-based schedulers for arrangement (avoids dropped notes)
     const MUTE_CHECK_LEAD_A = 50;
     const scheduleMidiA = (muteRef, out, msg, ms) => {
-      const checkMs = Math.max(0, ms - MUTE_CHECK_LEAD_A);
+      const actualMs = ms + preroll;
+      const checkMs = Math.max(0, actualMs - MUTE_CHECK_LEAD_A);
       const id = setTimeout(() => {
         tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id);
         if (muteRef.current) return;
         const now = performance.now();
-        const sendAt = Math.max(now, now + (ms - checkMs - MUTE_CHECK_LEAD_A));
+        const sendAt = Math.max(now, now + (actualMs - checkMs - MUTE_CHECK_LEAD_A));
         try { out.send(msg, sendAt); } catch(e) {}
       }, checkMs);
       tlTimeoutsRef.current.push(id);
@@ -4933,8 +4942,9 @@ export default function App() {
     setArrangementPlaying(true);
     const wallStart = performance.now();
     const animate = () => {
-      const elapsed = (performance.now() - wallStart) % totalMs;
-      const raw = elapsed / totalMs;
+      const musicElapsed = Math.max(0, performance.now() - wallStart - preroll);
+      const loopElapsed = musicElapsed % totalMs;
+      const raw = loopElapsed / totalMs;
       setPlayheadPct(raw);
       rafRef.current = requestAnimationFrame(animate);
     };
