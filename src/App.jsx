@@ -4100,10 +4100,12 @@ export default function App() {
           // Use exactly 24 ticks back = 1 beat worth of ticks
           const idx = tickTimes.length - 24;
           const span = now - tickTimes[idx]; // time for 23 tick intervals
-          const msPerBeat = (span / 23) * 24; // scale to full 24-tick beat
-          const derivedBpm = Math.round(60000 / msPerBeat);
+          const derivedBpm = Math.round(60000 / msPerBeatCorrected);
           const avgTickMs = span / 23;
-          setClockDebug(`${tickTimes.length} ticks, ${avgTickMs.toFixed(1)}ms/tick, beat=${msPerBeat.toFixed(0)}ms`);
+          // Auto-detect PPQ: if avg tick interval suggests 48 PPQ (< 20ms at reasonable tempos), use 48
+          const detectedPpq = avgTickMs < 20 ? 48 : 24;
+          const msPerBeatCorrected = (span / 23) * detectedPpq;
+          setClockDebug(`${detectedPpq}ppq, ${avgTickMs.toFixed(1)}ms/tick`);
           if (derivedBpm >= 30 && derivedBpm <= 300) {
             setBpm(prev => Math.abs(prev - derivedBpm) >= 1 ? derivedBpm : prev);
             setExternalBpm(derivedBpm);
