@@ -231,6 +231,261 @@ const FAMOUS_PROGRESSIONS = [
   { name:"Hero's Theme",           genre:"Film",    degrees:[0,2,3,4,5,4]     },
 ];
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── DRUM MACHINE ──────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+// 16 tracks mapped 1:1 to MPC pads A1..A16 (chromatic from MIDI 36)
+const DRUM_TRACKS = [
+  { id:"kick",   label:"Kick",     defaultPad:"A1",  defaultNote:36 },
+  { id:"snare",  label:"Snare",    defaultPad:"A2",  defaultNote:37 },
+  { id:"hatC",   label:"Hat (C)",  defaultPad:"A3",  defaultNote:38 },
+  { id:"ghost",  label:"Ghost Sn", defaultPad:"A4",  defaultNote:39 },
+  { id:"clap",   label:"Clap",     defaultPad:"A5",  defaultNote:40 },
+  { id:"rim",    label:"Rim",      defaultPad:"A6",  defaultNote:41 },
+  { id:"tom",    label:"Tom",      defaultPad:"A7",  defaultNote:42 },
+  { id:"low808", label:"808",      defaultPad:"A8",  defaultNote:43 },
+  { id:"hatO",   label:"Hat (O)",  defaultPad:"A9",  defaultNote:44 },
+  { id:"ride",   label:"Ride",     defaultPad:"A10", defaultNote:45 },
+  { id:"shaker", label:"Shaker",   defaultPad:"A11", defaultNote:46 },
+  { id:"perc",   label:"Perc",     defaultPad:"A12", defaultNote:47 },
+  { id:"bell",   label:"Bell",     defaultPad:"A13", defaultNote:48 },
+  { id:"fx1",    label:"FX 1",     defaultPad:"A14", defaultNote:49 },
+  { id:"fx2",    label:"FX 2",     defaultPad:"A15", defaultNote:50 },
+  { id:"crash",  label:"Crash",    defaultPad:"A16", defaultNote:51 },
+];
+
+const DRUM_STEPS = 64;       // 4 bars × 16 sixteenth-notes
+const DRUM_BAR_STEPS = 16;
+function emptyDrumTrack() { return new Array(DRUM_STEPS).fill(0); }
+
+const D_PROB = (p) => Math.random() < p;
+const D_PICK = (arr) => arr[Math.floor(Math.random()*arr.length)];
+const D_VEL  = (base, jitter=20) => Math.max(1, Math.min(127, base + Math.floor((Math.random()-0.5)*jitter*2)));
+
+function compose4Bars(barFn) {
+  const out = new Array(DRUM_STEPS).fill(0);
+  for (let b=0; b<4; b++) {
+    const bar = barFn(b);
+    for (let i=0; i<DRUM_BAR_STEPS; i++) out[b*DRUM_BAR_STEPS+i] = bar[i] || 0;
+  }
+  return out;
+}
+
+function sprinkleGhosts(track, density=0.12, vel=35) {
+  for (let i=0; i<track.length; i++) {
+    if (track[i]===0 && i%4 !== 0 && D_PROB(density)) track[i] = D_VEL(vel, 10);
+  }
+}
+
+// ─── Genre generators ──────────────────────────────────────────────────────
+
+function genBoomBapClassic() {
+  const tracks = {};
+  const KICKS = [
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,110, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,110,0, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,110,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 105,0,0,0, 0,0,0,0, 105,0,0,0]);
+  tracks.hatC  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%2===0) tracks.hatC[i] = D_VEL(75, 15);
+    else if (D_PROB(0.18)) tracks.hatC[i] = D_VEL(45, 10);
+  }
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.08, 30);
+  return tracks;
+}
+
+function genGriselda() {
+  const tracks = {};
+  const KICKS = [
+    [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  tracks.hatC  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%4===0 && D_PROB(0.6)) tracks.hatC[i] = D_VEL(60, 15);
+    else if (D_PROB(0.08)) tracks.hatC[i] = D_VEL(40, 10);
+  }
+  tracks.rim = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%16===14 && D_PROB(0.5)) tracks.rim[i] = D_VEL(70);
+  return tracks;
+}
+
+function genTrapModern() {
+  const tracks = {};
+  const KICKS = [
+    [120,0,0,0, 0,0,120,0, 0,0,0,0, 120,0,0,0],
+    [120,0,0,0, 0,0,0,0, 120,0,0,0, 0,0,120,0],
+    [120,0,0,0, 0,0,0,120, 0,0,120,0, 0,0,0,0],
+  ];
+  tracks.kick = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.clap = compose4Bars(() => [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0]);
+  tracks.hatC = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    tracks.hatC[i] = D_VEL(70, 20);
+    if (i%4===0) tracks.hatC[i] = D_VEL(85, 10);
+  }
+  // Roll bursts at end of bar 2 and bar 4
+  tracks.hatC[14] = D_VEL(85); tracks.hatC[15] = D_VEL(95);
+  tracks.hatC[46] = D_VEL(85); tracks.hatC[47] = D_VEL(95);
+  tracks.low808 = tracks.kick.map(v => v > 0 && D_PROB(0.85) ? D_VEL(110) : 0);
+  return tracks;
+}
+
+function genLofi() {
+  const tracks = {};
+  const KICKS = [
+    [105,0,0,0, 0,0,0,0, 0,0,105,0, 0,0,0,0],
+    [105,0,0,0, 0,0,0,105, 0,0,105,0, 0,0,0,0],
+    [105,0,0,0, 0,0,105,0, 0,0,0,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0]);
+  tracks.hatC  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%2===0) tracks.hatC[i] = D_VEL(65, 15);
+    else if (D_PROB(0.25)) tracks.hatC[i] = D_VEL(40, 8);
+  }
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.18, 28);
+  tracks.shaker = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%2===1) tracks.shaker[i] = D_VEL(50, 10);
+  return tracks;
+}
+
+function genDetroit() {
+  const tracks = {};
+  const KICKS = [
+    [110,0,0,110, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,110,110,0, 0,0,0,0],
+    [110,0,110,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,0,0]);
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.25, 35);
+  tracks.hatC  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%4===0) tracks.hatC[i] = D_VEL(80, 15);
+    else if (i%2===0) tracks.hatC[i] = D_VEL(60, 15);
+    else if (D_PROB(0.4)) tracks.hatC[i] = D_VEL(45, 10);
+  }
+  return tracks;
+}
+
+function genMemphisPhonk() {
+  const tracks = {};
+  const KICKS = [
+    [115,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [115,0,0,0, 0,0,0,0, 115,0,0,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  tracks.bell  = emptyDrumTrack();
+  // Approximate triplet feel with 6-step interval (close enough on 16-grid)
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%6===0) tracks.bell[i] = D_VEL(70, 15);
+    else if (i%6===3) tracks.bell[i] = D_VEL(60, 15);
+  }
+  tracks.rim = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%16===10 && D_PROB(0.5)) tracks.rim[i] = D_VEL(75);
+  tracks.low808 = tracks.kick.map(v => v > 0 ? D_VEL(120) : 0);
+  return tracks;
+}
+
+function genDrill() {
+  const tracks = {};
+  const KICKS = [
+    [120,0,0,0, 0,0,120,0, 0,120,0,0, 0,0,0,0],
+    [120,0,0,0, 0,0,0,120, 0,0,120,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0]);
+  tracks.hatC  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    const inGap = (i % 16 >= 8 && i % 16 < 10);
+    if (!inGap) {
+      if (i%2===0) tracks.hatC[i] = D_VEL(70, 15);
+      else if (D_PROB(0.5)) tracks.hatC[i] = D_VEL(50, 10);
+    }
+  }
+  tracks.low808 = tracks.kick.map(v => v > 0 ? D_VEL(115) : 0);
+  return tracks;
+}
+
+function genExperimental() {
+  const tracks = {};
+  tracks.kick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i===0 || i===32) tracks.kick[i] = D_VEL(110);
+    else if (D_PROB(0.06)) tracks.kick[i] = D_VEL(105);
+  }
+  tracks.snare = emptyDrumTrack();
+  [12, 28, 44, 60].forEach(p => {
+    const j = p + Math.floor((Math.random()-0.5)*3);
+    if (j>=0 && j<DRUM_STEPS) tracks.snare[j] = D_VEL(95);
+  });
+  tracks.perc = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.12)) tracks.perc[i] = D_VEL(60, 20);
+  tracks.fx1 = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.04)) tracks.fx1[i] = D_VEL(70, 15);
+  return tracks;
+}
+
+function genDrumless() {
+  const tracks = {};
+  tracks.kick = compose4Bars(() => {
+    const k = new Array(16).fill(0);
+    k[0] = 110;
+    if (D_PROB(0.7)) k[8] = 110;
+    return k;
+  });
+  tracks.snare = compose4Bars(() => {
+    const s = new Array(16).fill(0);
+    s[4] = 100; s[12] = 100;
+    return s;
+  });
+  return tracks;
+}
+
+function genHalftime() {
+  const tracks = {};
+  const KICKS = [
+    [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,110, 0,0,0,0, 0,0,0,0],
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  tracks.hatO  = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%8===6 && D_PROB(0.6)) tracks.hatO[i] = D_VEL(65, 10);
+  tracks.perc = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.08)) tracks.perc[i] = D_VEL(45, 15);
+  return tracks;
+}
+
+const DRUM_GENRES = {
+  boombap_classic: { label:"Boom Bap Klassisk",   bpm:90,  generate: genBoomBapClassic },
+  griselda:        { label:"Griselda",            bpm:84,  generate: genGriselda       },
+  trap_modern:     { label:"Moderne Trap",        bpm:140, generate: genTrapModern     },
+  lofi:            { label:"Lo-fi",               bpm:78,  generate: genLofi           },
+  detroit:         { label:"Detroit",             bpm:92,  generate: genDetroit        },
+  memphis:         { label:"Memphis/Phonk",       bpm:75,  generate: genMemphisPhonk   },
+  drill:           { label:"Drill",               bpm:140, generate: genDrill          },
+  experimental:    { label:"Eksperimentell",      bpm:88,  generate: genExperimental   },
+  drumless:        { label:"Drumless",            bpm:88,  generate: genDrumless       },
+  halftime:        { label:"Halvtempo",           bpm:75,  generate: genHalftime       },
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const BLACK_KEY_INDICES = new Set([1, 3, 6, 8, 10]);
@@ -1417,6 +1672,17 @@ export default function App() {
   const [midiOutputId, setMidiOutputId] = useState("off");
   const [midiChannel,  setMidiChannel]  = useState(1);
   const [midiError,    setMidiError]    = useState(null);
+  // ── Drum state ──
+  const [drumGenre,      setDrumGenre]      = useState("boombap_classic");
+  const [drumPattern,    setDrumPattern]    = useState(null); // { kick:[64], snare:[64], ... }
+  const [drumChannel,    setDrumChannel]    = useState(10);
+  const [lockedTracks,   setLockedTracks]   = useState({});
+  const [mutedTracks,    setMutedTracks]    = useState({});
+  const [padMapperOpen,  setPadMapperOpen]  = useState(false);
+  const [drumStep,       setDrumStep]       = useState(-1);
+  const [padMap, setPadMap] = useState(() =>
+    DRUM_TRACKS.reduce((acc, t) => ({ ...acc, [t.id]: { padId:t.defaultPad, midiNote:t.defaultNote }}), {})
+  );
   const loopRef    = useRef(null);
   const rafRef     = useRef(null);
   const dragRef    = useRef(null);
@@ -1572,6 +1838,31 @@ export default function App() {
     }
   };
 
+  // ── Drum generator ──
+  const generateDrumPattern = useCallback(() => {
+    const genre = DRUM_GENRES[drumGenre];
+    if (!genre) return;
+    const fresh = genre.generate();
+    // Honor locked tracks: keep existing data
+    if (drumPattern) {
+      Object.keys(lockedTracks).forEach(tid => {
+        if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid];
+      });
+    }
+    // Ensure every track exists (empty for unused)
+    DRUM_TRACKS.forEach(t => { if (!fresh[t.id]) fresh[t.id] = emptyDrumTrack(); });
+    setDrumPattern(fresh);
+  }, [drumGenre, drumPattern, lockedTracks]);
+
+  const toggleDrumStep = useCallback((trackId, step) => {
+    setDrumPattern(prev => {
+      if (!prev) return prev;
+      const track = [...prev[trackId]];
+      track[step] = track[step] > 0 ? 0 : D_VEL(100);
+      return { ...prev, [trackId]: track };
+    });
+  }, []);
+
   const stopLoop = () => {
     if (loopRef.current)  { clearInterval(loopRef.current);      loopRef.current = null; }
     if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
@@ -1594,6 +1885,7 @@ export default function App() {
     } catch(e) {}
     setLooping(false);
     setPlayheadPct(0);
+    setDrumStep(-1);
   };
 
   // ── Timeline drag/resize ───────────────────────────────────────────────────
@@ -1624,7 +1916,8 @@ export default function App() {
   // ── Timeline playback ──────────────────────────────────────────────────────
   const playTimeline = async () => {
     if (looping) { stopLoop(); return; }
-    if (timelineItems.length === 0) return;
+    const hasDrums  = drumPattern && DRUM_TRACKS.some(t => drumPattern[t.id]?.some(v => v > 0));
+    if (timelineItems.length === 0 && !hasDrums) return;
     await Tone.start();
     const midiOut = getMIDIOut();
     let inst = null;
@@ -1635,7 +1928,9 @@ export default function App() {
     instRef.current = inst;
 
     const slotSec   = (60 / bpm) * 0.25; // sixteenth-note slots
-    const loopSlots = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
+    const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
+    const loopSlots = Math.max(chordEnd, hasDrums ? DRUM_STEPS : 0);
+    if (loopSlots === 0) return;
     const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
 
@@ -1749,15 +2044,38 @@ export default function App() {
           }
         }
       });
+
+      // ── Drum scheduling ──
+      if (hasDrums && midiOut) {
+        const drumCh = drumChannel - 1;
+        for (let step = 0; step < DRUM_STEPS; step++) {
+          DRUM_TRACKS.forEach(track => {
+            if (mutedTracks[track.id]) return;
+            const vel = drumPattern[track.id]?.[step] || 0;
+            if (vel <= 0) return;
+            const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
+            const onMs  = step * slotSec * 1000;
+            const offMs = onMs + slotSec * 0.9 * 1000;
+            schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+            schedule(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
+          });
+        }
+      }
     };
 
     doSchedule();
     setLooping(true);
     const wallStart = performance.now();
     const animate = () => {
-      const raw = ((performance.now() - wallStart) % totalMs) / totalMs;
-      // Scale playhead so it only sweeps the filled portion of the track
+      const elapsed = (performance.now() - wallStart) % totalMs;
+      const raw = elapsed / totalMs;
+      // Chord playhead: scales to filled portion
       setPlayheadPct(raw * (loopSlots / TIMELINE_SLOTS));
+      // Drum step marker
+      if (hasDrums) {
+        const step = Math.floor((elapsed / 1000) / slotSec) % DRUM_STEPS;
+        setDrumStep(step);
+      }
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
@@ -1807,6 +2125,7 @@ export default function App() {
                 letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
+                  : mode==="drums" ? `Trommemønster · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
                   : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
               </p>
             </div>
@@ -1825,6 +2144,7 @@ export default function App() {
           <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
             {[
               { key:"chords",  label:"Chords" },
+              { key:"drums",   label:"Trommer" },
               { key:"scales",  label:"Scale Explorer" },
               { key:"detect",  label:"Key Detector" },
               { key:"sheet",   label:"Sheet Music" },
@@ -1846,7 +2166,7 @@ export default function App() {
           {/* ── Controls (hidden in detect mode) ── */}
           {mode !== "detect" && <div style={card}>
             <div style={{ display:"flex", gap:20, flexWrap:"wrap", alignItems:"flex-end" }}>
-              {mode !== "sheet" && <div>
+              {mode !== "sheet" && mode !== "drums" && <div>
                 <label style={labelStyle}>Root</label>
                 <select value={rootDisplay}
                   onChange={e => { setRootDisplay(e.target.value); setProgression([]); setActiveChord(null); }}
@@ -1857,7 +2177,7 @@ export default function App() {
                   })}
                 </select>
               </div>}
-              {mode !== "sheet" && <div>
+              {mode !== "sheet" && mode !== "drums" && <div>
                 <label style={labelStyle}>Scale</label>
                 <select value={scaleKey}
                   onChange={e => { setScaleKey(e.target.value); setProgression([]); setActiveChord(null); }}
@@ -1882,7 +2202,7 @@ export default function App() {
                   />
                 </div>
               )}
-              <div>
+              {mode !== "drums" && <div>
                 <label style={labelStyle}>Sound</label>
                 <SegmentedControl
                   value={soundType}
@@ -1890,7 +2210,19 @@ export default function App() {
                   onChange={v => setSoundType(v)}
                   t={t}
                 />
-              </div>
+              </div>}
+
+              {/* Drum channel (drums mode only) */}
+              {mode === "drums" && midiOutputId !== "off" && (
+                <div>
+                  <label style={labelStyle}>Drum Ch</label>
+                  <select value={drumChannel} onChange={e => setDrumChannel(Number(e.target.value))} style={{ ...selectStyle, width:90 }}>
+                    {Array.from({length:16},(_,i)=>i+1).map(ch => (
+                      <option key={ch} value={ch}>Ch {ch}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* MIDI Output */}
               <div>
@@ -2059,6 +2391,196 @@ export default function App() {
                   </div>
                 </div>
               </div>
+            </>
+          )}
+
+          {/* ════════════════ DRUMS MODE ════════════════ */}
+          {mode === "drums" && (
+            <>
+              {/* Genre + controls */}
+              <div style={card}>
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+                  <div>
+                    <label style={labelStyle}>Sjanger</label>
+                    <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)} style={{ ...selectStyle, minWidth:200 }}>
+                      {Object.entries(DRUM_GENRES).map(([k,g]) => (
+                        <option key={k} value={k}>{g.label} ({g.bpm} BPM)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-end", paddingTop:18 }}>
+                    <button onClick={generateDrumPattern}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10,
+                        border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                      Generate
+                    </button>
+                    <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { const fresh = genre.generate(); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); }); setDrumPattern(fresh); }}}}
+                      disabled={!drumPattern}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:drumPattern?"pointer":"not-allowed", opacity:drumPattern?1:0.4 }}>
+                      Variasjon
+                    </button>
+                    <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
+                        background: (!drumPattern && timelineItems.length===0) ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
+                        color: (!drumPattern && timelineItems.length===0) ? t.playDisabledClr : "#FFFFFF",
+                        cursor: (!drumPattern && timelineItems.length===0) ? "not-allowed" : "pointer" }}>
+                      {looping ? "⬛ Stop" : "▶  Play"}
+                    </button>
+                    <button onClick={() => setPadMapperOpen(true)}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      Pad Map
+                    </button>
+                    <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); }}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      Clear
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step grid */}
+              {drumPattern && (
+                <div style={{ ...card, padding:0, overflow:"hidden" }}>
+                  {/* Bar labels */}
+                  <div style={{ display:"grid", gridTemplateColumns:`140px 1fr`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                    <div style={{ padding:"4px 10px" }}>
+                      <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Track</span>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
+                      {Array.from({length:4},(_,i) => (
+                        <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
+                          <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Track rows */}
+                  {DRUM_TRACKS.map(track => {
+                    const hasHits = drumPattern[track.id]?.some(v => v > 0);
+                    const isMuted = !!mutedTracks[track.id];
+                    const isLocked = !!lockedTracks[track.id];
+                    return (
+                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"140px 1fr",
+                        borderBottom:`1px solid ${t.border}`, opacity: isMuted ? 0.35 : 1, transition:"opacity 0.15s" }}>
+                        {/* Label + controls */}
+                        <div style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 6px", background:t.cardBg, borderRight:`1px solid ${t.border}` }}>
+                          <button onClick={() => setLockedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                            title={isLocked ? "Unlock" : "Lock"}
+                            style={{ fontSize:11, padding:"2px 4px", border:"none", background:"none", cursor:"pointer", opacity:isLocked?1:0.3 }}>
+                            {isLocked ? "🔒" : "🔓"}
+                          </button>
+                          <button onClick={() => setMutedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                            title={isMuted ? "Unmute" : "Mute"}
+                            style={{ fontSize:11, padding:"2px 4px", border:"none", background:"none", cursor:"pointer", opacity:isMuted?1:0.3 }}>
+                            {isMuted ? "🔇" : "🔊"}
+                          </button>
+                          <span style={{ fontSize:11, fontWeight:hasHits?600:400, color:hasHits?t.textPrimary:t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                            {track.label}
+                          </span>
+                        </div>
+                        {/* Steps */}
+                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0, background:t.cardBg }}>
+                          {drumPattern[track.id].map((vel, step) => {
+                            const isPlayhead = drumStep === step;
+                            const isBeatLine = step > 0 && step % 4 === 0;
+                            const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
+                            return (
+                              <div key={step}
+                                onClick={() => toggleDrumStep(track.id, step)}
+                                style={{
+                                  height:22,
+                                  borderLeft: isBarLine ? `1.5px solid ${t.border}` : isBeatLine ? `0.5px solid rgba(28,24,32,0.06)` : "none",
+                                  background: isPlayhead && looping
+                                    ? "rgba(122,91,175,0.25)"
+                                    : vel > 0
+                                    ? `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`
+                                    : step % 2 === 0 ? "transparent" : "rgba(28,24,32,0.015)",
+                                  cursor:"pointer",
+                                  transition:"background 0.08s",
+                                  borderRadius: vel > 0 ? 1 : 0,
+                                }}
+                              />
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!drumPattern && (
+                <div style={{ ...card, textAlign:"center", padding:"48px 20px" }}>
+                  <p style={{ fontSize:15, color:t.textTertiary, fontFamily:SF, margin:0 }}>
+                    Velg en sjanger og trykk <strong>Generate</strong> for å lage et trommemønster
+                  </p>
+                </div>
+              )}
+
+              {/* ── Pad Mapper Modal ── */}
+              {padMapperOpen && (
+                <>
+                  <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:100 }} />
+                  <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
+                    width:520, maxHeight:"90vh", overflow:"auto",
+                    background:t.cardBg, borderRadius:16, padding:24, border:`1px solid ${t.border}`,
+                    boxShadow:"0 16px 48px rgba(28,24,32,0.2)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:18 }}>
+                      <h3 style={{ margin:0, fontSize:18, fontWeight:700, color:t.textPrimary, fontFamily:SF }}>Pad Mapping · MPC Live 3</h3>
+                      <button onClick={() => setPadMapperOpen(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:t.textSecondary }}>✕</button>
+                    </div>
+                    {/* 4×4 visual pad grid — bottom row = A1-A4, top row = A13-A16 */}
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:8 }}>
+                      {[3,2,1,0].map(row => (
+                        [0,1,2,3].map(col => {
+                          const padIdx = row * 4 + col;
+                          const track = DRUM_TRACKS[padIdx];
+                          const mapping = padMap[track.id];
+                          return (
+                            <div key={track.id} style={{
+                              background: t.elevatedBg, border:`1px solid ${t.border}`, borderRadius:10, padding:"10px 8px",
+                              display:"flex", flexDirection:"column", alignItems:"center", gap:4, minHeight:80
+                            }}>
+                              <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.1em" }}>{track.defaultPad}</span>
+                              <span style={{ fontSize:12, fontWeight:600, color:t.accent, textAlign:"center" }}>{track.label}</span>
+                              <div style={{ display:"flex", alignItems:"center", gap:4, marginTop:2 }}>
+                                <span style={{ fontSize:9, color:t.textTertiary }}>MIDI</span>
+                                <input type="number" min={0} max={127}
+                                  value={mapping.midiNote}
+                                  onChange={e => {
+                                    const v = Math.max(0, Math.min(127, Number(e.target.value) || 0));
+                                    setPadMap(p => ({ ...p, [track.id]: { ...p[track.id], midiNote: v }}));
+                                  }}
+                                  style={{ width:42, fontSize:12, fontFamily:"'Share Tech Mono',monospace", textAlign:"center",
+                                    padding:"3px 4px", borderRadius:6, border:`1px solid ${t.inputBorder}`,
+                                    background:t.inputBg, color:t.inputColor }}
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                      ).flat())}
+                    </div>
+                    <div style={{ marginTop:14, display:"flex", justifyContent:"space-between" }}>
+                      <button onClick={() => setPadMap(DRUM_TRACKS.reduce((acc,tr) => ({ ...acc, [tr.id]: { padId:tr.defaultPad, midiNote:tr.defaultNote }}), {}))}
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                          border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                        Reset defaults
+                      </button>
+                      <button onClick={() => setPadMapperOpen(false)}
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                          border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                        Ferdig
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </>
           )}
 
