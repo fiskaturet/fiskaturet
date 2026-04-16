@@ -2601,6 +2601,18 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
     setProgressPct(0);
   }, [getMIDIOut, soundType]);
 
+  // Use refs for drum state so scheduleOnce doesn't need them as deps
+  const drumsEnabledRef = useRef(drumsEnabled);
+  const drumPatternRef2 = useRef(drumPattern);
+  const padMapRef2 = useRef(padMap);
+  const drumChannelRef2 = useRef(drumChannel);
+  const userBpmRef = useRef(userBpm);
+  useEffect(() => { drumsEnabledRef.current = drumsEnabled; }, [drumsEnabled]);
+  useEffect(() => { drumPatternRef2.current = drumPattern; }, [drumPattern]);
+  useEffect(() => { padMapRef2.current = padMap; }, [padMap]);
+  useEffect(() => { drumChannelRef2.current = drumChannel; }, [drumChannel]);
+  useEffect(() => { userBpmRef.current = userBpm; }, [userBpm]);
+
   const scheduleOnce = useCallback((scale) => {
     const midiOut = getMIDIOut();
     const style   = STYLES?.[playStyle] || { durMult:0.85, velMult:1.0, accentMult:1.0, attackSec:0 };
@@ -2648,11 +2660,16 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
     }
 
     // ── Drum scheduling (layered on top of sheet music) ──
-    if (drumsEnabled && drumPattern) {
-      const midiOut = getMIDIOut();
-      if (!midiOut) initDrumSynths();
-      const drumCh = (drumChannel || 10) - 1;
-      const slotSec = (60 / userBpm) / 4; // sixteenth note duration at current BPM
+    const curDrumsEnabled = drumsEnabledRef.current;
+    const curDrumPattern = drumPatternRef2.current;
+    const curPadMap = padMapRef2.current;
+    const curDrumCh = (drumChannelRef2.current || 10) - 1;
+    const curBpm = userBpmRef.current;
+
+    if (curDrumsEnabled && curDrumPattern) {
+      const midiOut2 = getMIDIOut();
+      if (!midiOut2) initDrumSynths();
+      const slotSec = (60 / curBpm) / 4; // sixteenth note duration at current BPM
       const drumLoopSec = DRUM_STEPS * slotSec;
       // Figure out how many drum loops fit in the sheet music duration
       const totalSheetSec = parsedData.duration * scale;
@@ -2661,14 +2678,14 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         const loopOffset = loop * drumLoopSec;
         for (let step = 0; step < DRUM_STEPS; step++) {
           DRUM_TRACKS.forEach(track => {
-            const vel = drumPattern[track.id]?.[step] || 0;
+            const vel = curDrumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
             const onMs = (loopOffset + step * slotSec) * 1000;
-            if (midiOut) {
-              const note = padMap?.[track.id]?.midiNote ?? track.defaultNote;
+            if (midiOut2) {
+              const note = curPadMap?.[track.id]?.midiNote ?? track.defaultNote;
               const offMs = onMs + slotSec * 0.9 * 1000;
-              const t1 = setTimeout(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
-              const t2 = setTimeout(() => midiOut.send([0x80 | drumCh, note, 0]), offMs);
+              const t1 = setTimeout(() => midiOut2.send([0x90 | curDrumCh, note, vel]), onMs);
+              const t2 = setTimeout(() => midiOut2.send([0x80 | curDrumCh, note, 0]), offMs);
               timeoutsRef.current.push(t1, t2);
             } else {
               const t1 = setTimeout(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
@@ -2678,7 +2695,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         }
       }
     }
-  }, [parsedData, getMIDIOut, midiChannel, soundType, playStyle, STYLES, drumsEnabled, drumPattern, userBpm, drumChannel, padMap]);
+  }, [parsedData, getMIDIOut, midiChannel, soundType, playStyle, STYLES]);
 
   const playSheet = useCallback(async () => {
     if (playing) { stopSheet(); return; }
@@ -2859,7 +2876,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
 
             {/* ── Drum Layer ── */}
             <div style={{ marginTop:12, display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
-              <button onClick={() => { if (playing) stopSheet(); setDrumsEnabled(d => !d); }}
+              <button onClick={() => setDrumsEnabled(d => !d)}
                 style={{ fontFamily:SF2, fontSize:11, fontWeight:600, padding:"6px 14px", borderRadius:8,
                   border:`1px solid ${drumsEnabled ? "rgba(255,149,0,0.5)" : t.btnBorder}`,
                   background: drumsEnabled ? "rgba(255,149,0,0.12)" : t.btnBg,
@@ -2868,7 +2885,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               </button>
               {drumsEnabled && (
                 <>
-                  <select value={drumGenre} onChange={e => { if (playing) stopSheet(); setDrumGenre(e.target.value); }}
+                  <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)}
                     style={{ fontFamily:SF2, fontSize:11, padding:"5px 10px", borderRadius:7,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textPrimary, cursor:"pointer" }}>
                     {Object.entries(DRUM_GENRES).map(([k, g]) => (
@@ -2876,7 +2893,6 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                     ))}
                   </select>
                   <button onClick={() => {
-                    if (playing) stopSheet();
                     const genre = DRUM_GENRES[drumGenre];
                     if (genre) {
                       const fresh = genre.generate();
