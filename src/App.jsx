@@ -1680,6 +1680,11 @@ export default function App() {
   const [mutedTracks,    setMutedTracks]    = useState({});
   const [padMapperOpen,  setPadMapperOpen]  = useState(false);
   const [drumStep,       setDrumStep]       = useState(-1);
+  const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
+  const [drumHalfTime,   setDrumHalfTime]   = useState(false);
+  const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
+  const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
+  const [drumFavorites,  setDrumFavorites]  = useState([]);    // [{ id, genre, pattern, label }]
   const [padMap, setPadMap] = useState(() =>
     DRUM_TRACKS.reduce((acc, t) => ({ ...acc, [t.id]: { padId:t.defaultPad, midiNote:t.defaultNote }}), {})
   );
@@ -2045,16 +2050,25 @@ export default function App() {
         }
       });
 
-      // ── Drum scheduling ──
+      // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       if (hasDrums && midiOut) {
         const drumCh = drumChannel - 1;
+        // Swing: off-beat 16ths pushed late by up to 50% of a step
+        const swingAmt = (drumSwing / 100) * slotSec * 0.5; // seconds of delay on odd steps
+        // Half-time: effectively double the step spacing (skip odd steps → 8th notes only)
         for (let step = 0; step < DRUM_STEPS; step++) {
           DRUM_TRACKS.forEach(track => {
-            if (mutedTracks[track.id]) return;
+            // Solo: if a track is soloed, only that track plays
+            if (soloTrack && soloTrack !== track.id) return;
+            if (!soloTrack && mutedTracks[track.id]) return;
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
+            // Half-time: skip odd 16ths to halve density (except tracks with triplet mode)
+            if (drumHalfTime && !tripletTracks[track.id] && step % 2 !== 0) return;
             const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
-            const onMs  = step * slotSec * 1000;
+            // Apply swing: odd 16th-note steps get pushed late
+            const swingDelay = (step % 2 === 1) ? swingAmt : 0;
+            const onMs  = (step * slotSec + swingDelay) * 1000;
             const offMs = onMs + slotSec * 0.9 * 1000;
             schedule(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
             schedule(() => midiOut.send([0x80 | drumCh, note, 0]),   offMs);
@@ -2432,12 +2446,59 @@ export default function App() {
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                       Pad Map
                     </button>
-                    <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); }}
+                    <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
                       style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                       Clear
                     </button>
                   </div>
+                </div>
+                {/* Swing + Half-tempo + Favorites row */}
+                <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center", marginTop:10 }}>
+                  {/* Swing */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Swing</span>
+                    <input type="range" min={0} max={100} value={drumSwing}
+                      onChange={e => setDrumSwing(Number(e.target.value))}
+                      style={{ width:100, accentColor:t.accent }} />
+                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color:t.textTertiary, minWidth:30 }}>{drumSwing}%</span>
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Half-tempo */}
+                  <button onClick={() => setDrumHalfTime(h => !h)}
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                      border:`1px solid ${drumHalfTime?t.accentBorder:t.btnBorder}`,
+                      background:drumHalfTime?t.accentBg:t.btnBg,
+                      color:drumHalfTime?t.accent:t.btnColor, cursor:"pointer" }}>
+                    ½ Halvtempo
+                  </button>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Favorite */}
+                  {drumPattern && (
+                    <button onClick={() => {
+                      const id = Date.now();
+                      const label = `${DRUM_GENRES[drumGenre]?.label || drumGenre} #${drumFavorites.length+1}`;
+                      setDrumFavorites(f => [...f, { id, genre:drumGenre, pattern:JSON.parse(JSON.stringify(drumPattern)), label }]);
+                    }}
+                      style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      ★ Lagre
+                    </button>
+                  )}
+                  {drumFavorites.length > 0 && (
+                    <select
+                      value=""
+                      onChange={e => {
+                        const fav = drumFavorites.find(f => String(f.id) === e.target.value);
+                        if (fav) { stopLoop(); setDrumPattern(JSON.parse(JSON.stringify(fav.pattern))); setDrumGenre(fav.genre); }
+                      }}
+                      style={{ ...selectStyle, minWidth:160 }}>
+                      <option value="" disabled>Favoritter ({drumFavorites.length})</option>
+                      {drumFavorites.map(f => (
+                        <option key={f.id} value={f.id}>{f.label}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               </div>
 
@@ -2445,7 +2506,7 @@ export default function App() {
               {drumPattern && (
                 <div style={{ ...card, padding:0, overflow:"hidden" }}>
                   {/* Bar labels */}
-                  <div style={{ display:"grid", gridTemplateColumns:`140px 1fr`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                  <div style={{ display:"grid", gridTemplateColumns:`170px 1fr`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
                     <div style={{ padding:"4px 10px" }}>
                       <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Track</span>
                     </div>
@@ -2463,22 +2524,41 @@ export default function App() {
                     const hasHits = drumPattern[track.id]?.some(v => v > 0);
                     const isMuted = !!mutedTracks[track.id];
                     const isLocked = !!lockedTracks[track.id];
+                    const isSolo = soloTrack === track.id;
+                    const isTriplet = !!tripletTracks[track.id];
+                    const dimmed = soloTrack && !isSolo;
                     return (
-                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"140px 1fr",
-                        borderBottom:`1px solid ${t.border}`, opacity: isMuted ? 0.35 : 1, transition:"opacity 0.15s" }}>
+                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"170px 1fr",
+                        borderBottom:`1px solid ${t.border}`, opacity: dimmed ? 0.25 : isMuted ? 0.35 : 1, transition:"opacity 0.15s" }}>
                         {/* Label + controls */}
-                        <div style={{ display:"flex", alignItems:"center", gap:4, padding:"3px 6px", background:t.cardBg, borderRight:`1px solid ${t.border}` }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:2, padding:"3px 4px", background:t.cardBg, borderRight:`1px solid ${t.border}` }}>
                           <button onClick={() => setLockedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                             title={isLocked ? "Unlock" : "Lock"}
-                            style={{ fontSize:11, padding:"2px 4px", border:"none", background:"none", cursor:"pointer", opacity:isLocked?1:0.3 }}>
+                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isLocked?1:0.3 }}>
                             {isLocked ? "🔒" : "🔓"}
                           </button>
                           <button onClick={() => setMutedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                             title={isMuted ? "Unmute" : "Mute"}
-                            style={{ fontSize:11, padding:"2px 4px", border:"none", background:"none", cursor:"pointer", opacity:isMuted?1:0.3 }}>
+                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isMuted?1:0.3 }}>
                             {isMuted ? "🔇" : "🔊"}
                           </button>
-                          <span style={{ fontSize:11, fontWeight:hasHits?600:400, color:hasHits?t.textPrimary:t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                          <button onClick={() => setSoloTrack(s => s === track.id ? null : track.id)}
+                            title={isSolo ? "Unsolo" : "Solo"}
+                            style={{ fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:3,
+                              border:`1px solid ${isSolo?t.accent:"transparent"}`, background:isSolo?t.accentBg:"none",
+                              color:isSolo?t.accent:t.textTertiary, cursor:"pointer", fontFamily:SF, letterSpacing:"0.05em" }}>
+                            S
+                          </button>
+                          {(track.id==="hatC"||track.id==="hatO"||track.id==="bell"||track.id==="ride"||track.id==="shaker") && (
+                            <button onClick={() => setTripletTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                              title={isTriplet ? "16th grid" : "Triplet grid"}
+                              style={{ fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:3,
+                                border:`1px solid ${isTriplet?"#FF9F0A":"transparent"}`, background:isTriplet?"rgba(255,159,10,0.12)":"none",
+                                color:isTriplet?"#FF9F0A":t.textTertiary, cursor:"pointer", fontFamily:SF }}>
+                              3
+                            </button>
+                          )}
+                          <span style={{ fontSize:10, fontWeight:hasHits?600:400, color:hasHits?t.textPrimary:t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
                             {track.label}
                           </span>
                         </div>
