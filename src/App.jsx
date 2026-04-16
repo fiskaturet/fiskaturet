@@ -2504,7 +2504,8 @@ function parseMusicXML(xmlStr) {
 
 // ─── Sheet Music Tab ──────────────────────────────────────────────────────────
 
-function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPlayStyle, styleMenuOpen, setStyleMenuOpen, STYLES }) {
+function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPlayStyle, styleMenuOpen, setStyleMenuOpen, STYLES,
+  drumPattern, setDrumPattern, drumGenre, setDrumGenre, padMap, drumChannel }) {
   const [dragOver,   setDragOver]   = useState(false);
   const [parsedData, setParsedData] = useState(null);
   const [fileName,   setFileName]   = useState(null);
@@ -2513,6 +2514,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   const [userBpm,    setUserBpm]    = useState(120);
   const [activeEventIdx, setActiveEventIdx] = useState(-1);
   const [progressPct, setProgressPct] = useState(0);
+  const [drumsEnabled, setDrumsEnabled] = useState(false);
   const playTimerRef  = useRef(null);
   const timeoutsRef   = useRef([]);
   const loopTimerRef  = useRef(null);
@@ -2644,7 +2646,39 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
         });
       });
     }
-  }, [parsedData, getMIDIOut, midiChannel, soundType, playStyle, STYLES]);
+
+    // ── Drum scheduling (layered on top of sheet music) ──
+    if (drumsEnabled && drumPattern) {
+      const midiOut = getMIDIOut();
+      if (!midiOut) initDrumSynths();
+      const drumCh = (drumChannel || 10) - 1;
+      const slotSec = (60 / userBpm) / 4; // sixteenth note duration at current BPM
+      const drumLoopSec = DRUM_STEPS * slotSec;
+      // Figure out how many drum loops fit in the sheet music duration
+      const totalSheetSec = parsedData.duration * scale;
+      const drumLoops = Math.max(1, Math.ceil(totalSheetSec / drumLoopSec));
+      for (let loop = 0; loop < drumLoops; loop++) {
+        const loopOffset = loop * drumLoopSec;
+        for (let step = 0; step < DRUM_STEPS; step++) {
+          DRUM_TRACKS.forEach(track => {
+            const vel = drumPattern[track.id]?.[step] || 0;
+            if (vel <= 0) return;
+            const onMs = (loopOffset + step * slotSec) * 1000;
+            if (midiOut) {
+              const note = padMap?.[track.id]?.midiNote ?? track.defaultNote;
+              const offMs = onMs + slotSec * 0.9 * 1000;
+              const t1 = setTimeout(() => midiOut.send([0x90 | drumCh, note, vel]), onMs);
+              const t2 = setTimeout(() => midiOut.send([0x80 | drumCh, note, 0]), offMs);
+              timeoutsRef.current.push(t1, t2);
+            } else {
+              const t1 = setTimeout(() => triggerDrumSynth(track.id, vel, slotSec * 0.8), onMs);
+              timeoutsRef.current.push(t1);
+            }
+          });
+        }
+      }
+    }
+  }, [parsedData, getMIDIOut, midiChannel, soundType, playStyle, STYLES, drumsEnabled, drumPattern, userBpm, drumChannel, padMap]);
 
   const playSheet = useCallback(async () => {
     if (playing) { stopSheet(); return; }
@@ -2821,6 +2855,50 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               }}>
                 {playing ? "⬛ Stop" : "▶  Play"}
               </button>
+            </div>
+
+            {/* ── Drum Layer ── */}
+            <div style={{ marginTop:12, display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
+              <button onClick={() => { if (playing) stopSheet(); setDrumsEnabled(d => !d); }}
+                style={{ fontFamily:SF2, fontSize:11, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                  border:`1px solid ${drumsEnabled ? "rgba(255,149,0,0.5)" : t.btnBorder}`,
+                  background: drumsEnabled ? "rgba(255,149,0,0.12)" : t.btnBg,
+                  color: drumsEnabled ? "#FF9500" : t.btnColor, cursor:"pointer", transition:"all 0.12s" }}>
+                🥁 Drums {drumsEnabled ? "ON" : "OFF"}
+              </button>
+              {drumsEnabled && (
+                <>
+                  <select value={drumGenre} onChange={e => { if (playing) stopSheet(); setDrumGenre(e.target.value); }}
+                    style={{ fontFamily:SF2, fontSize:11, padding:"5px 10px", borderRadius:7,
+                      border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textPrimary, cursor:"pointer" }}>
+                    {Object.entries(DRUM_GENRES).map(([k, g]) => (
+                      <option key={k} value={k}>{g.label}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => {
+                    if (playing) stopSheet();
+                    const genre = DRUM_GENRES[drumGenre];
+                    if (genre) {
+                      const fresh = genre.generate();
+                      DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); });
+                      setDrumPattern(fresh);
+                    }
+                  }} style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7,
+                    border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                    Generate
+                  </button>
+                  {drumPattern && (
+                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF2 }}>
+                      Pattern loaded · {DRUM_TRACKS.filter(tr => drumPattern[tr.id]?.some(v => v > 0)).length} active tracks
+                    </span>
+                  )}
+                  {!drumPattern && (
+                    <span style={{ fontSize:10, color:"#FF9500", fontFamily:SF2, fontWeight:600 }}>
+                      Click Generate to create a drum pattern
+                    </span>
+                  )}
+                </>
+              )}
             </div>
           </div>
           {/* Progress bar + now-playing notes */}
@@ -4596,6 +4674,12 @@ export default function App() {
               styleMenuOpen={styleMenuOpen}
               setStyleMenuOpen={setStyleMenuOpen}
               STYLES={STYLES}
+              drumPattern={drumPattern}
+              setDrumPattern={setDrumPattern}
+              drumGenre={drumGenre}
+              setDrumGenre={setDrumGenre}
+              padMap={padMap}
+              drumChannel={drumChannel}
             />
           )}
 
