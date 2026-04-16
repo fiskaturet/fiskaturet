@@ -4033,27 +4033,30 @@ export default function App() {
   const midiPrerollMs = useRef(0);
   const startMidiClock = useCallback((bpmVal) => {
     const out = getMIDIOut();
-    if (!out || !midiClockEnabled) { midiPrerollMs.current = 0; return; }
+    if (!out) { midiPrerollMs.current = 0; return; }
     // Stop any existing clock
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
-    // Send MIDI Start
-    out.send([0xFA]);
-    // 24 PPQ = 24 ticks per quarter note
-    const tickIntervalMs = (60 / bpmVal / 24) * 1000;
-    midiClockRef.current = setInterval(() => {
-      try { out.send([0xF8]); } catch(e) {}
-    }, tickIntervalMs);
-    // Preroll: 1 beat of clock ticks before notes start — added to all note timestamps
-    midiPrerollMs.current = (60 / bpmVal) * 1000; // 1 quarter note
+    // Always send MIDI Start (transport) so MPC starts playback
+    try { out.send([0xFA]); } catch(e) {}
+    // Only send clock ticks if we're the clock source ("send" mode)
+    if (midiClockEnabled) {
+      const tickIntervalMs = (60 / bpmVal / 24) * 1000;
+      midiClockRef.current = setInterval(() => {
+        try { out.send([0xF8]); } catch(e) {}
+      }, tickIntervalMs);
+    }
+    // Preroll: 1 beat before notes start — added to all note timestamps
+    midiPrerollMs.current = (60 / bpmVal) * 1000;
   }, [getMIDIOut, midiClockEnabled]);
 
   const stopMidiClock = useCallback(() => {
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
     const out = getMIDIOut();
-    if (out && midiClockEnabled) {
+    // Always send MIDI Stop (transport) so MPC stops playback
+    if (out) {
       try { out.send([0xFC]); } catch(e) {} // MIDI Stop
     }
-  }, [getMIDIOut, midiClockEnabled]);
+  }, [getMIDIOut]);
 
   // Update MIDI Clock rate when BPM changes during playback (no Start/Stop, just adjust tick rate)
   useEffect(() => {
