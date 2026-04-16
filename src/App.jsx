@@ -4088,24 +4088,24 @@ export default function App() {
       const status = data[0];
 
       if (status === 0xF8) {
-        // Clock tick — 24 PPQ
+        // Clock tick
         const now = performance.now();
         tickTimes.push(now);
-        // Keep last 96 ticks (4 beats) — discard ticks older than 3 seconds (prevents stale data)
-        if (tickTimes.length > 96) tickTimes.shift();
-        const cutoff = now - 3000;
+        // Keep last 192 ticks — discard ticks older than 5 seconds
+        if (tickTimes.length > 192) tickTimes.shift();
+        const cutoff = now - 5000;
         while (tickTimes.length > 0 && tickTimes[0] < cutoff) tickTimes.shift();
-        // Need at least 24 ticks (1 full beat at 24 PPQ) for reliable BPM
-        if (tickTimes.length >= 24) {
-          // Use exactly 24 ticks back = 1 beat worth of ticks
-          const idx = tickTimes.length - 24;
-          const span = now - tickTimes[idx]; // time for 23 tick intervals
-          const avgTickMs = span / 23;
-          // Auto-detect PPQ: if avg tick interval suggests 48 PPQ (< 20ms at reasonable tempos), use 48
+        // Need at least 48 ticks for reliable BPM (1 beat at 48 PPQ)
+        if (tickTimes.length >= 48) {
+          // Use ALL available ticks for maximum averaging accuracy
+          const span = now - tickTimes[0];
+          const intervals = tickTimes.length - 1;
+          const avgTickMs = span / intervals;
+          // Auto-detect PPQ: if avg tick interval < 20ms, device sends 48 PPQ
           const detectedPpq = avgTickMs < 20 ? 48 : 24;
-          const msPerBeatCorrected = avgTickMs * detectedPpq;
-          const derivedBpm = Math.round(60000 / msPerBeatCorrected);
-          setClockDebug(`${detectedPpq}ppq, ${avgTickMs.toFixed(1)}ms/tick → ${derivedBpm}bpm`);
+          const msPerBeat = avgTickMs * detectedPpq;
+          const derivedBpm = Math.round(60000 / msPerBeat);
+          setClockDebug(`${detectedPpq}ppq, ${tickTimes.length}ticks, ${avgTickMs.toFixed(2)}ms/tick, beat=${msPerBeat.toFixed(0)}ms → ${derivedBpm}bpm`);
           if (derivedBpm >= 30 && derivedBpm <= 300) {
             setBpm(prev => Math.abs(prev - derivedBpm) >= 1 ? derivedBpm : prev);
             setExternalBpm(derivedBpm);
