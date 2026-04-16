@@ -215,6 +215,9 @@ const BASS_PATTERNS = {
   walking: { label: "Walking Bass", desc: "Stepwise motion connecting chord tones" },
   octave: { label: "Octave Bounce", desc: "Root note bouncing between octaves" },
   syncopated: { label: "Syncopated", desc: "Off-beat rhythmic pattern" },
+  sub808: { label: "808 Sub", desc: "Long sustained sub notes — hip-hop / trap" },
+  soulGroove: { label: "Soul Groove", desc: "Funky root-fifth-octave with ghost notes — soul / R&B" },
+  nordicPulse: { label: "Nordic Pulse", desc: "Steady eighth-note pulse — Nordic pop drive" },
 };
 
 function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS) {
@@ -283,6 +286,51 @@ function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, pattern
       if (beats >= 2) notes.push({ midi: fifthMidi, startSlot: start + beatLen + 2, lengthSlots: 2, velocity: 75 });
       if (beats >= 3) notes.push({ midi: thirdMidi, startSlot: start + beatLen * 2 + 2, lengthSlots: 2, velocity: 70 });
       if (beats >= 4) notes.push({ midi: rootMidi, startSlot: start + beatLen * 3, lengthSlots: beatLen, velocity: 90 });
+
+    } else if (patternType === "sub808") {
+      // 808 Sub: long sustained root with occasional slides — hip-hop / trap
+      // Whole chord = one long sub note, with a short re-trigger on beat 3
+      notes.push({ midi: rootMidi, startSlot: start, lengthSlots: Math.min(len, 8), velocity: 110 });
+      if (len > 8) {
+        // Re-trigger or slide to fifth on beat 3
+        const slideTo = Math.random() < 0.4 ? fifthMidi : rootMidi;
+        notes.push({ midi: slideTo, startSlot: start + 8, lengthSlots: len - 8, velocity: 95 });
+      }
+
+    } else if (patternType === "soulGroove") {
+      // Soul groove: funky pattern — root, ghost, fifth, ghost, root octave up, ghost
+      const beatLen = 4;
+      const beats = Math.floor(len / beatLen);
+      const pattern = [
+        { midi: rootMidi, dur: 3, vel: 100 },
+        { midi: rootMidi, dur: 1, vel: 40 },  // ghost
+        { midi: fifthMidi, dur: 3, vel: 85 },
+        { midi: thirdMidi, dur: 1, vel: 40 },  // ghost
+      ];
+      let pos = 0;
+      let pIdx = 0;
+      while (pos < len) {
+        const p = pattern[pIdx % pattern.length];
+        const dur = Math.min(p.dur, len - pos);
+        if (dur > 0) notes.push({ midi: p.midi, startSlot: start + pos, lengthSlots: dur, velocity: p.vel });
+        pos += dur;
+        pIdx++;
+      }
+
+    } else if (patternType === "nordicPulse") {
+      // Nordic pulse: steady eighth notes on root, with octave on beats 2 and 4
+      const eighthLen = 2; // 2 sixteenths = one eighth
+      let pos = 0;
+      let beat = 0;
+      while (pos < len) {
+        const isUpbeat = (beat % 4 === 1 || beat % 4 === 3);
+        const midi = isUpbeat ? rootMidi + 12 : rootMidi;
+        const vel = isUpbeat ? 70 : 90;
+        const dur = Math.min(eighthLen, len - pos);
+        if (dur > 0) notes.push({ midi, startSlot: start + pos, lengthSlots: dur, velocity: vel });
+        pos += eighthLen;
+        beat++;
+      }
     }
   });
 
@@ -297,6 +345,9 @@ const MELODY_PATTERNS = {
   pentatonic:  { label: "Pentatonic",    desc: "Pentatonic scale only — catchy and universal" },
   callResponse:{ label: "Call & Response",desc: "2-bar phrases with answers" },
   rhythmic:    { label: "Rhythmic",      desc: "Repetitive rhythm, changing pitch" },
+  trapFlow:    { label: "Trap Flow",     desc: "Rapid hi-hat triplet feel — hip-hop vocal cadence" },
+  soulMelisma: { label: "Soul Melisma",  desc: "Ornamented runs with grace notes — R&B / soul" },
+  nordicWide:  { label: "Nordic Wide",   desc: "Wide intervals, open spaces — Scandi pop feel" },
 };
 
 function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternType, TIMELINE_SLOTS) {
@@ -499,6 +550,112 @@ function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternTy
         });
       }
     });
+
+  } else if (patternType === "trapFlow") {
+    // Trap vocal cadence: rapid triplet-feel notes on pentatonic, with pauses
+    let pentIdx = Math.floor(Math.random() * pentNotes.length);
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      let pos = 0;
+      while (pos < len) {
+        // Triplet burst (3 quick notes) then a gap
+        if (Math.random() < 0.7 && pos + 6 <= len) {
+          // 3 notes each ~2 sixteenths
+          for (let t = 0; t < 3; t++) {
+            const ni = pentNotes[((pentIdx) % pentNotes.length + pentNotes.length) % pentNotes.length];
+            const midi = clampMidi(ni + melOctave * 12 + 12);
+            notes.push({ midi, startSlot: start + pos, lengthSlots: 2, velocity: t === 0 ? 95 : 75 });
+            pos += 2;
+            pentIdx += pick([-1, 1, 0]);
+          }
+          // Rest after burst
+          pos += pick([2, 4]);
+        } else {
+          // Single held note
+          const ni = pentNotes[((pentIdx) % pentNotes.length + pentNotes.length) % pentNotes.length];
+          const midi = clampMidi(ni + melOctave * 12 + 12);
+          const dur = pick([4, 6, 8]);
+          const actualDur = Math.min(dur, len - pos);
+          if (actualDur > 0) {
+            notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 90 });
+          }
+          pos += actualDur;
+          pentIdx += pick([-1, 1, 2]);
+        }
+      }
+    });
+
+  } else if (patternType === "soulMelisma") {
+    // Soul melisma: longer held notes with fast ornamental runs between them
+    let degree = scaleNotes.indexOf(timelineItems[0]?.chord.noteIdx % 12);
+    if (degree < 0) degree = 0;
+
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const chordRoot = item.chord.noteIdx % 12;
+      const rootDeg = scaleNotes.indexOf(chordRoot);
+      if (rootDeg >= 0) degree = rootDeg;
+
+      let pos = 0;
+      while (pos < len) {
+        // Main note — held
+        const mainMidi = clampMidi(scaleToMidi(degree, melOctave));
+        const holdDur = pick([4, 6, 8]);
+        const actualHold = Math.min(holdDur, len - pos);
+        if (actualHold > 0) {
+          notes.push({ midi: mainMidi, startSlot: start + pos, lengthSlots: actualHold, velocity: 90 });
+        }
+        pos += actualHold;
+
+        // Melisma run (30% chance): fast 1-sixteenth notes up or down the scale
+        if (Math.random() < 0.3 && pos + 4 <= len) {
+          const dir = pick([-1, 1]);
+          for (let r = 0; r < pick([2, 3, 4]); r++) {
+            if (pos >= len) break;
+            degree += dir;
+            const runMidi = clampMidi(scaleToMidi(degree, melOctave));
+            notes.push({ midi: runMidi, startSlot: start + pos, lengthSlots: 1, velocity: 70 });
+            pos += 1;
+          }
+        }
+        degree += pick([-1, 1, 2, -2]);
+      }
+    });
+
+  } else if (patternType === "nordicWide") {
+    // Nordic wide: large intervals (4ths, 5ths, octaves), spacious with rests
+    let degree = 0;
+    const rootDeg0 = scaleNotes.indexOf(timelineItems[0]?.chord.noteIdx % 12);
+    if (rootDeg0 >= 0) degree = rootDeg0;
+
+    timelineItems.forEach(item => {
+      const start = item.startSlot;
+      const len = item.lengthSlots;
+      const chordRoot = item.chord.noteIdx % 12;
+      const rootDeg = scaleNotes.indexOf(chordRoot);
+      if (rootDeg >= 0 && Math.abs(rootDeg - degree) > 4) degree = rootDeg;
+
+      let pos = 0;
+      while (pos < len) {
+        const midi = clampMidi(scaleToMidi(degree, melOctave));
+        // Longer notes with breathing room
+        const dur = pick([4, 6, 8, 8, 12]);
+        const actualDur = Math.min(dur, len - pos);
+        if (actualDur > 0) {
+          // 25% chance of rest instead of note (Nordic spaciousness)
+          if (Math.random() > 0.25) {
+            notes.push({ midi, startSlot: start + pos, lengthSlots: actualDur, velocity: 80 + Math.floor(Math.random() * 15) });
+          }
+        }
+        pos += actualDur;
+        // Wide leaps: 4ths, 5ths, octaves
+        degree += pick([-3, 3, -4, 4, -5, 5, 7, -7]);
+        if (degree > scaleNotes.length + 3) degree -= scaleNotes.length;
+        if (degree < -3) degree += scaleNotes.length;
+      }
+    });
   }
 
   return notes;
@@ -552,6 +709,71 @@ function getRhodesSynth() {
 
 function getInstrument(soundType) {
   return soundType === "rhodes" ? getRhodesSynth() : getSampler();
+}
+
+// ─── 808 Bass synth ─────────────────────────────────────────────────────────
+
+let bass808Synth = null;
+function getBass808() {
+  if (!bass808Synth) {
+    const dist = new Tone.Distortion({ distortion: 0.15, wet: 0.3 }).toDestination();
+    const lpf = new Tone.Filter({ frequency: 600, type: "lowpass", rolloff: -24 }).connect(dist);
+    bass808Synth = new Tone.MonoSynth({
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.005, decay: 0.3, sustain: 0.6, release: 0.8 },
+      filterEnvelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.5, baseFrequency: 80, octaves: 2.5 },
+      volume: -4,
+    }).connect(lpf);
+  }
+  return bass808Synth;
+}
+
+// ─── Bell / Lead synth for melody ───────────────────────────────────────────
+
+let bellLeadSynth = null;
+function getBellLead() {
+  if (!bellLeadSynth) {
+    const reverb = new Tone.Reverb({ decay: 2.8, wet: 0.3 }).toDestination();
+    const delay = new Tone.FeedbackDelay({ delayTime: "8n.", feedback: 0.15, wet: 0.2 }).connect(reverb);
+    bellLeadSynth = new Tone.PolySynth(Tone.FMSynth).connect(delay);
+    bellLeadSynth.set({
+      harmonicity: 8,
+      modulationIndex: 2,
+      oscillator: { type: "sine" },
+      envelope: { attack: 0.001, decay: 0.6, sustain: 0.05, release: 1.2 },
+      modulation: { type: "sine" },
+      modulationEnvelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.4 },
+      volume: -10,
+    });
+  }
+  return bellLeadSynth;
+}
+
+let pluckLeadSynth = null;
+function getPluckLead() {
+  if (!pluckLeadSynth) {
+    const reverb = new Tone.Reverb({ decay: 2.0, wet: 0.25 }).toDestination();
+    const chorus = new Tone.Chorus({ frequency: 2.5, delayTime: 4, depth: 0.4, wet: 0.25 }).connect(reverb);
+    chorus.start();
+    pluckLeadSynth = new Tone.PolySynth(Tone.Synth).connect(chorus);
+    pluckLeadSynth.set({
+      oscillator: { type: "triangle" },
+      envelope: { attack: 0.005, decay: 0.3, sustain: 0.1, release: 0.8 },
+      volume: -8,
+    });
+  }
+  return pluckLeadSynth;
+}
+
+function getBassInstrument(bassSound) {
+  if (bassSound === "808") return getBass808();
+  return getInstrument("piano"); // default: same as chords
+}
+
+function getMelodyInstrument(melodySound) {
+  if (melodySound === "bell") return getBellLead();
+  if (melodySound === "pluck") return getPluckLead();
+  return getInstrument("piano"); // default: same as chords
 }
 
 // ─── Drum synth engine (for preview without external MIDI) ───────────────────
@@ -886,6 +1108,50 @@ const FAMOUS_PROGRESSIONS = [
   { name:"Cinematic Loop",         genre:"Film",    degrees:[3,0,4,5]         }, // IV–I–V–vi
   { name:"Hans Zimmer",            genre:"Film",    degrees:[0,6,0,6]         }, // I–VII oscillate
   { name:"Hero's Theme",           genre:"Film",    degrees:[0,2,3,4,5,4]     },
+
+  // ── Nordic Pop ────────────────────────────────────────────────────
+  { name:"Scandi Melancholy",      genre:"Nordic Pop", degrees:[0,5,3,4]      }, // I–vi–IV–V  (Robyn, Sigrid)
+  { name:"Aurora Glow",            genre:"Nordic Pop", degrees:[0,2,5,3]      }, // I–iii–vi–IV (Aurora, Highasakite)
+  { name:"Nordic Anthem",          genre:"Nordic Pop", degrees:[0,3,5,4]      }, // I–IV–vi–V  (a-ha style rise)
+  { name:"Fjord Drift",            genre:"Nordic Pop", degrees:[5,3,0,4]      }, // vi–IV–I–V  (Susanne Sundfør)
+  { name:"Midnight Sun",           genre:"Nordic Pop", degrees:[0,5,3,0]      }, // I–vi–IV–I  (melancholy loop)
+  { name:"Polar Night",            genre:"Nordic Pop", degrees:[0,6,5,3]      }, // i–VII–VI–IV (minor Nordic)
+  { name:"Scandi Minimal",         genre:"Nordic Pop", degrees:[0,3]          }, // I–IV (minimal loop)
+  { name:"Bergen Rain",            genre:"Nordic Pop", degrees:[0,5,1,3]      }, // I–vi–ii–IV (Röyksopp vibe)
+  { name:"Nordic Drive",           genre:"Nordic Pop", degrees:[0,3,4,5]      }, // I–IV–V–vi  (building energy)
+  { name:"Cold Euphoria",          genre:"Nordic Pop", degrees:[3,4,0,5]      }, // IV–V–I–vi  (chorus lift)
+  { name:"Tromsø Lights",          genre:"Nordic Pop", degrees:[0,2,3,5]      }, // I–iii–IV–vi (dreamy)
+  { name:"Stockholm Syndrome",     genre:"Nordic Pop", degrees:[5,0,3,4]      }, // vi–I–IV–V  (bittersweet pop)
+  { name:"Icy Pulse",              genre:"Nordic Pop", degrees:[0,5,6,3]      }, // i–VI–VII–IV (dark Nordic pop)
+  { name:"Ethereal Nord",          genre:"Nordic Pop", degrees:[0,2,5,4]      }, // I–iii–vi–V  (wide open)
+
+  // ── Radiohead / Art Rock ──────────────────────────────────────────
+  { name:"Creep",                  genre:"Radiohead", degrees:[0,2,3,3]       }, // I–III–IV–iv (major→minor IV)
+  { name:"Paranoid Android",       genre:"Radiohead", degrees:[0,6,5,4]       }, // i–VII–VI–V (Andalusian w/ edge)
+  { name:"OK Computer",            genre:"Radiohead", degrees:[0,1,5,6]       }, // i–ii°–VI–VII (dissonant minor)
+  { name:"Kid A Drift",            genre:"Radiohead", degrees:[0,5,6,5]       }, // i–VI–VII–VI (hypnotic minor)
+  { name:"In Rainbows",            genre:"Radiohead", degrees:[0,2,5,3]       }, // I–iii–vi–IV (warm but complex)
+  { name:"Amnesiac",               genre:"Radiohead", degrees:[0,1,0,6]       }, // i–ii°–i–VII (dark, uneasy)
+  { name:"Exit Music",             genre:"Radiohead", degrees:[0,6,3,4]       }, // i–VII–iv–V  (cinematic minor)
+  { name:"No Surprises",           genre:"Radiohead", degrees:[0,3,5,1]       }, // I–IV–vi–ii  (deceptive sweetness)
+  { name:"Weird Fishes",           genre:"Radiohead", degrees:[0,2,3,5,4,2]   }, // I–iii–IV–vi–V–iii (long form)
+  { name:"Identikit",              genre:"Radiohead", degrees:[0,6,5,2]       }, // i–VII–VI–III (modal interchange)
+  { name:"Bloom",                  genre:"Radiohead", degrees:[0,3,6,5]       }, // i–iv–VII–VI (polyrhythmic feel)
+  { name:"Daydreaming",            genre:"Radiohead", degrees:[0,5,0,6]       }, // i–VI–i–VII  (sparse, haunting)
+  { name:"Lucky",                  genre:"Radiohead", degrees:[0,5,3,4]       }, // I–vi–IV–V   (hopeful Radiohead)
+  { name:"Street Spirit",          genre:"Radiohead", degrees:[0,2,5,6]       }, // i–III–VI–VII (arpeggio-driven)
+
+  // ── Soul ──────────────────────────────────────────────────────────
+  { name:"Classic Soul",           genre:"Soul",    degrees:[0,3,1,4]         }, // I–IV–ii–V
+  { name:"Stevie Wonder",          genre:"Soul",    degrees:[0,3,5,4]         }, // I–IV–vi–V
+  { name:"Marvin Gaye",            genre:"Soul",    degrees:[0,5,1,4]         }, // I–vi–ii–V
+  { name:"Soul Ballad",            genre:"Soul",    degrees:[0,2,3,5]         }, // I–iii–IV–vi
+  { name:"Aretha Feel",            genre:"Soul",    degrees:[0,3,0,4]         }, // I–IV–I–V
+  { name:"Otis Groove",            genre:"Soul",    degrees:[1,4,0,5]         }, // ii–V–I–vi
+  { name:"Memphis Slow",           genre:"Soul",    degrees:[0,5,3,1]         }, // I–vi–IV–ii
+  { name:"Northern Soul",          genre:"Soul",    degrees:[3,5,0,4]         }, // IV–vi–I–V
+  { name:"Deep Soul",              genre:"Soul",    degrees:[0,3,5,4,1,4]     }, // I–IV–vi–V–ii–V
+  { name:"Soul Kitchen",           genre:"Soul",    degrees:[0,5,4,3]         }, // I–vi–V–IV
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -3150,6 +3416,9 @@ export default function App() {
   const [melodyLine, setMelodyLine] = useState([]);
   const [melodyPattern, setMelodyPattern] = useState("chordTones");
   const [melodyVisible, setMelodyVisible] = useState(false);
+  const [melodySound, setMelodySound] = useState("piano"); // "piano" | "bell" | "pluck"
+  // ── Bass sound ──
+  const [bassSound, setBassSound] = useState("piano"); // "piano" | "808"
   // ── Mute controls ──
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
@@ -3774,6 +4043,7 @@ export default function App() {
 
       // ── Bass line scheduling ──
       if (bassLine.length > 0 && !muteBass) {
+        const bassInst = midiOut ? null : getBassInstrument(bassSound);
         bassLine.forEach(note => {
           if (note.muted) return;
           const startSec = note.startSlot * slotSec;
@@ -3787,7 +4057,7 @@ export default function App() {
             schedule(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
           } else {
             schedule(() => {
-              try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
+              try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
             }, startSec * 1000);
           }
         });
@@ -3795,6 +4065,7 @@ export default function App() {
 
       // ── Melody / topline scheduling ──
       if (melodyLine.length > 0 && !muteMelody) {
+        const melInst = midiOut ? null : getMelodyInstrument(melodySound);
         melodyLine.forEach(note => {
           if (note.muted) return;
           const startSec = note.startSlot * slotSec;
@@ -3808,7 +4079,7 @@ export default function App() {
             schedule(() => midiOut.send([0x80 | ch, note.midi, 0]), (startSec + durSec) * 1000);
           } else {
             schedule(() => {
-              try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
+              try { melInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
             }, startSec * 1000);
           }
         });
@@ -3901,6 +4172,7 @@ export default function App() {
 
         // Bass
         if (!muteBass && sec.bassLine) {
+          const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
             const startSec = (offset + note.startSlot) * slotSec;
@@ -3911,13 +4183,14 @@ export default function App() {
               schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, note.velocity]), startSec * 1000);
               schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
             } else {
-              schedule(() => { try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              schedule(() => { try { bassInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
             }
           });
         }
 
         // Melody
         if (!muteMelody && sec.melodyLine) {
+          const melInst2 = midiOut ? null : getMelodyInstrument(melodySound);
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
             const startSec = (offset + note.startSlot) * slotSec;
@@ -3928,7 +4201,7 @@ export default function App() {
               schedule(() => midiOut.send([0x90 | (midiChannel-1), note.midi, Math.min(127, note.velocity)]), startSec * 1000);
               schedule(() => midiOut.send([0x80 | (midiChannel-1), note.midi, 0]), (startSec + durSec) * 1000);
             } else {
-              schedule(() => { try { inst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
+              schedule(() => { try { melInst2.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {} }, startSec * 1000);
             }
           });
         }
@@ -4989,6 +5262,17 @@ export default function App() {
                             Clear
                           </button>
                         )}
+                        <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sound</span>
+                        {[{v:"piano",l:"Piano"},{v:"808",l:"808 Bass"}].map(({v,l}) => (
+                          <button key={v} onClick={() => setBassSound(v)}
+                            style={{ fontFamily:SF, fontSize:10, fontWeight: bassSound===v ? 700 : 450, padding:"4px 10px", borderRadius:6,
+                              border:`1px solid ${bassSound===v ? "rgba(52,199,89,0.5)" : t.btnBorder}`,
+                              background: bassSound===v ? "rgba(52,199,89,0.12)" : t.btnBg,
+                              color: bassSound===v ? "#34C759" : t.btnColor, cursor:"pointer" }}>
+                            {l}
+                          </button>
+                        ))}
                       </div>
                       {/* Mini bass visualization */}
                       {bassLine.length > 0 && (
@@ -5082,6 +5366,17 @@ export default function App() {
                             Clear
                           </button>
                         )}
+                        <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Sound</span>
+                        {[{v:"piano",l:"Piano"},{v:"bell",l:"Bell"},{v:"pluck",l:"Pluck"}].map(({v,l}) => (
+                          <button key={v} onClick={() => setMelodySound(v)}
+                            style={{ fontFamily:SF, fontSize:10, fontWeight: melodySound===v ? 700 : 450, padding:"4px 10px", borderRadius:6,
+                              border:`1px solid ${melodySound===v ? "rgba(255,159,10,0.5)" : t.btnBorder}`,
+                              background: melodySound===v ? "rgba(255,159,10,0.12)" : t.btnBg,
+                              color: melodySound===v ? "#FF9F0A" : t.btnColor, cursor:"pointer" }}>
+                            {l}
+                          </button>
+                        ))}
                       </div>
                       {/* Melody visualization */}
                       {melodyLine.length > 0 && (
@@ -5328,7 +5623,13 @@ export default function App() {
                   </button>
                   <button onClick={() => {
                     stopLoop();
-                    const pick = FAMOUS_PROGRESSIONS[Math.floor(Math.random()*FAMOUS_PROGRESSIONS.length)];
+                    // Weight toward preferred genres: Hip-Hop, R&B, Nordic Pop, Radiohead, Soul
+                    const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul"];
+                    const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre));
+                    const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre));
+                    // 80% chance preferred genre, 20% anything else
+                    const pool = Math.random() < 0.8 && preferred.length > 0 ? preferred : other.length > 0 ? other : FAMOUS_PROGRESSIONS;
+                    const pick = pool[Math.floor(Math.random()*pool.length)];
                     const scaleObj = SCALES[scaleKey];
                     const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
                     const ninthList   = scaleKey==="major" ? NINTHS_MAJOR   : scaleKey==="minor" ? NINTHS_MINOR   : NINTHS_OTHER;
