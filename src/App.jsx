@@ -4546,20 +4546,44 @@ export default function App() {
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
-                          {/* Bass note blocks */}
-                          {bassLine.filter(n => !n.muted).map((note,i) => {
+                          {/* Bass note blocks (active) */}
+                          {bassLine.map((note,i) => {
+                            if (note.muted) return null;
                             const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
                             const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
                             return (
-                              <div key={i} style={{
-                                position:"absolute",
-                                left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
-                                width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
-                                top: `${yPct * 60 + 8}%`, height: 8,
-                                background:"rgba(52,199,89,0.6)", borderRadius:3,
-                                border:"1px solid rgba(52,199,89,0.8)",
-                              }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}`} />
+                              <div key={i}
+                                onDoubleClick={() => setBassLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
+                                style={{
+                                  position:"absolute",
+                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  top: `${yPct * 60 + 8}%`, height: 8,
+                                  background:"rgba(52,199,89,0.6)", borderRadius:3,
+                                  border:"1px solid rgba(52,199,89,0.8)",
+                                  cursor:"pointer",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity} — double-click to mute`} />
+                            );
+                          })}
+                          {/* Bass note blocks (muted — double-click to restore) */}
+                          {bassLine.map((note,i) => {
+                            if (!note.muted) return null;
+                            const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
+                            const range = Math.max(1, midiRange.hi - midiRange.lo);
+                            const yPct = 1 - (note.midi - midiRange.lo) / range;
+                            return (
+                              <div key={`m${i}`}
+                                onDoubleClick={() => setBassLine(prev => prev.map((n,j) => j===i ? {...n, muted:false} : n))}
+                                style={{
+                                  position:"absolute",
+                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
+                                  top: `${yPct * 60 + 8}%`, height: 8,
+                                  background:"rgba(28,24,32,0.08)", borderRadius:3,
+                                  border:"1px dashed rgba(28,24,32,0.2)",
+                                  cursor:"pointer", opacity:0.5,
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
                             );
                           })}
                           {looping && <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:"#34C759", opacity:0.7, pointerEvents:"none" }} />}
