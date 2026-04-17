@@ -1205,28 +1205,28 @@ const THEME = {
   labelColor:"#1A1A1A", border:"rgba(0,0,0,0.15)",
   inputBorder:"rgba(0,0,0,0.20)", inputBg:"#FFFFFF", inputColor:"#1A1A1A", colorScheme:"light",
   cardShadow:"none",
-  accent:"#D4351C", accentBg:"rgba(212,53,28,0.10)", accentBgHover:"rgba(212,53,28,0.16)",
-  accentBorder:"rgba(212,53,28,0.50)", accentCardBg:"rgba(212,53,28,0.05)", accentCardHover:"rgba(212,53,28,0.10)",
+  accent:"#5C7C8A", accentBg:"rgba(92,124,138,0.10)", accentBgHover:"rgba(92,124,138,0.16)",
+  accentBorder:"rgba(92,124,138,0.50)", accentCardBg:"rgba(92,124,138,0.05)", accentCardHover:"rgba(92,124,138,0.10)",
   degreeColor:"#888888", chordNameColor:"#1A1A1A", chordCardBg:"#FFFFFF",
   chordHoverShadow:"none",
   segBg:"#EAEAE8", segActiveBg:"#FFFFFF", segActiveColor:"#1A1A1A",
   segInactiveColor:"#888888", segShadow:"none",
   pianoRailBg:"#DDDDD9", pianoRailShadow:"none", pianoKeysBg:"#EAEAE8",
-  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(212,53,28,0.12)",
-  whiteKeyHlBg:"#D4351C",
-  whiteKeyAllScaleBg:"#D4351C",
+  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(92,124,138,0.12)",
+  whiteKeyHlBg:"#5C7C8A",
+  whiteKeyAllScaleBg:"#5C7C8A",
   whiteKeyBorder:"rgba(0,0,0,0.13)", whiteKeyLabel:"rgba(0,0,0,0.50)", whiteKeyLabelHl:"#FFFFFF",
-  blackKeyBg:"#2A2A2A", blackKeyScaleBg:"#D4351C",
-  blackKeyHlBg:"#B02E18", blackKeyAllScaleBg:"#B02E18",
-  legendChord:"#D4351C", legendScale:"rgba(212,53,28,0.12)", legendScaleBdr:"rgba(212,53,28,0.35)",
+  blackKeyBg:"#2A2A2A", blackKeyScaleBg:"#5C7C8A",
+  blackKeyHlBg:"#4A6878", blackKeyAllScaleBg:"#4A6878",
+  legendChord:"#5C7C8A", legendScale:"rgba(92,124,138,0.12)", legendScaleBdr:"rgba(92,124,138,0.35)",
   slotBg:"#E5E5E3", slotBorder:"rgba(0,0,0,0.15)",
-  tokenBg:"#FFFFFF", tokenBgHover:"rgba(212,53,28,0.10)", tokenBorder:"rgba(212,53,28,0.40)", tokenColor:"#D4351C",
-  playActiveBg:"#D4351C", playDisabledBg:"rgba(0,0,0,0.12)", playDisabledClr:"rgba(0,0,0,0.45)",
+  tokenBg:"#FFFFFF", tokenBgHover:"rgba(92,124,138,0.10)", tokenBorder:"rgba(92,124,138,0.40)", tokenColor:"#5C7C8A",
+  playActiveBg:"#5C7C8A", playDisabledBg:"rgba(0,0,0,0.12)", playDisabledClr:"rgba(0,0,0,0.45)",
   btnBg:"transparent", btnColor:"#1A1A1A", btnBorder:"rgba(0,0,0,0.15)",
   presetBg:"#FFFFFF", presetColor:"#1A1A1A",
   toggleBg:"#FFFFFF", toggleColor:"#1A1A1A", toggleBorder:"rgba(0,0,0,0.15)",
   stepBg:"#E5E5E3", stepColor:"#888888",
-  stepWholeBg:"rgba(212,53,28,0.12)", stepWholeColor:"#D4351C", stepWholeBorder:"rgba(212,53,28,0.30)",
+  stepWholeBg:"rgba(92,124,138,0.12)", stepWholeColor:"#5C7C8A", stepWholeBorder:"rgba(92,124,138,0.30)",
   stepHalfBg:"#FFFFFF", stepHalfColor:"#888888", stepHalfBorder:"rgba(0,0,0,0.15)",
   infoBg:"#E5E5E3", infoBorder:"rgba(0,0,0,0.08)",
   modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(0,0,0,0.15)", modeBtnActiveColor:"#1A1A1A",
@@ -2306,16 +2306,16 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
               position:"absolute", left:`calc(${k.pos*wkw}% + 1px)`, width:`calc(${wkw}% - 2px)`,
               height:"100%",
               background: hl
-                ? "#D4351C"
+                ? "#5C7C8A"
                 : sc
-                  ? "rgba(212,53,28,0.12)"
+                  ? "rgba(92,124,138,0.12)"
                   : hovered
                     ? "#F8F7FA"
                     : "#FFFFFF",
               border: hl
-                ? "1px solid rgba(212,53,28,0.5)"
+                ? "1px solid rgba(92,124,138,0.5)"
                 : sc
-                  ? "1px solid rgba(212,53,28,0.25)"
+                  ? "1px solid rgba(92,124,138,0.25)"
                   : `1px solid ${t.whiteKeyBorder}`,
               borderTop:"none",
               borderRadius:"0 0 1px 1px", cursor:"pointer",
@@ -2358,9 +2358,9 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
             style={{
               position:"absolute", left:`${k.leftPct}%`, width:`${wkw*0.58}%`, height:"62%",
               background: hl
-                ? "#B02E18"
+                ? "#4A6878"
                 : sc
-                  ? "#C43018"
+                  ? "#526E7C"
                   : hovered
                     ? "#302A38"
                     : "#2A2A2A",
@@ -5734,8 +5734,8 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ width:5, height:5, borderRadius:"50%", background: looping ? "#D4351C" : "#888888" }} />
-              <span style={{ fontSize:9, color: looping ? "#D4351C" : "#888888", fontWeight:600,
+              <div style={{ width:5, height:5, borderRadius:"50%", background: looping ? "#5C7C8A" : "#888888" }} />
+              <span style={{ fontSize:9, color: looping ? "#5C7C8A" : "#888888", fontWeight:600,
                 letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
                 {looping ? "LIVE" : "IDLE"}
               </span>
@@ -6062,7 +6062,7 @@ export default function App() {
             const dawBtn = (active, activeColor = t.accent) => ({
               fontFamily:MONO, fontSize:9, fontWeight:700, padding:"1px 4px",
               border:`1px solid ${active ? activeColor : "rgba(0,0,0,0.15)"}`,
-              background: active ? (activeColor === t.accent ? "rgba(212,53,28,0.12)" : `${activeColor}18`) : "transparent",
+              background: active ? (activeColor === t.accent ? "rgba(92,124,138,0.12)" : `${activeColor}18`) : "transparent",
               color: active ? activeColor : "rgba(0,0,0,0.45)", cursor:"pointer", lineHeight:"14px",
               letterSpacing:"0.04em", borderRadius:1, transition:"all 0.08s",
             });
@@ -6130,7 +6130,7 @@ export default function App() {
                   style={{ ...dawToolBtn(false),
                     border:`1px solid ${drumHalfTime ? t.accentBorder : "rgba(0,0,0,0.12)"}`,
                     color: drumHalfTime ? t.accent : "rgba(0,0,0,0.50)",
-                    background: drumHalfTime ? "rgba(212,53,28,0.08)" : "transparent",
+                    background: drumHalfTime ? "rgba(92,124,138,0.08)" : "transparent",
                     fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
                   ½×
                 </button>
@@ -6260,7 +6260,7 @@ export default function App() {
                                   height:20, position:"relative",
                                   borderLeft: isBarLine ? "1px solid rgba(0,0,0,0.12)" : isBeatLine ? "1px solid rgba(0,0,0,0.12)" : "none",
                                   background: isPlayhead && looping
-                                    ? "rgba(212,53,28,0.18)"
+                                    ? "rgba(92,124,138,0.18)"
                                     : "transparent",
                                   cursor:"pointer",
                                 }}>
@@ -6269,9 +6269,9 @@ export default function App() {
                                     position:"absolute", top:1, bottom:1, left:swingPx, right: Math.max(0, -swingPx),
                                     background: densityRemoved
                                       ? "transparent"
-                                      : `rgba(212,53,28,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
+                                      : `rgba(92,124,138,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
                                     transition:"left 0.1s, right 0.1s",
-                                    ...(densityRemoved ? { border:"1px dashed rgba(212,53,28,0.20)" } : {}),
+                                    ...(densityRemoved ? { border:"1px dashed rgba(92,124,138,0.20)" } : {}),
                                   }} />
                                 )}
                               </div>
@@ -6386,9 +6386,9 @@ export default function App() {
                         }}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1px solid rgba(212,53,28,0.50)` : `1px solid rgba(0,0,0,0.08)`,
+                          border: accent ? `1px solid rgba(92,124,138,0.50)` : `1px solid rgba(0,0,0,0.08)`,
                           borderRadius:2, padding:"10px 6px 8px",
-                          background: isActive ? "rgba(212,53,28,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
+                          background: isActive ? "rgba(92,124,138,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
                           transition:"all 0.08s",
                         }}>
@@ -6479,7 +6479,7 @@ export default function App() {
                       onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
                       onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
                       style={{ fontFamily:MONO, fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(212,53,28,0.35)"}`,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.35)"}`,
                         background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
                         color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
                         cursor: externalBpm ? "default" : "text" }}
@@ -6599,10 +6599,10 @@ export default function App() {
                                     top:2, bottom:2,
                                     background: isMuted
                                       ? "rgba(128,128,128,0.15)"
-                                      : `rgba(212,53,28,${0.25 + hit.velMult * 0.45})`,
+                                      : `rgba(92,124,138,${0.25 + hit.velMult * 0.45})`,
                                     border: isMuted
                                       ? "1px dashed rgba(128,128,128,0.3)"
-                                      : `1px solid rgba(212,53,28,${0.3 + hit.velMult * 0.3})`,
+                                      : `1px solid rgba(92,124,138,${0.3 + hit.velMult * 0.3})`,
                                     borderRadius:2,
                                     cursor:"pointer",
                                     transition:"all 0.1s",
@@ -6617,7 +6617,7 @@ export default function App() {
                                 style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
                               <div data-resize="1"
                                 onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:5, height:20, borderRadius:2, background:"rgba(212,53,28,0.2)", cursor:"ew-resize", flexShrink:0 }} />
+                                style={{ width:5, height:20, borderRadius:2, background:"rgba(92,124,138,0.2)", cursor:"ew-resize", flexShrink:0 }} />
                             </div>
                           </div>
                         )}
@@ -6773,16 +6773,16 @@ export default function App() {
                                   width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   height: ROW_H - 2,
                                   background: densRemoved
-                                    ? `rgba(212,53,28,0.1)`
-                                    : `rgba(212,53,28,${velOpacity})`,
+                                    ? `rgba(92,124,138,0.1)`
+                                    : `rgba(92,124,138,${velOpacity})`,
                                   borderRadius: 3,
                                   cursor: "pointer",
-                                  border: densRemoved ? "1px dashed rgba(212,53,28,0.25)" : "1px solid rgba(212,53,28,0.5)",
+                                  border: densRemoved ? "1px dashed rgba(92,124,138,0.25)" : "1px solid rgba(92,124,138,0.5)",
                                   transition: "background 0.2s, border 0.2s",
                                   display:"flex", alignItems:"center", paddingLeft:3,
                                   overflow:"hidden",
                                 }}>
-                                <span style={{ fontSize:7.5, color: densRemoved ? "rgba(212,53,28,0.3)" : "#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
+                                <span style={{ fontSize:7.5, color: densRemoved ? "rgba(92,124,138,0.3)" : "#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
                                   {note.noteName}
                                 </span>
                               </div>
@@ -7173,8 +7173,8 @@ export default function App() {
                       onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
                       onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
                       style={{ fontFamily:MONO, fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(212,53,28,0.30)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(212,53,28,0.04)",
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.30)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(92,124,138,0.04)",
                         color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
                     />
                     {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
@@ -7359,7 +7359,7 @@ export default function App() {
                   {/* Arp */}
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
                     style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(212,53,28,0.08)":"transparent",
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
                       color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     ARP
                   </button>
@@ -7367,14 +7367,14 @@ export default function App() {
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
                         style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(212,53,28,0.08)":"transparent",
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
                           color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
                     <div style={{ width:1, height:14, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
                         style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(212,53,28,0.08)":"transparent",
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
                           color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
                   </>}
