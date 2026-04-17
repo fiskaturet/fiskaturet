@@ -4590,9 +4590,12 @@ export default function App() {
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
-  const [humanize,       setHumanize]       = useState(0);    // 0-100 → timing jitter + velocity variation
+  const [humanize,       setHumanize]       = useState(0);    // 0-100 → melody/bass timing + velocity
   const humanizeRef = useRef(0);
   useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
+  const [drumFeel,       setDrumFeel]       = useState(0);    // 0-100 → drum timing jitter + velocity variation
+  const drumFeelRef = useRef(0);
+  useEffect(() => { drumFeelRef.current = drumFeel; }, [drumFeel]);
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
   const [densityDrums,   setDensityDrums]   = useState(100);  // 0-100 per element
@@ -4655,7 +4658,7 @@ export default function App() {
     // MIDI config
     midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
     // Other
-    pianoRollEdits, humanize, loopEnabled, barCount,
+    pianoRollEdits, humanize, drumFeel, loopEnabled, barCount,
   }), [
     rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType, barCount,
     drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
@@ -4669,7 +4672,7 @@ export default function App() {
     fillMode,
     muteChords, muteBass, muteMelody, muteDrums,
     midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
-    pianoRollEdits, humanize, loopEnabled,
+    pianoRollEdits, humanize, drumFeel, loopEnabled,
   ]);
 
   const loadProject = useCallback((data) => {
@@ -4740,6 +4743,7 @@ export default function App() {
     // Other
     if (data.pianoRollEdits !== undefined) setPianoRollEdits(data.pianoRollEdits);
     if (data.humanize !== undefined) setHumanize(data.humanize);
+    if (data.drumFeel !== undefined) { setDrumFeel(data.drumFeel); drumFeelRef.current = data.drumFeel; }
     if (data.loopEnabled !== undefined) { setLoopEnabled(data.loopEnabled); loopEnabledRef.current = data.loopEnabled; }
     if (data.barCount !== undefined) setBarCount(data.barCount);
   }, []);
@@ -5654,14 +5658,23 @@ export default function App() {
     const midiMelody = midiOut ? (msg, ms) => scheduleMidi(muteMelodyRef, midiOut, msg, ms) : null;
     const midiDrum   = midiOut ? (msg, ms) => scheduleMidi(muteDrumsRef,  midiOut, msg, ms) : null;
 
-    // Humanize: timing jitter (ms) + velocity scale — reads live ref
-    // Generic version (drums etc.) — pure random
-    const hz = () => {
-      const h = humanizeRef.current / 100; // 0..1
+    // Drum humanize: uses drumFeelRef (independent from melody/chord feel)
+    const hzDrum = () => {
+      const h = drumFeelRef.current / 100;
       if (h === 0) return { tMs: 0, vScale: 1 };
       const maxJitterMs = h * slotSec * 1000 * 0.45;
       const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
       const maxVelVar = h * 0.3;
+      const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
+      return { tMs, vScale };
+    };
+    // Chord humanize: uses humanizeRef (same as melody/bass feel)
+    const hz = () => {
+      const h = humanizeRef.current / 100;
+      if (h === 0) return { tMs: 0, vScale: 1 };
+      const maxJitterMs = h * slotSec * 1000 * 0.35;
+      const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
+      const maxVelVar = h * 0.2;
       const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
       return { tMs, vScale };
     };
@@ -5947,7 +5960,7 @@ export default function App() {
               if (varDrumRest(varSeed, track.id, step, varAmt, drumImportance(track.id, step))) return;
               mutVel = varDrumVelocity(varSeed, track.id, step, effectiveVel, varAmt);
             }
-            const { tMs: hzT, vScale: hzV } = hz();
+            const { tMs: hzT, vScale: hzV } = hzDrum();
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = Math.max(0, (step * slotSec + swingDelay) * 1000 + hzT);
             const hzVel = Math.max(1, Math.min(127, Math.round(mutVel * hzV * energyVel)));
@@ -6180,9 +6193,19 @@ export default function App() {
     const midiDrumA   = midiOut ? (msg, ms) => scheduleMidiA(muteDrumsRef,  midiOut, msg, ms) : null;
     const scheduleDrumA = (cb, ms) => schedule(() => { if (!muteDrumsRef.current) cb(); }, ms + preroll);
 
-    // Humanize helper for arrangement (same logic as main loop)
+    // Humanize helper for arrangement chords/bass/melody (uses humanizeRef)
     const hzA = () => {
       const h = humanizeRef.current / 100;
+      if (h === 0) return { tMs: 0, vScale: 1 };
+      const maxJitterMs = h * slotSec * 1000 * 0.45;
+      const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
+      const maxVelVar = h * 0.3;
+      const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
+      return { tMs, vScale };
+    };
+    // Drum humanize for arrangement (independent — uses drumFeelRef)
+    const hzDrumA = () => {
+      const h = drumFeelRef.current / 100;
       if (h === 0) return { tMs: 0, vScale: 1 };
       const maxJitterMs = h * slotSec * 1000 * 0.45;
       const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
@@ -6338,7 +6361,7 @@ export default function App() {
               const density = Math.max(0, Math.min(100, densityDrumsRef.current + energyDensOff));
               const seed = densitySeedRef.current;
               if (!densityPass(seed, track.id, step, density, drumImportance(track.id, step))) return;
-              const { tMs: ht, vScale: hv } = hzA();
+              const { tMs: ht, vScale: hv } = hzDrumA();
               const onMs = Math.max(0, (offset + step) * slotSec * 1000 + ht);
               const hzVel = Math.max(1, Math.min(127, Math.round(effectiveVelA * hv * energyVel)));
               const note = padMap[track.id]?.midiNote ?? track.defaultNote;
@@ -8104,12 +8127,20 @@ export default function App() {
                       style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
                     <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
                   </div>
-                  {/* Feel — neutral accent */}
+                  {/* Drum Feel — teal accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: drumFeel > 0 ? "#0D9488" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Drum Feel</span>
+                    <input type="range" min={0} max={100} value={drumFeel}
+                      onChange={e => { const v = +e.target.value; setDrumFeel(v); drumFeelRef.current = v; }}
+                      style={{ width:80, accentColor: drumFeel > 0 ? "#0D9488" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: drumFeel > 0 ? "#0D9488" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{drumFeel}</span>
+                  </div>
+                  {/* Melody Feel — neutral accent */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Melody Feel</span>
                     <input type="range" min={0} max={100} value={humanize}
-                      onChange={e => setHumanize(Number(e.target.value))}
-                      style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                      onChange={e => { const v = +e.target.value; setHumanize(v); humanizeRef.current = v; }}
+                      style={{ width:80, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
                     <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{humanize}</span>
                   </div>
 
@@ -8337,9 +8368,22 @@ export default function App() {
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Mini bass visualization */}
-                      {bassLine.length > 0 && (
+                      {bassLine.length > 0 && (() => {
+                        const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
+                        const range = Math.max(1, midiRange.hi - midiRange.lo);
+                        // Humanize timing bias (deterministic — no random) for visual offset
+                        const hzBias = (slot) => {
+                          const h = humanize / 100;
+                          if (h === 0) return 0;
+                          const beat = slot % 16;
+                          let bias = 0;
+                          if (beat === 0) bias = -0.08; else if (beat === 4) bias = -0.04;
+                          else if (beat === 8) bias = -0.06; else if (beat === 12) bias = -0.02;
+                          else if (beat % 2 === 1) bias = 0.06; else bias = 0.02;
+                          return (bias * h) / TIMELINE_SLOTS * 100; // as % of total width
+                        };
+                        return (
                         <div style={{ height:40, borderRadius:2, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
-                          {/* Slot lines */}
                           {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                             if (i === 0) return null;
                             let bg;
@@ -8348,32 +8392,32 @@ export default function App() {
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
-                          {/* Bass note blocks (active) */}
                           {bassLine.map((note,i) => {
                             if (note.muted) return null;
-                            const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
-                            const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
                             const densRemoved = densityBass < 100 && !densityPass(densitySeed, "bass", note.startSlot, densityBass, bassImportance(note.startSlot, note.lengthSlots));
+                            const velOpacity = Math.max(0.25, note.velocity / 127);
+                            const offsetPct = hzBias(note.startSlot);
                             return (
                               <div key={i}
+                                onClick={(e) => {
+                                  if (e.detail >= 2) return; // let double-click handle
+                                  setBassLine(prev => prev.map((n,j) => j===i ? {...n, velocity: Math.max(1, Math.round(n.velocity * 0.9))} : n));
+                                }}
                                 onDoubleClick={() => setBassLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
                                 style={{
                                   position:"absolute",
-                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  left:`calc(${(note.startSlot / TIMELINE_SLOTS) * 100}% + ${offsetPct}%)`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 60 + 8}%`, height: 8,
-                                  background: densRemoved ? "rgba(52,199,89,0.12)" : "rgba(52,199,89,0.6)", borderRadius:1,
-                                  border: densRemoved ? "1px dashed rgba(52,199,89,0.3)" : "1px solid rgba(52,199,89,0.8)",
-                                  cursor:"pointer", transition:"background 0.2s, border 0.2s",
-                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
+                                  background: densRemoved ? "rgba(52,199,89,0.12)" : `rgba(52,199,89,${velOpacity * 0.7})`, borderRadius:1,
+                                  border: densRemoved ? "1px dashed rgba(52,199,89,0.3)" : `1px solid rgba(52,199,89,${velOpacity})`,
+                                  cursor:"pointer", transition:"all 0.15s",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — click: -10% vel · double-click: mute`} />
                             );
                           })}
-                          {/* Bass note blocks (muted — double-click to restore) */}
                           {bassLine.map((note,i) => {
                             if (!note.muted) return null;
-                            const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
-                            const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
                             return (
                               <div key={`m${i}`}
@@ -8391,7 +8435,8 @@ export default function App() {
                           })}
                           {looping && <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:"#34C759", opacity:0.7, pointerEvents:"none" }} />}
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -8447,9 +8492,21 @@ export default function App() {
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Melody visualization */}
-                      {melodyLine.length > 0 && (
+                      {melodyLine.length > 0 && (() => {
+                        const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
+                        const range = Math.max(1, midiRange.hi - midiRange.lo);
+                        const hzBias = (slot) => {
+                          const h = humanize / 100;
+                          if (h === 0) return 0;
+                          const beat = slot % 16;
+                          let bias = 0;
+                          if (beat === 0) bias = -0.08; else if (beat === 4) bias = -0.04;
+                          else if (beat === 8) bias = -0.06; else if (beat === 12) bias = -0.02;
+                          else if (beat % 2 === 1) bias = 0.06; else bias = 0.02;
+                          return (bias * h) / TIMELINE_SLOTS * 100;
+                        };
+                        return (
                         <div style={{ height:50, borderRadius:2, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
-                          {/* Slot lines */}
                           {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                             if (i === 0) return null;
                             let bg;
@@ -8458,32 +8515,32 @@ export default function App() {
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
-                          {/* Melody note blocks (active) */}
                           {melodyLine.map((note,i) => {
                             if (note.muted) return null;
-                            const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
-                            const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
                             const densRemoved = densityMelody < 100 && !densityPass(densitySeed, "melody", note.startSlot, densityMelody, melodyImportance(note.startSlot, note.lengthSlots, note.velocity));
+                            const velOpacity = Math.max(0.25, note.velocity / 127);
+                            const offsetPct = hzBias(note.startSlot);
                             return (
                               <div key={i}
+                                onClick={(e) => {
+                                  if (e.detail >= 2) return;
+                                  setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, velocity: Math.max(1, Math.round(n.velocity * 0.9))} : n));
+                                }}
                                 onDoubleClick={() => setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
                                 style={{
                                   position:"absolute",
-                                  left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
+                                  left:`calc(${(note.startSlot / TIMELINE_SLOTS) * 100}% + ${offsetPct}%)`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 70 + 6}%`, height: 8,
-                                  background: densRemoved ? "rgba(255,159,10,0.12)" : "rgba(255,159,10,0.6)", borderRadius:1,
-                                  border: densRemoved ? "1px dashed rgba(255,159,10,0.3)" : "1px solid rgba(255,159,10,0.8)",
-                                  cursor:"pointer", transition:"background 0.2s, border 0.2s",
-                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
+                                  background: densRemoved ? "rgba(255,159,10,0.12)" : `rgba(255,159,10,${velOpacity * 0.7})`, borderRadius:1,
+                                  border: densRemoved ? "1px dashed rgba(255,159,10,0.3)" : `1px solid rgba(255,159,10,${velOpacity})`,
+                                  cursor:"pointer", transition:"all 0.15s",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — click: -10% vel · double-click: mute`} />
                             );
                           })}
-                          {/* Muted melody notes */}
                           {melodyLine.map((note,i) => {
                             if (!note.muted) return null;
-                            const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
-                            const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
                             return (
                               <div key={`m${i}`}
@@ -8501,7 +8558,8 @@ export default function App() {
                           })}
                           {looping && <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:"#FF9F0A", opacity:0.7, pointerEvents:"none" }} />}
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
@@ -8630,7 +8688,7 @@ export default function App() {
                     setEnergy(75); energyRef.current = 75;
                     setFillMode("off"); fillModeRef.current = "off"; fillNextRef.current = false; fillJustPlayedRef.current = false; loopCountRef.current = 0;
                     setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
-                    setPianoRollEdits({}); setHumanize(0); setLoopEnabled(true); loopEnabledRef.current = true;
+                    setPianoRollEdits({}); setHumanize(0); humanizeRef.current = 0; setDrumFeel(0); drumFeelRef.current = 0; setLoopEnabled(true); loopEnabledRef.current = true;
                     setBarCount(4); prevBarCountRef.current = 4;
                     localStorage.removeItem("fiskaturet_project");
                   }}
