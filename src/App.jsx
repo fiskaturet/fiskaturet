@@ -6811,14 +6811,6 @@ export default function App() {
                   style={{ ...dawToolBtn(false), opacity:drumPattern?1:0.35, cursor:drumPattern?"pointer":"default" }}>
                   Variation
                 </button>
-                <button onClick={activateBridge}
-                  style={{ ...dawToolBtn(false),
-                    border:`1px solid ${bridgeActive ? "#E5484D" : "rgba(0,0,0,0.12)"}`,
-                    color: bridgeActive ? "#E5484D" : "rgba(0,0,0,0.50)",
-                    background: bridgeActive ? "rgba(229,72,77,0.08)" : "transparent",
-                    fontFamily:SF, fontSize:11, padding:"3px 8px" }}>
-                  {bridgeActive ? "Exit Bridge" : "Bridge"}
-                </button>
                 <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
                   style={{ ...dawToolBtn(true),
                     background: (!drumPattern && timelineItems.length===0 && bassLine.length===0)
@@ -7736,8 +7728,124 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Loop toggle — right below timeline */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                {/* Chord toolbar — below timeline */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:10, flexWrap:"wrap" }}>
+                  {/* Chord input */}
+                  <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
+                    onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
+                    placeholder="Fmaj7…"
+                    style={{ fontFamily:SF, fontSize:12, padding:"4px 8px", borderRadius:2, border:`1px solid ${chordInputErr?"#E5484D":"rgba(0,0,0,0.12)"}`, background:"#fff", color:t.inputColor, outline:"none", width:90 }}
+                  />
+                  <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
+                    Add
+                  </button>
+                  {chordInputErr && <span style={{ fontSize:10, color:"#E5484D", fontFamily:SF }}>?</span>}
+                  <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                    Clear
+                  </button>
+                  <button onClick={() => {
+                    stopLoop();
+                    const len = [3,4,4,4][Math.floor(Math.random()*4)];
+                    const cs = Array.from({length:len}, () => chords[Math.floor(Math.random()*7)]);
+                    let slot = 0;
+                    const items = [];
+                    cs.forEach(chord => {
+                      if (slot >= TIMELINE_SLOTS) return;
+                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
+                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
+                      slot += len2;
+                    });
+                    setTimelineItems(items); setActiveChord(cs[0]);
+                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                    Random
+                  </button>
+                  <button onClick={() => {
+                    stopLoop();
+                    const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul","Dark"];
+                    const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre));
+                    const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre));
+                    const pool = Math.random() < 0.8 && preferred.length > 0 ? preferred : other.length > 0 ? other : FAMOUS_PROGRESSIONS;
+                    const pick = pool[Math.floor(Math.random()*pool.length)];
+                    const scaleObj = SCALES[scaleKey];
+                    const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
+                    const ninthList   = scaleKey==="major" ? NINTHS_MAJOR   : scaleKey==="minor" ? NINTHS_MINOR   : NINTHS_OTHER;
+                    const suffixOf = q =>
+                      q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
+                      q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
+                      q==="m7b5"?"m7b5": q==="maj9"?"maj9":
+                      q==="m9"?"m9": q==="9"?"9":
+                      q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
+                    const embellishIdx = Math.random() < 0.7 ? -1 : Math.floor(Math.random() * pick.degrees.length);
+                    const EMBELLISH_POOL = ["7","7","sus4","sus2","5"];
+                    const cs = pick.degrees.map((d, idx) => {
+                      const i = d % 7;
+                      const noteIdx = (rootIdx + scaleObj.intervals[i]) % 12;
+                      const baseQ   = scaleObj.qualities[i];
+                      let quality = baseQ;
+                      if (idx === embellishIdx && baseQ !== "dim") {
+                        const v = EMBELLISH_POOL[Math.floor(Math.random()*EMBELLISH_POOL.length)];
+                        if      (v==="7")    quality = seventhList[i];
+                        else if (v==="sus4") quality = "sus4";
+                        else if (v==="sus2") quality = "sus2";
+                        else if (v==="5")    quality = "5";
+                      }
+                      return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
+                    });
+                    let slot = 0;
+                    const items = [];
+                    cs.forEach(chord => {
+                      if (slot >= TIMELINE_SLOTS) return;
+                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
+                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
+                      slot += len2;
+                    });
+                    setTimelineItems(items); setActiveChord(cs[0]);
+                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
+                    Suggest
+                  </button>
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Arp */}
+                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
+                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
+                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                    ARP
+                  </button>
+                  {arpOn && <>
+                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
+                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                    <div style={{ width:1, height:14, background:t.border }} />
+                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
+                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                  </>}
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Bridge */}
+                  <button onClick={activateBridge}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
+                      border:`1px solid ${bridgeActive ? "#E5484D" : "rgba(0,0,0,0.12)"}`,
+                      color: bridgeActive ? "#E5484D" : "rgba(0,0,0,0.50)",
+                      background: bridgeActive ? "rgba(229,72,77,0.08)" : "transparent",
+                      cursor:"pointer" }}>
+                    {bridgeActive ? "Exit Bridge" : "Bridge"}
+                  </button>
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Loop toggle */}
                   <button onClick={() => setLoopEnabled(e => !e)}
                     style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
@@ -7974,30 +8082,6 @@ export default function App() {
                     </select>
                   </div>
 
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Arp */}
-                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
-                    ARP
-                  </button>
-                  {arpOn && <>
-                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                    <div style={{ width:1, height:14, background:t.border }} />
-                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                  </>}
                 </div>
               </div>
 
@@ -8500,87 +8584,8 @@ export default function App() {
                   )}
                 </div>
 
-                {/* ═══ ZONE 4: TOOLS ═══ */}
+                {/* ═══ PROJECT TOOLS ═══ */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0" }}>
-                  {/* Chord input */}
-                  <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
-                    onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
-                    placeholder="Fmaj7…"
-                    style={{ fontFamily:SF, fontSize:12, padding:"4px 8px", borderRadius:2, border:`1px solid ${chordInputErr?"#E5484D":"rgba(0,0,0,0.12)"}`, background:"#fff", color:t.inputColor, outline:"none", width:100 }}
-                  />
-                  <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
-                    Add
-                  </button>
-                  {chordInputErr && <span style={{ fontSize:10, color:"#E5484D", fontFamily:SF }}>?</span>}
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
-                    Clear
-                  </button>
-                  <button onClick={() => {
-                    stopLoop();
-                    const len = [3,4,4,4][Math.floor(Math.random()*4)];
-                    const cs = Array.from({length:len}, () => chords[Math.floor(Math.random()*7)]);
-                    let slot = 0;
-                    const items = [];
-                    cs.forEach(chord => {
-                      if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
-                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
-                      slot += len2;
-                    });
-                    setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
-                    Random
-                  </button>
-                  <button onClick={() => {
-                    stopLoop();
-                    const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul","Dark"];
-                    const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre));
-                    const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre));
-                    const pool = Math.random() < 0.8 && preferred.length > 0 ? preferred : other.length > 0 ? other : FAMOUS_PROGRESSIONS;
-                    const pick = pool[Math.floor(Math.random()*pool.length)];
-                    const scaleObj = SCALES[scaleKey];
-                    const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
-                    const ninthList   = scaleKey==="major" ? NINTHS_MAJOR   : scaleKey==="minor" ? NINTHS_MINOR   : NINTHS_OTHER;
-                    const suffixOf = q =>
-                      q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
-                      q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
-                      q==="m7b5"?"m7b5": q==="maj9"?"maj9":
-                      q==="m9"?"m9": q==="9"?"9":
-                      q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
-                    const embellishIdx = Math.random() < 0.7 ? -1 : Math.floor(Math.random() * pick.degrees.length);
-                    const EMBELLISH_POOL = ["7","7","sus4","sus2","5"];
-                    const cs = pick.degrees.map((d, idx) => {
-                      const i = d % 7;
-                      const noteIdx = (rootIdx + scaleObj.intervals[i]) % 12;
-                      const baseQ   = scaleObj.qualities[i];
-                      let quality = baseQ;
-                      if (idx === embellishIdx && baseQ !== "dim") {
-                        const v = EMBELLISH_POOL[Math.floor(Math.random()*EMBELLISH_POOL.length)];
-                        if      (v==="7")    quality = seventhList[i];
-                        else if (v==="sus4") quality = "sus4";
-                        else if (v==="sus2") quality = "sus2";
-                        else if (v==="5")    quality = "5";
-                      }
-                      return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
-                    });
-                    let slot = 0;
-                    const items = [];
-                    cs.forEach(chord => {
-                      if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
-                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
-                      slot += len2;
-                    });
-                    setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
-                    Suggest
-                  </button>
-
                   <div style={{ flex:1 }} />
 
                   {/* Project */}
