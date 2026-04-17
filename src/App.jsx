@@ -1008,7 +1008,7 @@ function getBass808() {
       oscillator: { type: "sine" },
       envelope: { attack: 0.005, decay: 0.3, sustain: 0.6, release: 0.8 },
       filterEnvelope: { attack: 0.005, decay: 0.1, sustain: 0.3, release: 0.5, baseFrequency: 80, octaves: 2.5 },
-      volume: -4,
+      volume: -14,
     }).connect(lpf);
   }
   return bass808Synth;
