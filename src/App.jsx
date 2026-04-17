@@ -1471,6 +1471,25 @@ const DRUM_STEPS = 64;       // 4 bars × 16 sixteenth-notes
 const DRUM_BAR_STEPS = 16;
 function emptyDrumTrack() { return new Array(DRUM_STEPS).fill(0); }
 
+// ── Deterministic density hash — same seed → same result for visual/audio sync ──
+function densityHash(seed, trackId, step) {
+  // Simple but effective hash: mix seed + track string hash + step
+  let h = seed ^ 0x5f3759df;
+  for (let i = 0; i < trackId.length; i++) h = ((h << 5) - h + trackId.charCodeAt(i)) | 0;
+  h = ((h << 5) - h + step) | 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x45d9f3b); h ^= h >>> 16;
+  return (h >>> 0) / 0xffffffff; // 0..1
+}
+// Returns true if the note should PLAY at given density (0-100)
+function densityPass(seed, trackId, step, density, isBackbone) {
+  if (density >= 100) return true;
+  if (density <= 0) return false;
+  const threshold = isBackbone
+    ? density * 0.01 + (1 - density * 0.01) * 0.7  // backbone notes resist removal
+    : density * 0.01;
+  return densityHash(seed, trackId, step) < threshold;
+}
+
 // ── MPC Pad ↔ MIDI note mapping ──
 // MPC banks: A=36-51, B=52-67, C=68-83, D=84-99
 const MPC_BANKS = ["A","B","C","D"];
@@ -3954,6 +3973,7 @@ export default function App() {
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
   const [drumDensity,    setDrumDensity]    = useState(100);  // 100 = play all, 0 = silence — applies to all tracks
+  const [densitySeed,    setDensitySeed]    = useState(1);    // changes each loop → new random pattern
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
   const [drumFavorites,  setDrumFavorites]  = useState([]);    // [{ id, genre, pattern, label }]
@@ -3971,6 +3991,7 @@ export default function App() {
   const drumSwingRef    = useRef(drumSwing);
   const drumHalfTimeRef = useRef(drumHalfTime);
   const drumDensityRef  = useRef(drumDensity);
+  const densitySeedRef  = useRef(densitySeed);
   const soloTrackRef    = useRef(soloTrack);
   const mutedTracksRef  = useRef(mutedTracks);
   const tripletTracksRef = useRef(tripletTracks);
@@ -3995,6 +4016,7 @@ export default function App() {
   useEffect(() => { drumSwingRef.current = drumSwing; }, [drumSwing]);
   useEffect(() => { drumHalfTimeRef.current = drumHalfTime; }, [drumHalfTime]);
   useEffect(() => { drumDensityRef.current = drumDensity; }, [drumDensity]);
+  useEffect(() => { densitySeedRef.current = densitySeed; }, [densitySeed]);
   useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
   useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
   useEffect(() => { tripletTracksRef.current = tripletTracks; }, [tripletTracks]);
@@ -4594,11 +4616,12 @@ export default function App() {
         // Filter out muted notes from piano roll
         let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
         if (noteNames.length === 0) return; // all muted, skip this chord
-        // Density: thin chord voicing — randomly drop notes but always keep at least 1 (root)
+        // Density: thin chord voicing — deterministic (matches visual)
         const density = drumDensityRef.current;
+        const seed = densitySeedRef.current;
         if (density < 100 && noteNames.length > 1) {
-          noteNames = noteNames.filter((_, i) => i === 0 || Math.random() < density * 0.01);
-          if (noteNames.length === 0) noteNames = [allNoteNames[0]]; // safety: keep root
+          noteNames = noteNames.filter((_, i) => i === 0 || densityPass(seed, "chord", item.startSlot * 100 + i, density, false));
+          if (noteNames.length === 0) noteNames = [allNoteNames[0]];
         }
         const startSec  = item.startSlot * slotSec;
         const durSec    = item.lengthSlots * slotSec;
@@ -4739,14 +4762,10 @@ export default function App() {
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
-            // Density filter: at 100% play all, at 0% play none
-            // Kick/snare on downbeats are more resistant to removal
+            // Density filter — deterministic (matches visual grid)
             const density = drumDensityRef.current;
-            if (density < 100) {
-              const isBackbone = (track.id === "kick" || track.id === "snare") && step % 8 === 0;
-              const threshold = isBackbone ? density * 0.01 + (1 - density * 0.01) * 0.7 : density * 0.01;
-              if (Math.random() > threshold) return;
-            }
+            const seed = densitySeedRef.current;
+            if (!densityPass(seed, track.id, step, density, (track.id === "kick" || track.id === "snare") && step % 8 === 0)) return;
             const { tMs: hzT, vScale: hzV } = hz();
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = Math.max(0, (step * slotSec + swingDelay) * 1000 + hzT);
@@ -4768,13 +4787,10 @@ export default function App() {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
         bassLine.forEach((note, nIdx) => {
           if (note.muted) return;
-          // Density: skip bass notes randomly — keep first note of each bar
+          // Density: skip bass notes — deterministic (matches visual)
           const density = drumDensityRef.current;
-          if (density < 100) {
-            const isDownbeat = note.startSlot % 16 === 0;
-            const threshold = isDownbeat ? density * 0.01 + (1 - density * 0.01) * 0.6 : density * 0.01;
-            if (Math.random() > threshold) return;
-          }
+          const seed = densitySeedRef.current;
+          if (!densityPass(seed, "bass", note.startSlot, density, note.startSlot % 16 === 0)) return;
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4800,9 +4816,10 @@ export default function App() {
         const cpatMelVel = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
         melodyLine.forEach(note => {
           if (note.muted) return;
-          // Density: skip melody notes randomly
+          // Density: skip melody notes — deterministic (matches visual)
           const density = drumDensityRef.current;
-          if (density < 100 && Math.random() > density * 0.01) return;
+          const seed = densitySeedRef.current;
+          if (!densityPass(seed, "melody", note.startSlot, density, false)) return;
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4823,6 +4840,9 @@ export default function App() {
       }
     };
 
+    // New density seed each play — visual updates to match
+    setDensitySeed(s => s + 1);
+    densitySeedRef.current = densitySeedRef.current + 1;
     doSchedule();
     setLooping(true);
     const wallStart = performance.now();
@@ -4850,6 +4870,9 @@ export default function App() {
     rafRef.current = requestAnimationFrame(animate);
     loopRef.current = setInterval(() => {
       if (loopEnabledRef.current) {
+        // Bump density seed each loop iteration → new random pattern
+        densitySeedRef.current = densitySeedRef.current + 1;
+        setDensitySeed(densitySeedRef.current);
         doSchedule();
       } else {
         stopLoop();
@@ -4938,10 +4961,11 @@ export default function App() {
           const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
           sec.timelineItems.forEach(item => {
             let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
-            // Density: thin chord voicing — keep root
+            // Density: thin chord voicing — deterministic
             const density = drumDensityRef.current;
+            const seed = densitySeedRef.current;
             if (density < 100 && noteNames.length > 1) {
-              noteNames = noteNames.filter((_, i) => i === 0 || Math.random() < density * 0.01);
+              noteNames = noteNames.filter((_, i) => i === 0 || densityPass(seed, "chord", item.startSlot * 100 + i, density, false));
               if (noteNames.length === 0) noteNames = [getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave)[0]];
             }
             const chordStartSec = (offset + item.startSlot) * slotSec;
@@ -4983,11 +5007,8 @@ export default function App() {
           sec.bassLine.forEach(note => {
             if (note.muted) return;
             const density = drumDensityRef.current;
-            if (density < 100) {
-              const isDownbeat = note.startSlot % 16 === 0;
-              const threshold = isDownbeat ? density * 0.01 + (1 - density * 0.01) * 0.6 : density * 0.01;
-              if (Math.random() > threshold) return;
-            }
+            const seed = densitySeedRef.current;
+            if (!densityPass(seed, "bass", note.startSlot, density, note.startSlot % 16 === 0)) return;
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -5011,7 +5032,8 @@ export default function App() {
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
             const density = drumDensityRef.current;
-            if (density < 100 && Math.random() > density * 0.01) return;
+            const seed = densitySeedRef.current;
+            if (!densityPass(seed, "melody", note.startSlot, density, false)) return;
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -5037,13 +5059,10 @@ export default function App() {
             if (!steps) return;
             steps.forEach((vel, step) => {
               if (vel === 0) return;
-              // Density filter
+              // Density filter — deterministic (matches visual)
               const density = drumDensityRef.current;
-              if (density < 100) {
-                const isBackbone = (track.id === "kick" || track.id === "snare") && step % 8 === 0;
-                const threshold = isBackbone ? density * 0.01 + (1 - density * 0.01) * 0.7 : density * 0.01;
-                if (Math.random() > threshold) return;
-              }
+              const seed = densitySeedRef.current;
+              if (!densityPass(seed, track.id, step, density, (track.id === "kick" || track.id === "snare") && step % 8 === 0)) return;
               const { tMs: ht, vScale: hv } = hzA();
               const onMs = Math.max(0, (offset + step) * slotSec * 1000 + ht);
               const hzVel = Math.max(1, Math.min(127, Math.round(vel * hv)));
@@ -5060,6 +5079,8 @@ export default function App() {
       });
     };
 
+    setDensitySeed(s => s + 1);
+    densitySeedRef.current = densitySeedRef.current + 1;
     doScheduleArrangement();
     setLooping(true);
     setArrangementPlaying(true);
@@ -5072,7 +5093,11 @@ export default function App() {
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
-    loopRef.current = setInterval(doScheduleArrangement, totalMs);
+    loopRef.current = setInterval(() => {
+      densitySeedRef.current = densitySeedRef.current + 1;
+      setDensitySeed(densitySeedRef.current);
+      doScheduleArrangement();
+    }, totalMs);
   };
 
   useEffect(() => () => stopLoop(), []);
@@ -5637,9 +5662,11 @@ export default function App() {
                             const isPlayhead = drumStep === step;
                             const isBeatLine = step > 0 && step % 4 === 0;
                             const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
-                            // Swing visual: shift odd steps right proportional to swing amount
                             const isOddStep = step % 2 === 1;
                             const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 6) : 0;
+                            // Density visual: is this hit removed?
+                            const densityRemoved = vel > 0 && drumDensity < 100 &&
+                              !densityPass(densitySeed, track.id, step, drumDensity, (track.id === "kick" || track.id === "snare") && step % 8 === 0);
                             return (
                               <div key={step}
                                 onClick={() => toggleDrumStep(track.id, step)}
@@ -5657,8 +5684,11 @@ export default function App() {
                                   <div style={{
                                     position:"absolute", top:1, bottom:1, borderRadius:2,
                                     left: swingPx, right: Math.max(0, -swingPx + 1),
-                                    background:`rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
-                                    transition:"left 0.15s ease, right 0.15s ease",
+                                    background: densityRemoved
+                                      ? `rgba(122,91,175,0.12)`
+                                      : `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
+                                    transition:"left 0.15s ease, right 0.15s ease, background 0.2s ease",
+                                    ...(densityRemoved ? { border:"1px dashed rgba(122,91,175,0.25)" } : {}),
                                   }} />
                                 )}
                               </div>
@@ -6133,15 +6163,19 @@ export default function App() {
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
                           {/* Note blocks */}
-                          {pianoRollNotes.filter(n => !n.muted).map(note => {
+                          {pianoRollNotes.filter(n => !n.muted).map((note, noteIdx) => {
                             const row = range.high - 1 - note.midiNum;
                             if (row < 0 || row >= noteCount) return null;
                             const velIdx = VEL_STEPS.findIndex(v => note.velocity <= v);
                             const velOpacity = 0.4 + (velIdx >= 0 ? velIdx : 3) * 0.18;
+                            // Density: find this note's index within its chord for deterministic hash
+                            const sameChordNotes = pianoRollNotes.filter(n => n.chordId === note.chordId && !n.muted);
+                            const idxInChord = sameChordNotes.findIndex(n => n.key === note.key);
+                            const densRemoved = drumDensity < 100 && idxInChord > 0 &&
+                              !densityPass(densitySeed, "chord", note.startSlot * 100 + idxInChord, drumDensity, false);
                             return (
                               <div key={note.key}
                                 onClick={() => {
-                                  // Cycle velocity on click
                                   const curIdx = VEL_STEPS.findIndex(v => note.velocity <= v);
                                   const nextIdx = (curIdx + 1) % VEL_STEPS.length;
                                   setPianoRollEdits(prev => ({
@@ -6151,28 +6185,29 @@ export default function App() {
                                 }}
                                 onContextMenu={(e) => {
                                   e.preventDefault();
-                                  // Right-click to mute/unmute
                                   setPianoRollEdits(prev => ({
                                     ...prev,
                                     [note.key]: { ...(prev[note.key] || {}), muted: true }
                                   }));
                                 }}
-                                title={`${note.noteName} vel:${note.velocity} (${VEL_LABELS[velIdx >= 0 ? velIdx : 3]}) — click to cycle, right-click to mute`}
+                                title={`${note.noteName} vel:${note.velocity} (${VEL_LABELS[velIdx >= 0 ? velIdx : 3]})${densRemoved?" (density removed)":""} — click to cycle, right-click to mute`}
                                 style={{
                                   position:"absolute",
                                   top: row * ROW_H + 1,
                                   left: `${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   height: ROW_H - 2,
-                                  background: `rgba(122,91,175,${velOpacity})`,
+                                  background: densRemoved
+                                    ? `rgba(122,91,175,0.1)`
+                                    : `rgba(122,91,175,${velOpacity})`,
                                   borderRadius: 3,
                                   cursor: "pointer",
-                                  border: "1px solid rgba(122,91,175,0.5)",
-                                  transition: "opacity 0.12s",
+                                  border: densRemoved ? "1px dashed rgba(122,91,175,0.25)" : "1px solid rgba(122,91,175,0.5)",
+                                  transition: "background 0.2s, border 0.2s",
                                   display:"flex", alignItems:"center", paddingLeft:3,
                                   overflow:"hidden",
                                 }}>
-                                <span style={{ fontSize:7.5, color:"#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
+                                <span style={{ fontSize:7.5, color: densRemoved ? "rgba(122,91,175,0.3)" : "#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
                                   {note.noteName}
                                 </span>
                               </div>
@@ -6296,6 +6331,7 @@ export default function App() {
                             const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
                             const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
+                            const densRemoved = drumDensity < 100 && !densityPass(densitySeed, "bass", note.startSlot, drumDensity, note.startSlot % 16 === 0);
                             return (
                               <div key={i}
                                 onDoubleClick={() => setBassLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
@@ -6304,10 +6340,10 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 60 + 8}%`, height: 8,
-                                  background:"rgba(52,199,89,0.6)", borderRadius:3,
-                                  border:"1px solid rgba(52,199,89,0.8)",
-                                  cursor:"pointer",
-                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity} — double-click to mute`} />
+                                  background: densRemoved ? "rgba(52,199,89,0.12)" : "rgba(52,199,89,0.6)", borderRadius:3,
+                                  border: densRemoved ? "1px dashed rgba(52,199,89,0.3)" : "1px solid rgba(52,199,89,0.8)",
+                                  cursor:"pointer", transition:"background 0.2s, border 0.2s",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
                             );
                           })}
                           {/* Bass note blocks (muted — double-click to restore) */}
@@ -6405,6 +6441,7 @@ export default function App() {
                             const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
                             const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
+                            const densRemoved = drumDensity < 100 && !densityPass(densitySeed, "melody", note.startSlot, drumDensity, false);
                             return (
                               <div key={i}
                                 onDoubleClick={() => setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
@@ -6413,10 +6450,10 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 70 + 6}%`, height: 8,
-                                  background:"rgba(255,159,10,0.6)", borderRadius:3,
-                                  border:"1px solid rgba(255,159,10,0.8)",
-                                  cursor:"pointer",
-                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity} — double-click to mute`} />
+                                  background: densRemoved ? "rgba(255,159,10,0.12)" : "rgba(255,159,10,0.6)", borderRadius:3,
+                                  border: densRemoved ? "1px dashed rgba(255,159,10,0.3)" : "1px solid rgba(255,159,10,0.8)",
+                                  cursor:"pointer", transition:"background 0.2s, border 0.2s",
+                                }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
                             );
                           })}
                           {/* Muted melody notes */}
