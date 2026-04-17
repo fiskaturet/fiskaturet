@@ -1824,42 +1824,72 @@ function genBoomBapClassic() {
     [110,0,0,0, 0,0,0,110, 0,0,110,0, 0,0,0,0],
     [110,0,0,0, 0,0,110,0, 0,0,110,0, 0,0,0,0],
     [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,110,0],
+    [110,0,0,0, 0,0,0,0, 110,0,0,110, 0,0,0,0],   // syncopated double
+    [110,0,0,110, 0,0,0,0, 0,0,110,0, 0,0,0,0],    // quick double on 1
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,110,0,0],    // off-beat anticipation
+  ];
+  const SNARES = [
+    [0,0,0,0, 105,0,0,0, 0,0,0,0, 105,0,0,0],
+    [0,0,0,0, 105,0,0,0, 0,0,0,0, 0,0,105,0],      // displaced snare 4
+    [0,0,0,0, 105,0,0,0, 0,0,0,0, 105,0,0,D_VEL(55,10)], // ghost flam
   ];
   tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
-  tracks.snare = compose4Bars(() => [0,0,0,0, 105,0,0,0, 0,0,0,0, 105,0,0,0]);
-  tracks.hatC  = emptyDrumTrack();
+  tracks.snare = compose4Bars(() => D_PICK(SNARES).slice());
+  // Hats: pick a style per generation
+  const hatStyle = D_PICK(["straight","swing","broken"]);
+  tracks.hatC = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
-    if (i%2===0) tracks.hatC[i] = D_VEL(75, 15);
-    else if (D_PROB(0.18)) tracks.hatC[i] = D_VEL(45, 10);
+    if (hatStyle === "straight") {
+      if (i%2===0) tracks.hatC[i] = D_VEL(75, 15);
+      else if (D_PROB(0.18)) tracks.hatC[i] = D_VEL(45, 10);
+    } else if (hatStyle === "swing") {
+      if (i%4===0) tracks.hatC[i] = D_VEL(80, 12);
+      else if (i%4===2) tracks.hatC[i] = D_PROB(0.7) ? D_VEL(55, 15) : 0;
+      else if (i%4===3 && D_PROB(0.45)) tracks.hatC[i] = D_VEL(50, 10); // swing upbeat
+    } else {
+      if (i%4===0) tracks.hatC[i] = D_VEL(78, 12);
+      else if (D_PROB(0.22)) tracks.hatC[i] = D_VEL(48, 12);
+    }
   }
   tracks.ghost = emptyDrumTrack();
   sprinkleGhosts(tracks.ghost, 0.08, 30);
-  // Ghost kicks — soft kicks before/after main kicks
   tracks.ghostKick = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
     if (tracks.kick[i] > 0 && i > 0 && tracks.kick[i-1] === 0 && D_PROB(0.25)) tracks.ghostKick[i-1] = D_VEL(45, 10);
     if (tracks.kick[i] > 0 && i < DRUM_STEPS-1 && tracks.kick[i+1] === 0 && D_PROB(0.15)) tracks.ghostKick[i+1] = D_VEL(40, 10);
   }
+  // Occasional open hat on bar ends
+  tracks.hatO = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%16===14 && D_PROB(0.35)) tracks.hatO[i] = D_VEL(65, 10);
   return tracks;
 }
 
 function genGriselda() {
   const tracks = {};
   const KICKS = [
-    [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],     // ultra minimal — one kick
     [110,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],
     [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],      // no downbeat kick — unsettling
+    [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,110,0],     // kick on "and of 4"
+    [110,0,0,0, 0,0,0,0, 0,0,0,110, 0,0,0,0],     // late beat 3
+  ];
+  const SNARES = [
+    [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0],
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 0,0,0,0],      // snare on 2 instead of 3
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 100,0,0,0],      // snare on 4 only
   ];
   tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
-  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  tracks.snare = compose4Bars(() => D_PICK(SNARES).slice());
+  // Sparse hat — sometimes barely there
+  const hatDensity = D_PICK([0.3, 0.5, 0.6, 0.0]); // 0.0 = no hats at all
   tracks.hatC  = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
-    if (i%4===0 && D_PROB(0.6)) tracks.hatC[i] = D_VEL(60, 15);
-    else if (D_PROB(0.08)) tracks.hatC[i] = D_VEL(40, 10);
+    if (i%4===0 && D_PROB(hatDensity)) tracks.hatC[i] = D_VEL(60, 15);
+    else if (D_PROB(0.05)) tracks.hatC[i] = D_VEL(40, 10);
   }
   tracks.rim = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (i%16===14 && D_PROB(0.5)) tracks.rim[i] = D_VEL(70);
-  // Ghost kicks — rare, menacing
   tracks.ghostKick = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
     if (tracks.kick[i] === 0 && i%4===2 && D_PROB(0.12)) tracks.ghostKick[i] = D_VEL(35, 8);
@@ -1873,17 +1903,42 @@ function genTrapModern() {
     [120,0,0,0, 0,0,120,0, 0,0,0,0, 120,0,0,0],
     [120,0,0,0, 0,0,0,0, 120,0,0,0, 0,0,120,0],
     [120,0,0,0, 0,0,0,120, 0,0,120,0, 0,0,0,0],
+    [120,0,0,0, 0,0,0,0, 0,0,0,0, 120,0,0,120],   // stacked end
+    [120,0,0,0, 0,0,120,0, 0,0,0,0, 0,0,0,0],      // half empty
+    [0,0,0,120, 0,0,0,0, 120,0,0,0, 0,0,120,0],    // displaced off downbeat
+    [120,0,0,0, 0,0,0,0, 0,120,0,0, 0,0,0,120],    // late placements
   ];
   tracks.kick = compose4Bars(() => D_PICK(KICKS).slice());
-  tracks.clap = compose4Bars(() => [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0]);
+  tracks.clap = compose4Bars(() => D_PICK([
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],
+    [0,0,0,0, 110,0,0,0, 0,0,0,0, 0,0,0,0],       // clap on 2
+  ]).slice());
+  // Hat style variety
+  const hatMode = D_PICK(["full","rolls","sparse","triplet"]);
   tracks.hatC = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
-    tracks.hatC[i] = D_VEL(70, 20);
-    if (i%4===0) tracks.hatC[i] = D_VEL(85, 10);
+    if (hatMode === "full") {
+      tracks.hatC[i] = D_VEL(70, 20);
+      if (i%4===0) tracks.hatC[i] = D_VEL(85, 10);
+    } else if (hatMode === "rolls") {
+      // Bursts of rolls with gaps
+      const bar = i % 16;
+      if (bar < 4) tracks.hatC[i] = D_VEL(70, 15);
+      else if (bar >= 8 && bar < 12) tracks.hatC[i] = D_VEL(75, 15);
+      else if (bar >= 14) tracks.hatC[i] = D_VEL(90, 10);
+    } else if (hatMode === "sparse") {
+      if (i%4===0) tracks.hatC[i] = D_VEL(80, 12);
+      else if (D_PROB(0.15)) tracks.hatC[i] = D_VEL(55, 15);
+    } else { // triplet
+      if (i%3===0) tracks.hatC[i] = D_VEL(75, 15);
+      else if (i%3===1 && D_PROB(0.5)) tracks.hatC[i] = D_VEL(55, 12);
+    }
   }
   // Roll bursts at end of bar 2 and bar 4
-  tracks.hatC[14] = D_VEL(85); tracks.hatC[15] = D_VEL(95);
-  tracks.hatC[46] = D_VEL(85); tracks.hatC[47] = D_VEL(95);
+  if (hatMode !== "rolls") {
+    tracks.hatC[14] = D_VEL(85); tracks.hatC[15] = D_VEL(95);
+    tracks.hatC[46] = D_VEL(85); tracks.hatC[47] = D_VEL(95);
+  }
   tracks.low808 = tracks.kick.map(v => v > 0 && D_PROB(0.85) ? D_VEL(110) : 0);
   return tracks;
 }
@@ -1894,19 +1949,35 @@ function genLofi() {
     [105,0,0,0, 0,0,0,0, 0,0,105,0, 0,0,0,0],
     [105,0,0,0, 0,0,0,105, 0,0,105,0, 0,0,0,0],
     [105,0,0,0, 0,0,105,0, 0,0,0,0, 0,0,0,0],
+    [105,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,105,0],     // barely there
+    [0,0,0,105, 0,0,0,0, 0,0,105,0, 0,0,0,0],      // no downbeat
+    [105,0,0,0, 0,0,0,0, 0,105,0,0, 0,0,0,0],      // displaced
+  ];
+  const SNARES = [
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0],
+    [0,0,0,0, 0,0,0,0, 90,0,0,0, 0,0,0,0],         // half-time snare
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 0,0,90,0],         // displaced 4
   ];
   tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
-  tracks.snare = compose4Bars(() => [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0]);
-  tracks.hatC  = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) {
-    if (i%2===0) tracks.hatC[i] = D_VEL(65, 15);
-    else if (D_PROB(0.25)) tracks.hatC[i] = D_VEL(40, 8);
+  tracks.snare = compose4Bars(() => D_PICK(SNARES).slice());
+  // Hat variety
+  const hatStyle = D_PICK(["eighth","quarter","broken","none"]);
+  tracks.hatC = emptyDrumTrack();
+  if (hatStyle === "eighth") {
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%2===0) tracks.hatC[i] = D_VEL(65, 15);
+      else if (D_PROB(0.25)) tracks.hatC[i] = D_VEL(40, 8);
+    }
+  } else if (hatStyle === "quarter") {
+    for (let i=0; i<DRUM_STEPS; i++) if (i%4===0) tracks.hatC[i] = D_VEL(60, 12);
+  } else if (hatStyle === "broken") {
+    for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.2)) tracks.hatC[i] = D_VEL(55, 15);
   }
   tracks.ghost = emptyDrumTrack();
   sprinkleGhosts(tracks.ghost, 0.18, 28);
+  // Shaker — sometimes, not always
   tracks.shaker = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) if (i%2===1) tracks.shaker[i] = D_VEL(50, 10);
-  // Ghost kicks — lazy, swung feel
+  if (D_PROB(0.5)) for (let i=0; i<DRUM_STEPS; i++) if (i%2===1) tracks.shaker[i] = D_VEL(50, 10);
   tracks.ghostKick = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) {
     if (tracks.kick[i] > 0 && i < DRUM_STEPS-1 && tracks.kick[i+1] === 0 && D_PROB(0.3)) tracks.ghostKick[i+1] = D_VEL(35, 8);
@@ -1981,21 +2052,62 @@ function genDrill() {
 
 function genExperimental() {
   const tracks = {};
+  // Pick a concept for this generation
+  const concept = D_PICK(["sparse","polyrhythm","negative","clusters","pointillist"]);
   tracks.kick = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) {
-    if (i===0 || i===32) tracks.kick[i] = D_VEL(110);
-    else if (D_PROB(0.06)) tracks.kick[i] = D_VEL(105);
-  }
   tracks.snare = emptyDrumTrack();
-  [12, 28, 44, 60].forEach(p => {
-    const j = p + Math.floor((Math.random()-0.5)*3);
-    if (j>=0 && j<DRUM_STEPS) tracks.snare[j] = D_VEL(95);
-  });
   tracks.perc = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.12)) tracks.perc[i] = D_VEL(60, 20);
-  // Ghost kicks — random scattered
+  tracks.rim = emptyDrumTrack();
+  tracks.hatC = emptyDrumTrack();
+  if (concept === "sparse") {
+    // Very few hits — maximum space
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i===0 || i===32) tracks.kick[i] = D_VEL(110);
+      else if (D_PROB(0.03)) tracks.kick[i] = D_VEL(100);
+    }
+    for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.04)) tracks.snare[i] = D_VEL(90);
+    for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.06)) tracks.perc[i] = D_VEL(55, 20);
+  } else if (concept === "polyrhythm") {
+    // 3 against 4 — kick on 4s, perc on 3s, snare on 5s
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%4===0) tracks.kick[i] = D_VEL(105, 15);
+      if (i%3===0) tracks.perc[i] = D_VEL(70, 15);
+      if (i%5===0) tracks.rim[i] = D_VEL(65, 12);
+      if (i%7===0) tracks.snare[i] = D_VEL(95, 10);
+    }
+  } else if (concept === "negative") {
+    // Define where NOT to play — create negative space patterns
+    const mask = new Array(16).fill(1);
+    // Cut holes
+    const cuts = D_PICK([3,4,5]);
+    for (let c=0; c<cuts; c++) mask[Math.floor(Math.random()*16)] = 0;
+    for (let i=0; i<DRUM_STEPS; i++) {
+      const bar = i % 16;
+      if (mask[bar] === 0) continue; // silence
+      if (bar%4===0) tracks.kick[i] = D_VEL(105);
+      if (bar===4 || bar===12) tracks.snare[i] = D_VEL(95);
+      if (bar%2===0 && D_PROB(0.4)) tracks.hatC[i] = D_VEL(55, 15);
+    }
+  } else if (concept === "clusters") {
+    // Bursts of activity separated by silence
+    for (let b=0; b<4; b++) {
+      const burstStart = b*16 + Math.floor(Math.random()*8);
+      const burstLen = D_PICK([3,4,5,6]);
+      for (let j=0; j<burstLen && burstStart+j<DRUM_STEPS; j++) {
+        const idx = burstStart+j;
+        if (D_PROB(0.5)) tracks.kick[idx] = D_VEL(100, 15);
+        if (D_PROB(0.4)) tracks.snare[idx] = D_VEL(90, 15);
+        if (D_PROB(0.6)) tracks.perc[idx] = D_VEL(65, 15);
+      }
+    }
+  } else { // pointillist
+    // Single isolated hits scattered like paint drops
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (D_PROB(0.08)) tracks[D_PICK(["kick","snare","perc","rim"])][i] = D_VEL(D_PICK([50,70,95,110]), 10);
+    }
+  }
   tracks.ghostKick = emptyDrumTrack();
-  for (let i=0; i<DRUM_STEPS; i++) if (tracks.kick[i] === 0 && D_PROB(0.06)) tracks.ghostKick[i] = D_VEL(40, 15);
+  for (let i=0; i<DRUM_STEPS; i++) if (tracks.kick[i] === 0 && D_PROB(0.04)) tracks.ghostKick[i] = D_VEL(35, 12);
   return tracks;
 }
 
@@ -2021,13 +2133,346 @@ function genHalftime() {
     [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
     [110,0,0,0, 0,0,0,110, 0,0,0,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,0,0, 110,0,0,0],     // late kick
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],        // only beat 3
   ];
   tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
-  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  tracks.snare = compose4Bars(() => D_PICK([
+    [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 100,0,0,0],        // snare on 4
+  ]).slice());
   tracks.hatO  = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (i%8===6 && D_PROB(0.6)) tracks.hatO[i] = D_VEL(65, 10);
   tracks.perc = emptyDrumTrack();
   for (let i=0; i<DRUM_STEPS; i++) if (D_PROB(0.08)) tracks.perc[i] = D_VEL(45, 15);
+  return tracks;
+}
+
+// ─── NEW GENRES ──────────────────────────────────────────────────────────
+
+function genNeoSoul() {
+  const tracks = {};
+  // J Dilla-influenced — broken, lazy, syncopated
+  const KICKS = [
+    [100,0,0,0, 0,0,0,0, 0,0,100,0, 0,0,0,0],
+    [100,0,0,0, 0,0,0,100, 0,0,0,0, 0,0,0,0],
+    [0,0,0,100, 0,0,0,0, 0,0,100,0, 0,0,0,0],     // off-beat start
+    [100,0,0,0, 0,0,0,0, 0,100,0,0, 0,0,0,0],      // displaced
+    [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,100,0,0],      // sparse syncopated
+    [0,0,100,0, 0,0,0,0, 0,0,0,100, 0,0,0,0],      // deeply off-grid
+  ];
+  const SNARES = [
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 90,0,0,0],
+    [0,0,0,0, 0,0,0,0, 90,0,0,0, 0,0,0,0],         // half-time
+    [0,0,0,0, 90,0,0,0, 0,0,0,0, 0,0,90,0],         // lazy 4
+    [0,0,0,0, 0,0,90,0, 0,0,0,0, 0,0,90,0],         // both displaced
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => D_PICK(SNARES).slice());
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.22, 30);
+  // Warm hat — sometimes rides, sometimes nothing
+  const hatChoice = D_PICK(["soft","ride","none"]);
+  tracks.hatC = emptyDrumTrack();
+  tracks.ride = emptyDrumTrack();
+  if (hatChoice === "soft") {
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%4===0) tracks.hatC[i] = D_VEL(55, 12);
+      else if (i%4===2 && D_PROB(0.5)) tracks.hatC[i] = D_VEL(40, 10);
+    }
+  } else if (hatChoice === "ride") {
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%4===0) tracks.ride[i] = D_VEL(60, 12);
+      else if (D_PROB(0.2)) tracks.ride[i] = D_VEL(40, 10);
+    }
+  }
+  tracks.ghostKick = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (tracks.kick[i] > 0 && i < DRUM_STEPS-1 && D_PROB(0.35)) tracks.ghostKick[i+1] = D_VEL(35, 10);
+  }
+  return tracks;
+}
+
+function genAfrobeat() {
+  const tracks = {};
+  // Complex polyrhythmic — 12/8 feel on 16th grid
+  tracks.kick = compose4Bars(() => D_PICK([
+    [110,0,0,0, 0,0,110,0, 0,0,0,0, 110,0,0,0],
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,110,0,0],
+    [110,0,0,110, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+  ]).slice());
+  tracks.snare = compose4Bars(() => [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0]);
+  // Bell pattern — the heart of afrobeat
+  tracks.perc = emptyDrumTrack();
+  // Standard afrobeat bell: XX.X.XX.X.XX (in 12/8, approximated on 16)
+  const bellPattern = [1,0,1,1, 0,1,0,1, 0,1,1,0, 1,0,1,0];
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (bellPattern[i%16]) tracks.perc[i] = D_VEL(75, 12);
+  }
+  // Shaker — consistent pulse
+  tracks.shaker = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) tracks.shaker[i] = D_VEL(45, 10);
+  // Sparse hats
+  tracks.hatC = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%4===0) tracks.hatC[i] = D_VEL(65, 10);
+  tracks.hatO = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%16===6 && D_PROB(0.5)) tracks.hatO[i] = D_VEL(60, 10);
+  return tracks;
+}
+
+function genUKGarage() {
+  const tracks = {};
+  // Skippy, syncopated 2-step groove
+  const KICKS = [
+    [110,0,0,0, 0,0,0,0, 0,0,0,110, 0,0,0,0],     // classic 2-step kick
+    [110,0,0,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],
+    [110,0,0,0, 0,0,0,110, 0,0,0,0, 0,0,0,0],
+    [0,0,0,110, 0,0,0,0, 0,0,0,110, 0,0,0,0],      // no downbeat
+    [110,0,0,0, 0,0,0,0, 0,110,0,0, 0,0,0,0],
+  ];
+  tracks.kick = compose4Bars(() => D_PICK(KICKS).slice());
+  // Snare — skipping pattern, never straight
+  tracks.snare = compose4Bars(() => D_PICK([
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 0,0,100,0],     // skip to "and of 4"
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 0,100,0,0],
+    [0,0,0,0, 0,0,100,0, 0,0,0,0, 100,0,0,0],      // displaced
+  ]).slice());
+  // Hats — shuffled with open hat accents
+  tracks.hatC = emptyDrumTrack();
+  tracks.hatO = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    const bar = i%16;
+    if (bar%2===0) tracks.hatC[i] = D_VEL(70, 15);
+    else if (D_PROB(0.35)) tracks.hatC[i] = D_VEL(50, 12);
+    if ((bar===6 || bar===14) && D_PROB(0.6)) { tracks.hatO[i] = D_VEL(70, 10); tracks.hatC[i] = 0; }
+  }
+  tracks.perc = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%8===3 && D_PROB(0.4)) tracks.perc[i] = D_VEL(60, 10);
+  return tracks;
+}
+
+function genReggaeton() {
+  const tracks = {};
+  // Dembow riddim — the backbone
+  tracks.kick = compose4Bars(() => [110,0,0,0, 0,0,0,110, 0,0,0,0, 0,0,0,0]);
+  // Snare on 2 and the "and of 3"
+  tracks.snare = compose4Bars(() => D_PICK([
+    [0,0,0,0, 100,0,0,0, 0,0,100,0, 0,0,0,0],
+    [0,0,0,0, 100,0,0,0, 0,0,0,100, 0,0,0,0],      // slightly displaced
+  ]).slice());
+  // Rim — constant dembow pulse
+  tracks.rim = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%8===2 || i%8===6) tracks.rim[i] = D_VEL(80, 10);
+    else if (i%8===3 && D_PROB(0.3)) tracks.rim[i] = D_VEL(55, 10);
+  }
+  tracks.hatC = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%2===0) tracks.hatC[i] = D_VEL(70, 12);
+    else if (D_PROB(0.3)) tracks.hatC[i] = D_VEL(50, 10);
+  }
+  return tracks;
+}
+
+function genJungle() {
+  const tracks = {};
+  // Breakbeat-influenced — fast, chopped, syncopated
+  // At 170+ bpm on 16th grid, this creates classic jungle patterns
+  const KICKS = [
+    [115,0,0,0, 0,0,0,0, 0,0,115,0, 0,0,0,0],
+    [115,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,115,0],
+    [115,0,0,0, 0,0,115,0, 0,0,0,0, 0,0,0,0],
+    [0,0,0,0, 0,0,115,0, 0,0,0,0, 115,0,0,0],      // no downbeat
+    [115,0,0,0, 0,0,0,0, 0,115,0,0, 0,0,0,115],     // complex
+  ];
+  tracks.kick = compose4Bars(() => D_PICK(KICKS).slice());
+  // Chopped snare patterns — the amen break feel
+  tracks.snare = compose4Bars(() => D_PICK([
+    [0,0,0,0, 100,0,0,0, 0,0,100,0, 0,0,0,0],      // doubled
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 100,0,100,0],     // shuffled
+    [0,0,0,0, 100,0,0,100, 0,0,0,0, 100,0,0,0],     // off-grid
+    [0,0,0,0, 100,0,100,0, 0,0,0,0, 0,0,100,0],     // rapid fire
+  ]).slice());
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.15, 35);
+  // Fast ride or hat
+  const topChoice = D_PICK(["hat","ride"]);
+  tracks.hatC = emptyDrumTrack();
+  tracks.ride = emptyDrumTrack();
+  if (topChoice === "hat") {
+    for (let i=0; i<DRUM_STEPS; i++) tracks.hatC[i] = D_VEL(65, 18);
+  } else {
+    for (let i=0; i<DRUM_STEPS; i++) if (i%2===0) tracks.ride[i] = D_VEL(60, 15);
+  }
+  return tracks;
+}
+
+function genHouse() {
+  const tracks = {};
+  // Four-on-the-floor, but with variety
+  tracks.kick = compose4Bars(() => {
+    const k = [110,0,0,0, 110,0,0,0, 110,0,0,0, 110,0,0,0];
+    // Sometimes drop a kick for tension
+    if (D_PROB(0.3)) k[D_PICK([4,8])] = 0;
+    return k;
+  });
+  // Clap/snare variations
+  tracks.clap = compose4Bars(() => D_PICK([
+    [0,0,0,0, 105,0,0,0, 0,0,0,0, 105,0,0,0],
+    [0,0,0,0, 105,0,0,0, 0,0,0,0, 0,0,105,0],      // displaced 4
+    [0,0,0,0, 0,0,0,0, 105,0,0,0, 0,0,0,0],         // half-time clap
+  ]).slice());
+  // Open hat — the signature
+  tracks.hatO = emptyDrumTrack();
+  const ohStyle = D_PICK(["offbeat","double","synco"]);
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (ohStyle === "offbeat" && i%4===2) tracks.hatO[i] = D_VEL(75, 12);
+    else if (ohStyle === "double" && (i%4===2 || i%8===7)) tracks.hatO[i] = D_VEL(70, 12);
+    else if (ohStyle === "synco" && (i%8===2 || i%8===5)) tracks.hatO[i] = D_VEL(72, 12);
+  }
+  tracks.hatC = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%2===0 && tracks.hatO[i] === 0) tracks.hatC[i] = D_VEL(65, 12);
+    else if (D_PROB(0.2)) tracks.hatC[i] = D_VEL(45, 10);
+  }
+  // Perc — shaker or conga-like
+  tracks.shaker = emptyDrumTrack();
+  if (D_PROB(0.5)) for (let i=0; i<DRUM_STEPS; i++) tracks.shaker[i] = D_VEL(40, 8);
+  return tracks;
+}
+
+function genTechno() {
+  const tracks = {};
+  // Driving, industrial, minimal but hypnotic
+  tracks.kick = compose4Bars(() => {
+    const k = [120,0,0,0, 120,0,0,0, 120,0,0,0, 120,0,0,0];
+    return k;
+  });
+  // Clap — various placements
+  tracks.clap = compose4Bars(() => D_PICK([
+    [0,0,0,0, 110,0,0,0, 0,0,0,0, 110,0,0,0],      // standard
+    [0,0,0,0, 110,0,0,0, 0,0,0,0, 0,0,0,0],         // one clap per bar
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],         // beat 3
+  ]).slice());
+  // Hat — minimal, evolving
+  const hatStyle = D_PICK(["closed","offbeat","minimal","16th"]);
+  tracks.hatC = emptyDrumTrack();
+  tracks.hatO = emptyDrumTrack();
+  if (hatStyle === "closed") {
+    for (let i=0; i<DRUM_STEPS; i++) if (i%2===0) tracks.hatC[i] = D_VEL(70, 10);
+  } else if (hatStyle === "offbeat") {
+    for (let i=0; i<DRUM_STEPS; i++) if (i%4===2) tracks.hatO[i] = D_VEL(75, 10);
+  } else if (hatStyle === "minimal") {
+    for (let i=0; i<DRUM_STEPS; i++) if (i%4===0) tracks.hatC[i] = D_VEL(65, 10);
+  } else {
+    for (let i=0; i<DRUM_STEPS; i++) tracks.hatC[i] = D_VEL(60, 15);
+  }
+  // Industrial perc
+  tracks.perc = emptyDrumTrack();
+  const percPattern = D_PICK([
+    [0,0,0,0, 0,0,70,0, 0,0,0,0, 0,0,70,0],
+    [0,0,70,0, 0,0,0,0, 0,0,70,0, 0,0,0,0],
+    [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],          // no perc
+  ]);
+  for (let i=0; i<DRUM_STEPS; i++) if (percPattern[i%16]) tracks.perc[i] = D_VEL(percPattern[i%16], 15);
+  // Ride — hypnotic texture
+  tracks.ride = emptyDrumTrack();
+  if (D_PROB(0.4)) for (let i=0; i<DRUM_STEPS; i++) if (i%2===1) tracks.ride[i] = D_VEL(40, 10);
+  return tracks;
+}
+
+function genBrokenBeat() {
+  const tracks = {};
+  // Syncopated UK broken beat — Kaidi Tatham, 4hero, Dego
+  // The kick avoids landing on the "expected" beats
+  const KICKS = [
+    [110,0,0,0, 0,0,0,110, 0,0,0,0, 0,110,0,0],   // 1, and-of-2, and-of-3
+    [0,0,0,110, 0,0,0,0, 110,0,0,0, 0,0,110,0],    // fully displaced
+    [110,0,0,0, 0,0,110,0, 0,0,0,0, 110,0,0,0],    // syncopated doubles
+    [0,0,110,0, 0,0,0,0, 0,0,110,0, 0,0,0,0],      // e-of-1, e-of-3
+    [110,0,0,0, 0,0,0,0, 0,0,0,110, 0,0,0,110],    // clustered end
+  ];
+  const SNARES = [
+    [0,0,0,0, 0,0,100,0, 0,0,0,0, 100,0,0,0],      // displaced 2 and 4
+    [0,0,0,0, 100,0,0,0, 0,0,0,0, 0,100,0,0],       // 2 and "and of 4"
+    [0,0,0,0, 0,0,0,100, 0,0,0,0, 0,0,100,0],       // deeply off-grid
+  ];
+  tracks.kick  = compose4Bars(() => D_PICK(KICKS).slice());
+  tracks.snare = compose4Bars(() => D_PICK(SNARES).slice());
+  tracks.ghost = emptyDrumTrack();
+  sprinkleGhosts(tracks.ghost, 0.15, 32);
+  // Warm hat pattern
+  tracks.hatC = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) {
+    if (i%2===0) tracks.hatC[i] = D_VEL(65, 12);
+    else if (D_PROB(0.3)) tracks.hatC[i] = D_VEL(45, 10);
+  }
+  tracks.hatO = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) if (i%16===6 && D_PROB(0.5)) tracks.hatO[i] = D_VEL(65);
+  return tracks;
+}
+
+function genMinimal() {
+  const tracks = {};
+  // Extreme minimalism — just the essentials, lots of silence
+  const style = D_PICK(["kick_only","kick_rim","kick_hat","ghost"]);
+  tracks.kick = emptyDrumTrack();
+  tracks.snare = emptyDrumTrack();
+  tracks.rim = emptyDrumTrack();
+  tracks.hatC = emptyDrumTrack();
+  tracks.ghost = emptyDrumTrack();
+  if (style === "kick_only") {
+    // Just a kick, sometimes
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%16===0) tracks.kick[i] = D_VEL(100);
+      else if (i%16===8 && D_PROB(0.4)) tracks.kick[i] = D_VEL(90);
+      else if (D_PROB(0.02)) tracks.kick[i] = D_VEL(80);
+    }
+  } else if (style === "kick_rim") {
+    // Kick and rim — skeletal
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%16===0) tracks.kick[i] = D_VEL(100);
+      if (i%16===12) tracks.rim[i] = D_VEL(70);
+      else if (D_PROB(0.05)) tracks.rim[i] = D_VEL(50, 15);
+    }
+  } else if (style === "kick_hat") {
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (i%16===0) tracks.kick[i] = D_VEL(100);
+      if (i%4===0 && D_PROB(0.5)) tracks.hatC[i] = D_VEL(50, 12);
+    }
+  } else {
+    // Only ghost notes — barely audible texture
+    for (let i=0; i<DRUM_STEPS; i++) {
+      if (D_PROB(0.1)) tracks.ghost[i] = D_VEL(30, 10);
+      if (i%16===0) tracks.kick[i] = D_VEL(85);
+    }
+  }
+  return tracks;
+}
+
+function genSamba() {
+  const tracks = {};
+  // Brazilian samba/bossa nova groove
+  // Surdo (kick) pattern
+  tracks.kick = compose4Bars(() => D_PICK([
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],        // surdo on 3
+    [0,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,110,0],       // surdo 3 + and-of-4
+    [110,0,0,0, 0,0,0,0, 110,0,0,0, 0,0,0,0],        // 1 and 3
+  ]).slice());
+  // Cross-stick pattern
+  tracks.rim = emptyDrumTrack();
+  const rimPattern = [0,0,80,0, 0,0,80,0, 0,0,80,0, 0,0,80,0]; // on "e" of each beat
+  for (let i=0; i<DRUM_STEPS; i++) if (rimPattern[i%16]) tracks.rim[i] = D_VEL(rimPattern[i%16], 10);
+  // Shaker — constant 16ths
+  tracks.shaker = emptyDrumTrack();
+  for (let i=0; i<DRUM_STEPS; i++) tracks.shaker[i] = D_VEL(45, 10);
+  // Hat — syncopated
+  tracks.hatC = emptyDrumTrack();
+  const hatPat = [70,0,0,55, 0,70,0,0, 55,0,70,0, 0,55,0,70];
+  for (let i=0; i<DRUM_STEPS; i++) if (hatPat[i%16]) tracks.hatC[i] = D_VEL(hatPat[i%16], 12);
+  tracks.snare = emptyDrumTrack();
+  // Ghost snares for texture
+  sprinkleGhosts(tracks.snare, 0.08, 28);
   return tracks;
 }
 
@@ -2039,9 +2484,19 @@ const DRUM_GENRES = {
   detroit:         { label:"Detroit",             bpm:92,  generate: genDetroit        },
   memphis:         { label:"Memphis/Phonk",       bpm:75,  generate: genMemphisPhonk   },
   drill:           { label:"Drill",               bpm:140, generate: genDrill          },
+  neosoul:         { label:"Neo-Soul",            bpm:88,  generate: genNeoSoul        },
+  house:           { label:"House",               bpm:124, generate: genHouse          },
+  techno:          { label:"Techno",              bpm:130, generate: genTechno         },
+  afrobeat:        { label:"Afrobeat",            bpm:110, generate: genAfrobeat       },
+  ukgarage:        { label:"UK Garage",           bpm:132, generate: genUKGarage       },
+  reggaeton:       { label:"Reggaeton",           bpm:95,  generate: genReggaeton      },
+  jungle:          { label:"Jungle/DnB",          bpm:170, generate: genJungle         },
+  brokenbeat:      { label:"Broken Beat",         bpm:120, generate: genBrokenBeat     },
+  samba:           { label:"Samba/Bossa",         bpm:100, generate: genSamba          },
+  minimal:         { label:"Minimal",             bpm:85,  generate: genMinimal        },
   experimental:    { label:"Eksperimentell",      bpm:88,  generate: genExperimental   },
+  halftime:        { label:"Halftime",            bpm:75,  generate: genHalftime       },
   drumless:        { label:"Drumless",            bpm:88,  generate: genDrumless       },
-  halftime:        { label:"Halftime",             bpm:75,  generate: genHalftime       },
 };
 
 // ── Drum Fill Generators ──
@@ -2436,47 +2891,179 @@ const FILL_PATTERNS = {
     }),
   ],
   halftime: [
-    // 1: Slow spacious snare with toms
     () => ({
       snare: [0,0,0,0, 0,0,0,0, FV(85),0,0,0, FV(95),0,FV(105),FV(110)],
       kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
       tom: [0,0,0,0, FV(80),0,0,0, 0,0,FV(70),0, 0,0,0,0],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
-    // 2: Deep tom descent
     () => ({
       tom: [0,0,0,0, FV(90),0,0,0, FV(85),0,0,0, FV(80),0,FV(75),0],
       snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
       kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(105)],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
-    // 3: Kick and snare dialogue
     () => ({
       snare: [0,0,0,0, 0,0,0,0, FV(90),0,0,0, 0,0,FV(105),FV(112)],
       kick: [FV(100),0,0,0, FV(90),0,0,0, 0,0,FV(85),0, FV(95),0,0,0],
       tom: [0,0,FV(70),0, 0,0,FV(65),0, 0,0,0,0, 0,0,0,0],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
-    // 4: Spacious crash buildup
     () => ({
       snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(95),0,FV(108),FV(115)],
       kick: [FV(100),0,0,0, 0,0,0,0, FV(90),0,0,0, 0,0,0,0],
       tom: [0,0,0,0, FV(75),0,0,FV(70), 0,0,FV(65),0, 0,0,0,0],
-      crash: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
-    // 5: Minimal kick march
+  ],
+  // ── New genre fills ──
+  neosoul: [
     () => ({
-      kick: [FV(100),0,0,0, 0,0,FV(90),0, 0,0,0,0, FV(95),0,0,FV(105)],
-      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(100),0,FV(110)],
-      tom: [0,0,0,0, 0,0,0,0, FV(75),0,FV(70),0, 0,0,0,0],
+      snare: [0,0,0,0, 0,FV(80,10),0,0, FV(85,10),0,0,FV(80,10), 0,FV(90,10),FV(95,10),FV(100,10)],
+      kick: [FV(95,10),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(90,10)],
+      ghost: [0,FV(30,8),FV(25,8),0, FV(30,8),0,FV(28,8),FV(25,8), 0,FV(30,8),0,0, FV(35,8),0,0,0],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
-    // 6: Tom roll into crash
     () => ({
-      tom: [0,0,0,0, 0,0,0,0, FV(80),0,FV(85),0, FV(90),FV(90),FV(95),FV(100)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(90,10),0,FV(95,10),FV(100,10)],
+      kick: [FV(90,10),0,0,0, 0,0,FV(80,10),0, 0,0,0,0, 0,0,0,0],
+      ghost: [0,FV(28,6),0,FV(25,6), 0,FV(30,6),0,FV(25,6), FV(28,6),FV(25,6),FV(30,6),FV(28,6), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      rim: [0,0,FV(65,10),0, FV(70,10),0,0,FV(60,10), 0,FV(65,10),0,0, FV(70,10),0,FV(75,10),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(95,10),FV(100,10),FV(105,10)],
+      kick: [FV(90,10),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(90,10)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  house: [
+    () => ({
+      snare: [0,0,0,0, FV(100),0,FV(95),0, FV(100),FV(100),FV(105),FV(105), FV(108),FV(110),FV(112),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatO: [0,0,FV(80),0, 0,0,FV(85),0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      hatC: [FV(80),FV(80),FV(85),FV(85), FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(110),FV(110),FV(115),0],
+      kick: [FV(110),0,0,0, FV(110),0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    () => ({
+      hatO: [0,0,FV(75),0, 0,FV(80),0,0, FV(85),0,0,FV(90), 0,FV(95),0,FV(100)],
+      kick: [FV(115),0,0,0, 0,0,0,0, FV(110),0,0,0, 0,0,0,FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),FV(108),FV(112),FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  techno: [
+    () => ({
+      kick: [FV(120),0,FV(100),0, FV(110),0,FV(100),0, FV(115),0,FV(105),0, FV(120),FV(110),FV(115),FV(120)],
       snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
-      kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      hatC: [FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(108),FV(108),FV(112),FV(112), FV(115),FV(115),FV(118),FV(120)],
+      kick: [FV(120),0,0,0, 0,0,0,0, FV(115),0,0,0, 0,0,0,FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(110),0,FV(115),FV(120)],
+    }),
+    () => ({
+      perc: [FV(80),FV(85),FV(90),FV(95), FV(100),FV(100),FV(105),FV(105), FV(108),FV(110),FV(112),FV(115), FV(118),FV(118),FV(120),FV(120)],
+      kick: [FV(120),0,0,0, FV(115),0,0,0, 0,0,0,0, 0,0,0,FV(120)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  afrobeat: [
+    () => ({
+      perc: [FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(108),FV(108),FV(110),FV(110), FV(115),FV(115),FV(118),FV(120)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),0,FV(110),FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      snare: [0,0,FV(90),0, FV(95),0,0,FV(90), 0,FV(100),0,0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,FV(100),0, FV(105),0,0,0, 0,0,0,FV(110)],
+      perc: [0,FV(70),0,FV(75), 0,FV(70),0,0, 0,0,FV(75),FV(70), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  ukgarage: [
+    () => ({
+      snare: [0,0,FV(85),0, 0,FV(90),0,0, FV(95),0,0,FV(100), 0,FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,FV(95), 0,0,0,0, 0,0,0,FV(110)],
+      hatO: [0,0,0,0, 0,0,FV(80),0, 0,0,0,0, 0,0,FV(85),0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      hatC: [FV(80),0,FV(85),FV(80), 0,FV(90),FV(85),0, FV(95),FV(90),0,FV(100), FV(105),FV(108),FV(112),FV(118)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,FV(100),0, 0,0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,FV(100), 0,0,0,FV(110)],
+    }),
+  ],
+  reggaeton: [
+    () => ({
+      snare: [0,0,0,0, FV(95),FV(80),FV(90),FV(80), FV(95),FV(85),FV(100),FV(90), FV(105),FV(100),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,FV(100), 0,0,0,0, 0,0,0,FV(110)],
+      rim: [0,0,FV(80),0, 0,0,0,0, 0,0,FV(85),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      rim: [FV(80),FV(75),FV(85),FV(80), FV(90),FV(85),FV(95),FV(90), FV(100),FV(95),FV(105),FV(100), FV(110),FV(108),FV(115),FV(118)],
+      kick: [FV(115),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(110),0,FV(115),FV(120)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  jungle: [
+    () => ({
+      snare: [0,0,FV(90),0, FV(100),0,FV(95),FV(85), FV(100),FV(90),FV(95),0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(115),0,0,0, 0,0,0,0, 0,0,FV(105),0, 0,0,0,FV(115)],
+      ghost: [0,FV(35),0,FV(30), 0,FV(35),0,0, 0,0,0,FV(30), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      hatC: [FV(95),FV(95),FV(100),FV(100), FV(105),FV(105),FV(108),FV(108), FV(110),FV(110),FV(112),FV(112), FV(115),FV(115),FV(118),FV(120)],
+      snare: [0,0,0,0, FV(100),0,0,0, 0,0,0,0, FV(105),0,FV(110),FV(118)],
+      kick: [FV(115),0,0,0, 0,0,0,FV(100), 0,0,0,0, 0,0,0,FV(115)],
+    }),
+  ],
+  brokenbeat: [
+    () => ({
+      snare: [0,0,0,0, 0,FV(90),0,0, FV(95),0,0,FV(90), 0,FV(100),FV(105),FV(110)],
+      kick: [FV(105),0,0,0, 0,0,FV(90),0, 0,0,0,0, FV(100),0,0,FV(105)],
+      ghost: [0,FV(30),FV(28),0, FV(32),0,0,FV(28), 0,FV(30),0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      snare: [0,0,FV(85),0, 0,0,FV(90),0, 0,FV(95),0,0, FV(100),FV(105),FV(108),FV(112)],
+      kick: [FV(105),0,0,FV(90), 0,0,0,0, 0,0,0,FV(95), 0,0,0,FV(105)],
+      hatO: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,FV(75),0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  samba: [
+    () => ({
+      rim: [FV(80),FV(75),FV(85),FV(80), FV(90),FV(85),FV(95),FV(90), FV(100),FV(95),FV(105),FV(100), FV(110),FV(108),FV(115),FV(118)],
+      kick: [FV(100),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,FV(100)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(100),FV(105),FV(110),FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      shaker: [FV(60),FV(55),FV(65),FV(60), FV(70),FV(65),FV(75),FV(70), FV(80),FV(75),FV(85),FV(80), FV(90),FV(85),FV(95),FV(100)],
+      kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(105)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(100),FV(108),FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+  ],
+  minimal: [
+    () => ({
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, FV(95),0,0,FV(100)],
+      rim: [0,0,0,0, 0,0,0,0, 0,0,FV(65),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(100)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
       hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
     }),
   ],
@@ -7951,19 +8538,27 @@ export default function App() {
                       q==="m7b5"?"m7b5": q==="maj9"?"maj9":
                       q==="m9"?"m9": q==="9"?"9":
                       q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
-                    const embellishIdx = Math.random() < 0.7 ? -1 : Math.floor(Math.random() * pick.degrees.length);
-                    const EMBELLISH_POOL = ["7","7","sus4","sus2","5"];
+                    // Embellishment: each chord independently has a chance to get extensions
+                    // Probability increases with complexity preference
+                    const complexityRoll = Math.random(); // 0–1
+                    const embellishChance = complexityRoll < 0.25 ? 0.0   // 25%: all triads (basic)
+                                          : complexityRoll < 0.50 ? 0.3   // 25%: some 7ths
+                                          : complexityRoll < 0.75 ? 0.55  // 25%: many 7ths/9ths
+                                          :                         0.8;  // 25%: rich — most chords extended
                     const cs = pick.degrees.map((d, idx) => {
                       const i = d % 7;
                       const noteIdx = (rootIdx + scaleObj.intervals[i]) % 12;
                       const baseQ   = scaleObj.qualities[i];
                       let quality = baseQ;
-                      if (idx === embellishIdx && baseQ !== "dim") {
-                        const v = EMBELLISH_POOL[Math.floor(Math.random()*EMBELLISH_POOL.length)];
-                        if      (v==="7")    quality = seventhList[i];
-                        else if (v==="sus4") quality = "sus4";
-                        else if (v==="sus2") quality = "sus2";
-                        else if (v==="5")    quality = "5";
+                      if (baseQ !== "dim" && Math.random() < embellishChance) {
+                        // Weighted pool: 7ths most common, then 9ths, then color chords
+                        const roll = Math.random();
+                        if (roll < 0.45)      quality = seventhList[i];      // 7th (maj7, m7, 7)
+                        else if (roll < 0.70) quality = ninthList[i];        // 9th (maj9, m9, 9)
+                        else if (roll < 0.80) quality = "sus4";
+                        else if (roll < 0.88) quality = "sus2";
+                        else if (roll < 0.94) quality = "5";                 // power chord
+                        else                  quality = baseQ === "min" ? "m7" : "maj7"; // safe fallback
                       }
                       return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
                     });
