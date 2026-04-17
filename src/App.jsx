@@ -9161,6 +9161,13 @@ export default function App() {
                       background:"transparent", color: timelineItems.length > 0 && timelineItems.length <= 8 ? "rgba(0,0,0,0.50)" : "rgba(0,0,0,0.20)", cursor: timelineItems.length > 0 && timelineItems.length <= 8 ? "pointer" : "default" }}>
                     x2
                   </button>
+                  <div style={{ width:1, height:18, background:t.border }} />
+                  <span style={{ fontSize:9, fontWeight:700, color: densityChords < 100 ? "#E5930A" : "rgba(0,0,0,0.40)", textTransform:"uppercase", letterSpacing:"0.06em", fontFamily:SF }}>Density</span>
+                  <input type="range" min={0} max={100} value={densityChords}
+                    onChange={e => { const v = +e.target.value; setDensityChords(v); densityChordsRef.current = v; }}
+                    style={{ width:56, height:14, accentColor: densityChords < 100 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                  <span style={{ fontSize:9, fontFamily:MONO, color: densityChords < 100 ? "#E5930A" : "rgba(0,0,0,0.30)", minWidth:22, textAlign:"right" }}>{densityChords}</span>
+                  <div style={{ width:1, height:18, background:t.border }} />
                   <button onClick={() => {
                     stopLoop();
                     const len = [3,4,4,4][Math.floor(Math.random()*4)];
@@ -9435,15 +9442,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* ═══ ZONE 2: MIXER ═══ */}
+                {/* ═══ ZONE 2: MIXER (mute/solo only — density moved to each instrument) ═══ */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
                   <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
                   {[
-                    { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
-                    { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
-                    { key:"melody", label:"MEL", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0, density:densityMelody, setDensity:setDensityMelody },
-                    { key:"drums",  label:"DRM", muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern, density:densityDrums, setDensity:setDensityDrums },
-                  ].map(({ key, label, muted, setMute, disabled, density, setDensity }) => {
+                    { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false },
+                    { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0 },
+                    { key:"melody", label:"MEL", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0 },
+                    { key:"drums",  label:"DRM", muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern },
+                  ].map(({ key, label, muted, setMute, disabled }) => {
                     const soloThis = () => {
                       const others = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
                       delete others[key];
@@ -9458,7 +9465,6 @@ export default function App() {
                     const others2 = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
                     delete others2[key];
                     const isSolod = !muted && Object.values(others2).every(m => m);
-                    const densActive = density < 100;
                     return (
                       <div key={key} style={{ display:"flex", alignItems:"center", gap:2, padding:"2px 4px 2px 0",
                         borderRight:`1px solid ${t.border}`, marginRight:2 }}>
@@ -9479,11 +9485,6 @@ export default function App() {
                             color: isSolod ? "#E5930A" : "rgba(0,0,0,0.40)", cursor:"pointer" }}>
                           S
                         </button>
-                        <input type="range" min={0} max={100} value={density}
-                          onChange={e => setDensity(Number(e.target.value))}
-                          title={`${key} density: ${density}%`}
-                          style={{ width:56, height:14, accentColor: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                        <span style={{ fontSize:9, fontFamily:MONO, color: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", minWidth:22, textAlign:"right" }}>{density}</span>
                       </div>
                     );
                   })}
@@ -9736,6 +9737,12 @@ export default function App() {
                           <option value="808">808 Bass</option>
                         </select>
                         <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color: densityBass < 100 ? "#E5930A" : t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
+                        <input type="range" min={0} max={100} value={densityBass}
+                          onChange={e => { const v = +e.target.value; setDensityBass(v); densityBassRef.current = v; }}
+                          style={{ width:56, height:14, accentColor: densityBass < 100 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                        <span style={{ fontSize:9, fontFamily:MONO, color: densityBass < 100 ? "#E5930A" : "rgba(0,0,0,0.30)", minWidth:22, textAlign:"right" }}>{densityBass}</span>
+                        <div style={{ width:1, height:18, background:t.border }} />
                         <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setBassOctaveOffset(o => Math.max(-2, o - 1)); }}
                           style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:2,
@@ -9859,6 +9866,12 @@ export default function App() {
                           <option value="bell">Bell</option>
                           <option value="pluck">Pluck</option>
                         </select>
+                        <div style={{ width:1, height:18, background:t.border }} />
+                        <span style={{ fontSize:9, fontWeight:700, color: densityMelody < 100 ? "#E5930A" : t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
+                        <input type="range" min={0} max={100} value={densityMelody}
+                          onChange={e => { const v = +e.target.value; setDensityMelody(v); densityMelodyRef.current = v; }}
+                          style={{ width:56, height:14, accentColor: densityMelody < 100 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                        <span style={{ fontSize:9, fontFamily:MONO, color: densityMelody < 100 ? "#E5930A" : "rgba(0,0,0,0.30)", minWidth:22, textAlign:"right" }}>{densityMelody}</span>
                         <div style={{ width:1, height:18, background:t.border }} />
                         <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setMelodyOctaveOffset(o => Math.max(-2, o - 1)); }}
