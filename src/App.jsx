@@ -4038,7 +4038,10 @@ export default function App() {
   useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
-  const [drumDensity,    setDrumDensity]    = useState(100);  // 100 = play all, 0 = silence — applies to all tracks
+  const [densityDrums,   setDensityDrums]   = useState(100);  // 0-100 per element
+  const [densityBass,    setDensityBass]    = useState(100);
+  const [densityMelody,  setDensityMelody]  = useState(100);
+  const [densityChords,  setDensityChords]  = useState(100);
   const [densitySeed,    setDensitySeed]    = useState(1);    // changes each loop → new random pattern
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
@@ -4056,7 +4059,10 @@ export default function App() {
   // Live refs for values read inside scheduling closures
   const drumSwingRef    = useRef(drumSwing);
   const drumHalfTimeRef = useRef(drumHalfTime);
-  const drumDensityRef  = useRef(drumDensity);
+  const densityDrumsRef  = useRef(densityDrums);
+  const densityBassRef   = useRef(densityBass);
+  const densityMelodyRef = useRef(densityMelody);
+  const densityChordsRef = useRef(densityChords);
   const densitySeedRef  = useRef(densitySeed);
   const soloTrackRef    = useRef(soloTrack);
   const mutedTracksRef  = useRef(mutedTracks);
@@ -4081,7 +4087,10 @@ export default function App() {
   // Keep refs in sync with state for live scheduling reads
   useEffect(() => { drumSwingRef.current = drumSwing; }, [drumSwing]);
   useEffect(() => { drumHalfTimeRef.current = drumHalfTime; }, [drumHalfTime]);
-  useEffect(() => { drumDensityRef.current = drumDensity; }, [drumDensity]);
+  useEffect(() => { densityDrumsRef.current = densityDrums; }, [densityDrums]);
+  useEffect(() => { densityBassRef.current = densityBass; }, [densityBass]);
+  useEffect(() => { densityMelodyRef.current = densityMelody; }, [densityMelody]);
+  useEffect(() => { densityChordsRef.current = densityChords; }, [densityChords]);
   useEffect(() => { densitySeedRef.current = densitySeed; }, [densitySeed]);
   useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
   useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
@@ -4683,7 +4692,7 @@ export default function App() {
         let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
         if (noteNames.length === 0) return; // all muted, skip this chord
         // Density: thin chord voicing — deterministic (matches visual)
-        const density = drumDensityRef.current;
+        const density = densityChordsRef.current;
         const seed = densitySeedRef.current;
         if (density < 100 && noteNames.length > 1) {
           const total = noteNames.length;
@@ -4830,7 +4839,7 @@ export default function App() {
             if (vel <= 0) return;
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
             // Density filter — deterministic (matches visual grid)
-            const density = drumDensityRef.current;
+            const density = densityDrumsRef.current;
             const seed = densitySeedRef.current;
             if (!densityPass(seed, track.id, step, density, drumImportance(track.id, step))) return;
             const { tMs: hzT, vScale: hzV } = hz();
@@ -4855,7 +4864,7 @@ export default function App() {
         bassLine.forEach((note, nIdx) => {
           if (note.muted) return;
           // Density: skip bass notes — deterministic (matches visual)
-          const density = drumDensityRef.current;
+          const density = densityBassRef.current;
           const seed = densitySeedRef.current;
           if (!densityPass(seed, "bass", note.startSlot, density, bassImportance(note.startSlot, note.lengthSlots))) return;
           const { tMs: hzT, vScale: hzV } = hz();
@@ -4884,7 +4893,7 @@ export default function App() {
         melodyLine.forEach(note => {
           if (note.muted) return;
           // Density: skip melody notes — deterministic (matches visual)
-          const density = drumDensityRef.current;
+          const density = densityMelodyRef.current;
           const seed = densitySeedRef.current;
           if (!densityPass(seed, "melody", note.startSlot, density, melodyImportance(note.startSlot, note.lengthSlots, note.velocity))) return;
           const { tMs: hzT, vScale: hzV } = hz();
@@ -5029,7 +5038,7 @@ export default function App() {
           sec.timelineItems.forEach(item => {
             let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
             // Density: thin chord voicing — deterministic
-            const density = drumDensityRef.current;
+            const density = densityChordsRef.current;
             const seed = densitySeedRef.current;
             if (density < 100 && noteNames.length > 1) {
               const total = noteNames.length;
@@ -5074,7 +5083,7 @@ export default function App() {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
-            const density = drumDensityRef.current;
+            const density = densityBassRef.current;
             const seed = densitySeedRef.current;
             if (!densityPass(seed, "bass", note.startSlot, density, bassImportance(note.startSlot, note.lengthSlots))) return;
             const { tMs: ht, vScale: hv } = hzA();
@@ -5099,7 +5108,7 @@ export default function App() {
           const cpatMelVelA = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
-            const density = drumDensityRef.current;
+            const density = densityMelodyRef.current;
             const seed = densitySeedRef.current;
             if (!densityPass(seed, "melody", note.startSlot, density, melodyImportance(note.startSlot, note.lengthSlots, note.velocity))) return;
             const { tMs: ht, vScale: hv } = hzA();
@@ -5128,7 +5137,7 @@ export default function App() {
             steps.forEach((vel, step) => {
               if (vel === 0) return;
               // Density filter — deterministic (matches visual)
-              const density = drumDensityRef.current;
+              const density = densityDrumsRef.current;
               const seed = densitySeedRef.current;
               if (!densityPass(seed, track.id, step, density, drumImportance(track.id, step))) return;
               const { tMs: ht, vScale: hv } = hzA();
@@ -5180,7 +5189,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, drumDensity, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
+  }, [drumSwing, drumHalfTime, densityDrums, densityBass, densityMelody, densityChords, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
 
   return (
     <>
@@ -5608,13 +5617,13 @@ export default function App() {
                 </div>
                 {/* Swing + Half-tempo + Favorites row */}
                 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center", marginTop:10 }}>
-                  {/* Density */}
+                  {/* Drum Density */}
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
-                    <input type="range" min={0} max={100} value={drumDensity}
-                      onChange={e => setDrumDensity(Number(e.target.value))}
-                      style={{ width:100, accentColor: drumDensity < 100 ? "#FF9F0A" : t.accent }} />
-                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color: drumDensity < 100 ? "#FF9F0A" : t.textTertiary, minWidth:30 }}>{drumDensity}%</span>
+                    <input type="range" min={0} max={100} value={densityDrums}
+                      onChange={e => setDensityDrums(Number(e.target.value))}
+                      style={{ width:100, accentColor: densityDrums < 100 ? "#FF9F0A" : t.accent }} />
+                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color: densityDrums < 100 ? "#FF9F0A" : t.textTertiary, minWidth:30 }}>{densityDrums}%</span>
                   </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   {/* Swing */}
@@ -5733,8 +5742,8 @@ export default function App() {
                             const isOddStep = step % 2 === 1;
                             const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 6) : 0;
                             // Density visual: is this hit removed?
-                            const densityRemoved = vel > 0 && drumDensity < 100 &&
-                              !densityPass(densitySeed, track.id, step, drumDensity, drumImportance(track.id, step));
+                            const densityRemoved = vel > 0 && densityDrums < 100 &&
+                              !densityPass(densitySeed, track.id, step, densityDrums, drumImportance(track.id, step));
                             return (
                               <div key={step}
                                 onClick={() => toggleDrumStep(track.id, step)}
@@ -6239,8 +6248,8 @@ export default function App() {
                             // Density: find this note's index within its chord for deterministic hash
                             const sameChordNotes = pianoRollNotes.filter(n => n.chordId === note.chordId && !n.muted);
                             const idxInChord = sameChordNotes.findIndex(n => n.key === note.key);
-                            const densRemoved = drumDensity < 100 && idxInChord > 0 &&
-                              !densityPass(densitySeed, "chord", note.startSlot * 100 + idxInChord, drumDensity, chordNoteImportance(idxInChord, sameChordNotes.length));
+                            const densRemoved = densityChords < 100 && idxInChord > 0 &&
+                              !densityPass(densitySeed, "chord", note.startSlot * 100 + idxInChord, densityChords, chordNoteImportance(idxInChord, sameChordNotes.length));
                             return (
                               <div key={note.key}
                                 onClick={() => {
@@ -6399,7 +6408,7 @@ export default function App() {
                             const midiRange = bassLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
                             const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
-                            const densRemoved = drumDensity < 100 && !densityPass(densitySeed, "bass", note.startSlot, drumDensity, bassImportance(note.startSlot, note.lengthSlots));
+                            const densRemoved = densityBass < 100 && !densityPass(densitySeed, "bass", note.startSlot, densityBass, bassImportance(note.startSlot, note.lengthSlots));
                             return (
                               <div key={i}
                                 onDoubleClick={() => setBassLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
@@ -6509,7 +6518,7 @@ export default function App() {
                             const midiRange = melodyLine.reduce((acc, n) => ({ lo: Math.min(acc.lo, n.midi), hi: Math.max(acc.hi, n.midi) }), { lo: 127, hi: 0 });
                             const range = Math.max(1, midiRange.hi - midiRange.lo);
                             const yPct = 1 - (note.midi - midiRange.lo) / range;
-                            const densRemoved = drumDensity < 100 && !densityPass(densitySeed, "melody", note.startSlot, drumDensity, melodyImportance(note.startSlot, note.lengthSlots, note.velocity));
+                            const densRemoved = densityMelody < 100 && !densityPass(densitySeed, "melody", note.startSlot, densityMelody, melodyImportance(note.startSlot, note.lengthSlots, note.velocity));
                             return (
                               <div key={i}
                                 onDoubleClick={() => setMelodyLine(prev => prev.map((n,j) => j===i ? {...n, muted:true} : n))}
@@ -6652,15 +6661,14 @@ export default function App() {
                       cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
                     {looping ? "⬛ Stop" : "▶  Play"}
                   </button>
-                  {/* Mute/Solo toggles — click to mute, Shift+click (or S button) to solo */}
+                  {/* Mute/Solo/Density per element */}
                   {[
-                    { key:"chords", label:"Chords", muted:muteChords, setMute:setMuteChords, disabled:false },
-                    { key:"bass",   label:"Bass",   muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0 },
-                    { key:"melody", label:"Melody", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0 },
-                    { key:"drums",  label:"Drums",  muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern },
-                  ].map(({ key, label, muted, setMute, disabled }) => {
+                    { key:"chords", label:"Chords", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
+                    { key:"bass",   label:"Bass",   muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
+                    { key:"melody", label:"Melody", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0, density:densityMelody, setDensity:setDensityMelody },
+                    { key:"drums",  label:"Drums",  muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern, density:densityDrums, setDensity:setDensityDrums },
+                  ].map(({ key, label, muted, setMute, disabled, density, setDensity }) => {
                     const soloThis = () => {
-                      // If already solo'd (this unmuted, all others muted), unsolo all
                       const others = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
                       delete others[key];
                       const isSolo = !muted && Object.values(others).every(m => m);
@@ -6674,10 +6682,11 @@ export default function App() {
                     const others2 = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
                     delete others2[key];
                     const isSolod = !muted && Object.values(others2).every(m => m);
+                    const densActive = density < 100;
                     return (
-                      <div key={key} style={{ display:"flex", gap:2 }}>
+                      <div key={key} style={{ display:"flex", alignItems:"center", gap:2 }}>
                         <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
-                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 12px", borderRadius:"8px 0 0 8px",
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 10px", borderRadius:"8px 0 0 8px",
                             border:`1px solid ${muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.border : t.btnBorder}`,
                             background: muted ? "rgba(255,69,58,0.1)" : isSolod ? "rgba(255,214,10,0.1)" : t.btnBg,
                             color: muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.textTertiary : t.btnColor,
@@ -6694,6 +6703,11 @@ export default function App() {
                             cursor:"pointer", transition:"all 0.12s", minWidth:22 }}>
                           S
                         </button>
+                        <input type="range" min={0} max={100} value={density}
+                          onChange={e => setDensity(Number(e.target.value))}
+                          title={`${label} density: ${density}%`}
+                          style={{ width:48, height:16, accentColor: densActive ? "#FF9F0A" : t.accent, cursor:"pointer", marginLeft:2 }} />
+                        {densActive && <span style={{ fontSize:9, fontFamily:"'Share Tech Mono',monospace", color:"#FF9F0A", minWidth:22 }}>{density}%</span>}
                       </div>
                     );
                   })}
@@ -6707,16 +6721,6 @@ export default function App() {
                     <input type="range" min={0} max={100} value={humanize}
                       onChange={e => setHumanize(Number(e.target.value))}
                       style={{ width:72, accentColor:t.accent, cursor:"pointer" }} />
-                  </div>
-                  {/* Density slider */}
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ fontSize:10, fontWeight:600, color: drumDensity < 100 ? "#FF9F0A" : t.labelColor, textTransform:"uppercase",
-                      letterSpacing:"0.06em", fontFamily:SF, whiteSpace:"nowrap" }}>
-                      Density {drumDensity < 100 ? `${drumDensity}%` : ""}
-                    </span>
-                    <input type="range" min={0} max={100} value={drumDensity}
-                      onChange={e => setDrumDensity(Number(e.target.value))}
-                      style={{ width:72, accentColor: drumDensity < 100 ? "#FF9F0A" : t.accent, cursor:"pointer" }} />
                   </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
