@@ -5124,6 +5124,7 @@ export default function App() {
   useEffect(() => {
     const onMouseMove = (e) => {
       if (!dragRef.current || !trackRef.current) return;
+      dragRef.current.didDrag = true;
       const rect = trackRef.current.getBoundingClientRect();
       const slotW = rect.width / TIMELINE_SLOTS;
       const dSlots = Math.round((e.clientX - dragRef.current.startX) / slotW);
@@ -5131,17 +5132,43 @@ export default function App() {
       if (type === "move") {
         const ns = Math.max(0, Math.min(TIMELINE_SLOTS - origLength, origStart + dSlots));
         setDragGhost({ id, slot: ns });
-        setTimelineItems(prev => resolveOverlaps(prev, id, ns));
+        // Don't update timelineItems during drag — visual preview only via dragGhost
       } else {
-        // Resize — keep existing behavior (don't push, just clamp)
-        setTimelineItems(prev => prev.map(item => {
-          if (item.id !== id) return item;
-          const nl = Math.max(1, Math.min(TIMELINE_SLOTS - item.startSlot, origLength + dSlots));
-          return isSlotFree(prev, item.startSlot, nl, id) ? { ...item, lengthSlots: nl } : item;
-        }));
+        // Resize — visual preview only via dragGhost
+        const nl = Math.max(1, Math.min(TIMELINE_SLOTS - origStart, origLength + dSlots));
+        setDragGhost({ id, slot: origStart, resizeLen: nl });
       }
     };
-    const onMouseUp = () => { dragRef.current = null; setDragGhost(null); };
+    const onMouseUp = () => {
+      if (!dragRef.current) return;
+      const { type, id, origStart, origLength, didDrag } = dragRef.current;
+      if (didDrag && trackRef.current) {
+        if (type === "move") {
+          // Commit move with overlap resolution
+          setDragGhost(prev => {
+            if (prev && prev.id === id) {
+              setTimelineItems(items => resolveOverlaps(items, id, prev.slot));
+            }
+            return null;
+          });
+        } else {
+          // Commit resize
+          setDragGhost(prev => {
+            if (prev && prev.id === id && prev.resizeLen != null) {
+              setTimelineItems(items => items.map(item => {
+                if (item.id !== id) return item;
+                const nl = prev.resizeLen;
+                return isSlotFree(items, item.startSlot, nl, id) ? { ...item, lengthSlots: nl } : item;
+              }));
+            }
+            return null;
+          });
+        }
+      } else {
+        setDragGhost(null);
+      }
+      dragRef.current = null;
+    };
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup",   onMouseUp);
     return () => { document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", onMouseUp); };
@@ -6752,12 +6779,52 @@ export default function App() {
                       const isSustained = chordPlayPattern === "sustained";
                       const itemMutes = chordRhythmMutes[item.id] || {};
                       const isDragging = dragGhost && dragGhost.id === item.id;
+                      // Use ghost position/size during drag for visual preview
+                      const displaySlot = isDragging ? dragGhost.slot : item.startSlot;
+                      const displayLen = (isDragging && dragGhost.resizeLen != null) ? dragGhost.resizeLen : item.lengthSlots;
 
                       return (
                       <div key={item.id}
-                        onMouseDown={e => { if(e.target.dataset.resize || e.target.dataset.rhythmhit) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                        onMouseDown={e => {
+                          // Don't interfere with delete buttons
+                          if (e.target.tagName === "BUTTON") return;
+                          e.preventDefault();
+                          // Detect resize zone: last 12px of the block's right edge
+                          const blockRect = e.currentTarget.getBoundingClientRect();
+                          const distFromRight = blockRect.right - e.clientX;
+                          const isResize = distFromRight < 12;
+                          dragRef.current = {
+                            type: isResize ? "resize" : "move",
+                            id: item.id,
+                            startX: e.clientX,
+                            origStart: item.startSlot,
+                            origLength: item.lengthSlots,
+                            didDrag: false,
+                          };
+                        }}
+                        onClick={e => {
+                          // Single click without drag in rhythm mode: toggle hit mute
+                          if (isSustained) return;
+                          if (dragRef.current && dragRef.current.didDrag) return;
+                          if (e.target.tagName === "BUTTON") return;
+                          // Determine which hit was clicked based on position
+                          const blockRect = e.currentTarget.getBoundingClientRect();
+                          const relX = (e.clientX - blockRect.left) / blockRect.width;
+                          for (let hIdx = 0; hIdx < hits.length; hIdx++) {
+                            const h = hits[hIdx];
+                            if (relX >= h.offset && relX <= h.offset + h.duration) {
+                              setChordRhythmMutes(prev => {
+                                const cur = prev[item.id] || {};
+                                const next = { ...cur };
+                                if (next[hIdx]) delete next[hIdx];
+                                else next[hIdx] = true;
+                                return { ...prev, [item.id]: next };
+                              });
+                              break;
+                            }
+                          }
+                        }}
                         onDoubleClick={e => {
-                          if (e.target.dataset.rhythmhit) return;
                           e.preventDefault(); e.stopPropagation();
                           dragRef.current = null;
                           setTimelineItems(prev => {
@@ -6772,8 +6839,8 @@ export default function App() {
                         }}
                         style={{
                           position:"absolute",
-                          left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
-                          width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
+                          left:`${(displaySlot/TIMELINE_SLOTS)*100}%`,
+                          width:`calc(${(displayLen/TIMELINE_SLOTS)*100}% - 4px)`,
                           top:6, height:"calc(100% - 12px)",
                           background: isSustained ? t.accentCardBg : "transparent",
                           border: isSustained ? `1px solid ${t.accentBorder}` : "none",
@@ -6782,20 +6849,21 @@ export default function App() {
                           zIndex: isDragging ? 10 : 1,
                           opacity: isDragging ? 0.92 : 1,
                           boxShadow: isDragging ? "0 2px 12px rgba(0,0,0,0.18)" : "none",
-                          transition: isDragging ? "none" : "left 0.12s ease-out, box-shadow 0.15s",
+                          transition: isDragging ? "none" : "left 0.12s ease-out, width 0.12s ease-out, box-shadow 0.15s",
                         }}>
                         {/* Sustained mode — original look */}
                         {isSustained && (
                           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", height:"100%", padding:"0 4px 0 8px" }}>
-                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em", pointerEvents:"none" }}>
                               {item.chord.display}
                             </span>
                             <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
                               <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
                                 style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
-                              <div data-resize="1"
-                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
+                              {/* Visual resize indicator — actual resize detected by parent mousedown via edge proximity */}
+                              <div style={{ width:12, height:24, borderRadius:2, background:"rgba(255,255,255,0.08)", cursor:"ew-resize", flexShrink:0, pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <div style={{ width:3, height:14, borderLeft:"1px solid rgba(255,255,255,0.25)", borderRight:"1px solid rgba(255,255,255,0.25)" }} />
+                              </div>
                             </div>
                           </div>
                         )}
@@ -6806,24 +6874,13 @@ export default function App() {
                             <span style={{ position:"absolute", top:1, left:4, fontSize:9, fontWeight:700, color:t.accent, fontFamily:SF, opacity:0.7, zIndex:2, pointerEvents:"none" }}>
                               {item.chord.display}
                             </span>
-                            {/* Hit sub-blocks */}
+                            {/* Hit sub-blocks — pointerEvents:none so drag/resize passes through to parent */}
                             {hits.map((hit, hIdx) => {
                               const isMuted = !!itemMutes[hIdx];
                               const leftPct = hit.offset * 100;
                               const widthPct = Math.max(hit.duration * 100, 2); // min 2% so it's visible
                               return (
                                 <div key={hIdx}
-                                  data-rhythmhit="1"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setChordRhythmMutes(prev => {
-                                      const cur = prev[item.id] || {};
-                                      const next = { ...cur };
-                                      if (next[hIdx]) delete next[hIdx];
-                                      else next[hIdx] = true;
-                                      return { ...prev, [item.id]: next };
-                                    });
-                                  }}
                                   title={isMuted ? `Hit ${hIdx+1} — muted (click to unmute)` : `Hit ${hIdx+1} — vel ${Math.round(hit.velMult*100)}% (click to mute)`}
                                   style={{
                                     position:"absolute",
@@ -6837,20 +6894,20 @@ export default function App() {
                                       ? "1px dashed rgba(128,128,128,0.3)"
                                       : `1px solid rgba(92,124,138,${0.3 + hit.velMult * 0.3})`,
                                     borderRadius:2,
-                                    cursor:"pointer",
+                                    pointerEvents:"none",
                                     transition:"all 0.1s",
                                     boxShadow: "none",
                                   }}
                                 />
                               );
                             })}
-                            {/* Controls: delete + resize handle */}
+                            {/* Controls: delete button + visual resize indicator */}
                             <div style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:1, zIndex:3 }}>
                               <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
                                 style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
-                              <div data-resize="1"
-                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:5, height:20, borderRadius:2, background:"rgba(92,124,138,0.2)", cursor:"ew-resize", flexShrink:0 }} />
+                              <div style={{ width:12, height:20, borderRadius:2, background:"rgba(92,124,138,0.15)", cursor:"ew-resize", flexShrink:0, pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                <div style={{ width:3, height:12, borderLeft:"1px solid rgba(92,124,138,0.3)", borderRight:"1px solid rgba(92,124,138,0.3)" }} />
+                              </div>
                             </div>
                           </div>
                         )}
