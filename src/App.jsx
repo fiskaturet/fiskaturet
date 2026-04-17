@@ -1200,37 +1200,37 @@ function triggerDrumSynth(trackId, velocity, duration) {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
-  pageBg:"#F0EEF2", cardBg:"#FFFFFF", elevatedBg:"#F6F5F8",
-  textPrimary:"#1C1820", textSecondary:"#6B6674", textTertiary:"#9A93A8",
-  labelColor:"#7A5BAF", border:"rgba(28,24,32,0.08)",
-  inputBorder:"rgba(28,24,32,0.12)", inputBg:"#FFFFFF", inputColor:"#1C1820", colorScheme:"light",
+  pageBg:"#F5F5F3", cardBg:"#FFFFFF", elevatedBg:"#F0F0EE",
+  textPrimary:"#1A1A1A", textSecondary:"#6B6B6B", textTertiary:"#A0A0A0",
+  labelColor:"#1A1A1A", border:"rgba(0,0,0,0.07)",
+  inputBorder:"rgba(0,0,0,0.12)", inputBg:"#FFFFFF", inputColor:"#1A1A1A", colorScheme:"light",
   cardShadow:"none",
-  accent:"#7A5BAF", accentBg:"rgba(122,91,175,0.10)", accentBgHover:"rgba(122,91,175,0.16)",
-  accentBorder:"rgba(122,91,175,0.45)", accentCardBg:"rgba(122,91,175,0.06)", accentCardHover:"rgba(122,91,175,0.12)",
-  degreeColor:"#9A93A8", chordNameColor:"#1C1820", chordCardBg:"#FFFFFF",
+  accent:"#D4351C", accentBg:"rgba(212,53,28,0.08)", accentBgHover:"rgba(212,53,28,0.14)",
+  accentBorder:"rgba(212,53,28,0.40)", accentCardBg:"rgba(212,53,28,0.04)", accentCardHover:"rgba(212,53,28,0.08)",
+  degreeColor:"#A0A0A0", chordNameColor:"#1A1A1A", chordCardBg:"#FFFFFF",
   chordHoverShadow:"none",
-  segBg:"#F0EEF2", segActiveBg:"#FFFFFF", segActiveColor:"#1C1820",
-  segInactiveColor:"#9A93A8", segShadow:"none",
-  pianoRailBg:"#E8E4ED", pianoRailShadow:"none", pianoKeysBg:"#F0EEF2",
-  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(122,91,175,0.14)",
-  whiteKeyHlBg:"#7A5BAF",
-  whiteKeyAllScaleBg:"#7A5BAF",
-  whiteKeyBorder:"rgba(28,24,32,0.12)", whiteKeyLabel:"rgba(28,24,32,0.30)", whiteKeyLabelHl:"#FFFFFF",
-  blackKeyBg:"#2A2530", blackKeyScaleBg:"#7A5BAF",
-  blackKeyHlBg:"#5B3F8A", blackKeyAllScaleBg:"#5B3F8A",
-  legendChord:"#7A5BAF", legendScale:"rgba(122,91,175,0.15)", legendScaleBdr:"rgba(122,91,175,0.35)",
-  slotBg:"#F4F2F6", slotBorder:"rgba(28,24,32,0.06)",
-  tokenBg:"#FFFFFF", tokenBgHover:"rgba(122,91,175,0.10)", tokenBorder:"rgba(122,91,175,0.40)", tokenColor:"#7A5BAF",
-  playActiveBg:"#7A5BAF", playDisabledBg:"rgba(28,24,32,0.06)", playDisabledClr:"rgba(28,24,32,0.25)",
-  btnBg:"transparent", btnColor:"#1C1820", btnBorder:"rgba(28,24,32,0.10)",
-  presetBg:"#FFFFFF", presetColor:"#1C1820",
-  toggleBg:"#FFFFFF", toggleColor:"#1C1820", toggleBorder:"rgba(28,24,32,0.10)",
-  stepBg:"#F6F5F8", stepColor:"#9A93A8",
-  stepWholeBg:"rgba(122,91,175,0.13)", stepWholeColor:"#7A5BAF", stepWholeBorder:"rgba(122,91,175,0.3)",
-  stepHalfBg:"#FFFFFF", stepHalfColor:"#9A93A8", stepHalfBorder:"rgba(28,24,32,0.08)",
-  infoBg:"#F6F5F8", infoBorder:"rgba(28,24,32,0.06)",
-  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(28,24,32,0.12)", modeBtnActiveColor:"#1C1820",
-  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(28,24,32,0.35)",
+  segBg:"#F5F5F3", segActiveBg:"#FFFFFF", segActiveColor:"#1A1A1A",
+  segInactiveColor:"#A0A0A0", segShadow:"none",
+  pianoRailBg:"#E8E8E6", pianoRailShadow:"none", pianoKeysBg:"#F5F5F3",
+  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(212,53,28,0.10)",
+  whiteKeyHlBg:"#D4351C",
+  whiteKeyAllScaleBg:"#D4351C",
+  whiteKeyBorder:"rgba(0,0,0,0.10)", whiteKeyLabel:"rgba(0,0,0,0.28)", whiteKeyLabelHl:"#FFFFFF",
+  blackKeyBg:"#2A2A2A", blackKeyScaleBg:"#D4351C",
+  blackKeyHlBg:"#B02E18", blackKeyAllScaleBg:"#B02E18",
+  legendChord:"#D4351C", legendScale:"rgba(212,53,28,0.10)", legendScaleBdr:"rgba(212,53,28,0.30)",
+  slotBg:"#F0F0EE", slotBorder:"rgba(0,0,0,0.05)",
+  tokenBg:"#FFFFFF", tokenBgHover:"rgba(212,53,28,0.08)", tokenBorder:"rgba(212,53,28,0.35)", tokenColor:"#D4351C",
+  playActiveBg:"#D4351C", playDisabledBg:"rgba(0,0,0,0.05)", playDisabledClr:"rgba(0,0,0,0.22)",
+  btnBg:"transparent", btnColor:"#1A1A1A", btnBorder:"rgba(0,0,0,0.10)",
+  presetBg:"#FFFFFF", presetColor:"#1A1A1A",
+  toggleBg:"#FFFFFF", toggleColor:"#1A1A1A", toggleBorder:"rgba(0,0,0,0.10)",
+  stepBg:"#F0F0EE", stepColor:"#A0A0A0",
+  stepWholeBg:"rgba(212,53,28,0.10)", stepWholeColor:"#D4351C", stepWholeBorder:"rgba(212,53,28,0.25)",
+  stepHalfBg:"#FFFFFF", stepHalfColor:"#A0A0A0", stepHalfBorder:"rgba(0,0,0,0.07)",
+  infoBg:"#F0F0EE", infoBorder:"rgba(0,0,0,0.05)",
+  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(0,0,0,0.10)", modeBtnActiveColor:"#1A1A1A",
+  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(0,0,0,0.35)",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -2306,16 +2306,16 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
               position:"absolute", left:`calc(${k.pos*wkw}% + 1px)`, width:`calc(${wkw}% - 2px)`,
               height:"100%",
               background: hl
-                ? "#7A5BAF"
+                ? "#D4351C"
                 : sc
-                  ? "rgba(122,91,175,0.12)"
+                  ? "rgba(212,53,28,0.12)"
                   : hovered
                     ? "#F8F7FA"
                     : "#FFFFFF",
               border: hl
-                ? "1px solid rgba(122,91,175,0.5)"
+                ? "1px solid rgba(212,53,28,0.5)"
                 : sc
-                  ? "1px solid rgba(122,91,175,0.25)"
+                  ? "1px solid rgba(212,53,28,0.25)"
                   : `1px solid ${t.whiteKeyBorder}`,
               borderTop:"none",
               borderRadius:"0 0 1px 1px", cursor:"pointer",
@@ -2335,9 +2335,9 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
             )}
             <span style={{
               fontSize: 9.5,
-              fontFamily: "'SF Pro Text',-apple-system,system-ui,sans-serif",
+              fontFamily: SF,
               fontWeight: hl ? 700 : isActive ? 550 : 420,
-              color: hl ? "#fff" : sc ? t.accent : "rgba(28,24,32,0.35)",
+              color: hl ? "#fff" : sc ? t.accent : "rgba(0,0,0,0.35)",
               letterSpacing: "0.02em",
               lineHeight: 1,
             }}>
@@ -2358,12 +2358,12 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
             style={{
               position:"absolute", left:`${k.leftPct}%`, width:`${wkw*0.58}%`, height:"62%",
               background: hl
-                ? "#5B3F8A"
+                ? "#B02E18"
                 : sc
-                  ? "#6B4B9A"
+                  ? "#C43018"
                   : hovered
                     ? "#302A38"
-                    : "#2A2530",
+                    : "#2A2A2A",
               borderRadius:"0 0 1px 1px", zIndex:2, cursor:"pointer",
               transition:"all 0.08s",
               display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end",
@@ -2382,7 +2382,7 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
             )}
             <span style={{
               fontSize: 7.5,
-              fontFamily: "'SF Pro Text',-apple-system,system-ui,sans-serif",
+              fontFamily: SF,
               fontWeight: hl ? 700 : sc ? 600 : 450,
               color: hl ? "rgba(255,255,255,0.95)" : sc ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.32)",
               letterSpacing: "0.01em",
@@ -2407,7 +2407,7 @@ function SegmentedControl({ value, options, onChange, t }) {
           padding:"5px 14px", borderRadius:2, border:"none",
           background: value===opt.value ? t.segActiveBg : "transparent",
           boxShadow:  value===opt.value ? t.segShadow : "none",
-          fontFamily:"SF Pro Text,-apple-system,sans-serif", fontSize:13,
+          fontFamily:SF, fontSize:13,
           fontWeight: value===opt.value ? 510 : 400,
           color: value===opt.value ? t.segActiveColor : t.segInactiveColor,
           cursor:"pointer", transition:"all 0.08s", whiteSpace:"nowrap",
@@ -2681,7 +2681,7 @@ function KeyDetector({ t }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const SF2   = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
+  const SF2   = SF;
   const card2 = { background:t.cardBg, border:`1px solid ${t.border}`, padding:"12px 14px", marginBottom:1 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
@@ -3052,7 +3052,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   const wallStartRef  = useRef(0);
   const totalDurRef   = useRef(0);
 
-  const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
+  const SF2 = SF;
   const card2 = { background:t.cardBg, border:`1px solid ${t.border}`, padding:"12px 14px", marginBottom:1 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
@@ -3516,7 +3516,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                   PLAYING
                 </span>
                 {activeEventIdx >= 0 && parsedData?.events?.[activeEventIdx] && (
-                  <span style={{ fontSize:14, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", letterSpacing:"0.06em" }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:t.accent, fontFamily:MONO, letterSpacing:"0.06em" }}>
                     {parsedData.events[activeEventIdx].notes.join(" · ")}
                   </span>
                 )}
@@ -3537,7 +3537,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               return (
                 <div key={idx} style={{
                   padding:"4px 8px", borderRadius:2, fontSize:11, fontWeight:isActive?700:500,
-                  fontFamily:"'Share Tech Mono',monospace",
+                  fontFamily:MONO,
                   background: isActive ? t.accent : isPast ? t.accentBg : t.elevatedBg,
                   color: isActive ? "#FFFFFF" : isPast ? t.accent : t.textSecondary,
                   border: isActive ? `1px solid ${t.accent}` : `1px solid transparent`,
@@ -3570,7 +3570,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
 // ─── Hum-to-Chord Tab ─────────────────────────────────────────────────────────
 
 function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
-  const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
+  const SF2 = SF;
   const [recording, setRecording]   = useState(false);
   const [analyzing, setAnalyzing]   = useState(false);
   const [humBars,   setHumBars]     = useState(4);
@@ -4018,7 +4018,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
           <div style={{ marginBottom:14 }}>
             {/* Bar indicator (fixed mode) or elapsed timer (free mode) */}
             {freeLength ? (
-              <div style={{ fontSize:36, fontWeight:700, color:t.accent, fontFamily:"'Share Tech Mono',monospace", marginBottom:8 }}>
+              <div style={{ fontSize:36, fontWeight:700, color:t.accent, fontFamily:MONO, marginBottom:8 }}>
                 {countdown}s
               </div>
             ) : (
@@ -4047,7 +4047,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               {liveNote ? (
                 <div>
                   <div style={{ fontSize:48, fontWeight:700, color: liveNote.wasAdjusted ? "#FF9500" : "#34C759",
-                    fontFamily:"'Share Tech Mono',monospace", lineHeight:1 }}>
+                    fontFamily:MONO, lineHeight:1 }}>
                     {liveNote.snapped}
                   </div>
                   {liveNote.wasAdjusted && (
@@ -4055,7 +4055,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                       sang {liveNote.raw} → snapped to {liveNote.snapped}
                     </div>
                   )}
-                  <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace" }}>
+                  <div style={{ fontSize:10, color:t.textTertiary, fontFamily:MONO }}>
                     {liveNote.freq} Hz
                   </div>
                 </div>
@@ -4119,7 +4119,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
                             <span style={{ fontSize:11, color:"#FF9500" }}> → {d.snappedName}</span>
                           )}
                         </div>
-                        <div style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", marginBottom:4 }}>
+                        <div style={{ fontSize:10, color:t.textTertiary, fontFamily:MONO, marginBottom:4 }}>
                           {d.freq.toFixed(0)} Hz {d.wasAdjusted ? "(adjusted)" : ""}
                         </div>
                         <div style={{ fontSize:22, fontWeight:700, color:t.accent, fontFamily:SF2 }}>
@@ -4159,7 +4159,8 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
 
 // ─── App ──────────────────────────────────────────────────────────────────────
 
-const SF = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
+const SF = "Inter,-apple-system,system-ui,sans-serif";
+const MONO = "'JetBrains Mono',monospace";
 
 export default function App() {
   const [soundType,    setSoundType]    = useState("rhodes"); // "piano" | "rhodes"
@@ -4623,7 +4624,7 @@ export default function App() {
     marginBottom:1,
   };
   const labelStyle = {
-    fontSize:9, display:"block", marginBottom:4, color:"rgba(28,24,32,0.40)",
+    fontSize:9, display:"block", marginBottom:4, color:"rgba(0,0,0,0.40)",
     fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:SF,
   };
   const selectStyle = {
@@ -5691,7 +5692,7 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+        /* fonts loaded via index.html */
         *{box-sizing:border-box}
         html,body{margin:0;background:${t.pageBg};font-family:${SF}}
         select:focus,button:focus{outline:none}
@@ -5700,9 +5701,9 @@ export default function App() {
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
         ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-track{background:${t.pageBg}}
-        ::-webkit-scrollbar-thumb{background:rgba(28,24,32,0.15);border-radius:0}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(28,24,32,0.25)}
-        .bpm-lcd{font-family:'Share Tech Mono',monospace !important;letter-spacing:0.08em}
+        ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:0}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.25)}
+        .bpm-lcd{font-family:'JetBrains Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
       <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}>
@@ -5710,34 +5711,33 @@ export default function App() {
 
           {/* ── Header ── */}
           <div style={{
-            background:"#7A5BAF",
-            padding:"12px 16px", marginBottom:1,
-            border:"1px solid rgba(122,91,175,0.6)",
+            background:"#FFFFFF",
+            padding:"14px 16px", marginBottom:0,
+            borderBottom:`1px solid rgba(0,0,0,0.07)`,
             display:"flex", justifyContent:"space-between", alignItems:"center",
           }}>
-            <div>
+            <div style={{ display:"flex", alignItems:"baseline", gap:12 }}>
               <h1 style={{
-                fontSize:20, fontWeight:700, letterSpacing:"0.20em",
-                textTransform:"uppercase", color:"#FFFFFF", margin:0,
-                fontFamily:"'Share Tech Mono',monospace",
+                fontSize:16, fontWeight:700, letterSpacing:"0.14em",
+                textTransform:"uppercase", color:"#1A1A1A", margin:0,
+                fontFamily:MONO,
               }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:10, color:"rgba(255,255,255,0.70)", margin:"3px 0 0", fontWeight:600,
-                letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:SF }}>
-                {mode==="detect" ? "Key Detector · Microphone"
-                  : mode==="hum" ? "Hum to Chords · Microphone"
-                  : mode==="sheet" ? "Sheet Music · MusicXML"
-                  : mode==="drums" ? `Drum Pattern · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
-                  : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
+              <p style={{ fontSize:10, color:"#A0A0A0", margin:0, fontWeight:500,
+                letterSpacing:"0.06em", fontFamily:SF }}>
+                {mode==="detect" ? "Key Detector"
+                  : mode==="hum" ? "Hum to Chords"
+                  : mode==="sheet" ? "Sheet Music"
+                  : mode==="drums" ? `Drums · ${DRUM_GENRES[drumGenre]?.label || drumGenre}`
+                  : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scales" : chordType==="9" ? "9ths" : chordType==="7" ? "7ths" : "Triads"}`}
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ width:6, height:6, borderRadius:"50%", background:"#FFFFFF",
-                opacity:0.8 }} />
-              <span style={{ fontSize:9, color:"rgba(255,255,255,0.60)", fontWeight:700,
-                letterSpacing:"0.12em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
-                PWR
+              <div style={{ width:5, height:5, borderRadius:"50%", background: isPlaying ? "#D4351C" : "#A0A0A0" }} />
+              <span style={{ fontSize:9, color:"#A0A0A0", fontWeight:600,
+                letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
+                {isPlaying ? "LIVE" : "IDLE"}
               </span>
             </div>
           </div>
@@ -5758,7 +5758,7 @@ export default function App() {
                 background: mode===m ? "#fff" : "transparent",
                 border: mode===m ? `1px solid ${t.border}` : "1px solid transparent",
                 borderBottom: mode===m ? "1px solid #fff" : `1px solid ${t.border}`,
-                color: mode===m ? t.textPrimary : "rgba(28,24,32,0.35)",
+                color: mode===m ? t.textPrimary : "rgba(0,0,0,0.35)",
                 cursor:"pointer", transition:"all 0.08s",
                 letterSpacing:"0.02em",
               }}>
@@ -6060,15 +6060,15 @@ export default function App() {
           {mode === "drums" && (() => {
             // DAW-style micro-button
             const dawBtn = (active, activeColor = t.accent) => ({
-              fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"1px 4px",
-              border:`1px solid ${active ? activeColor : "rgba(28,24,32,0.10)"}`,
-              background: active ? (activeColor === t.accent ? "rgba(122,91,175,0.12)" : `${activeColor}18`) : "transparent",
-              color: active ? activeColor : "rgba(28,24,32,0.30)", cursor:"pointer", lineHeight:"14px",
+              fontFamily:MONO, fontSize:9, fontWeight:700, padding:"1px 4px",
+              border:`1px solid ${active ? activeColor : "rgba(0,0,0,0.10)"}`,
+              background: active ? (activeColor === t.accent ? "rgba(212,53,28,0.12)" : `${activeColor}18`) : "transparent",
+              color: active ? activeColor : "rgba(0,0,0,0.30)", cursor:"pointer", lineHeight:"14px",
               letterSpacing:"0.04em", borderRadius:1, transition:"all 0.08s",
             });
             const dawToolBtn = (primary) => ({
               fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 12px",
-              border: primary ? "none" : "1px solid rgba(28,24,32,0.12)",
+              border: primary ? "none" : "1px solid rgba(0,0,0,0.12)",
               background: primary ? t.accent : "transparent",
               color: primary ? "#fff" : t.textSecondary,
               cursor:"pointer", borderRadius:2, letterSpacing:"0.02em", transition:"all 0.08s",
@@ -6076,19 +6076,19 @@ export default function App() {
             return (
             <>
               {/* ── Toolbar ── */}
-              <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", marginBottom:1,
+              <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", marginBottom:1,
                 padding:"8px 12px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
                 {/* Genre select */}
                 <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)}
                   style={{ fontFamily:SF, padding:"4px 8px", fontSize:12, fontWeight:500,
-                    border:"1px solid rgba(28,24,32,0.12)", background:"#fff", color:t.textPrimary,
+                    border:"1px solid rgba(0,0,0,0.12)", background:"#fff", color:t.textPrimary,
                     cursor:"pointer", appearance:"auto", borderRadius:2, minWidth:170 }}>
                   {Object.entries(DRUM_GENRES).map(([k,g]) => (
                     <option key={k} value={k}>{g.label} · {g.bpm}</option>
                   ))}
                 </select>
 
-                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+                <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
                 {/* Action buttons */}
                 <button onClick={generateDrumPattern} style={dawToolBtn(true)}>Generate</button>
@@ -6100,38 +6100,38 @@ export default function App() {
                 <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
                   style={{ ...dawToolBtn(true),
                     background: (!drumPattern && timelineItems.length===0 && bassLine.length===0)
-                      ? "rgba(28,24,32,0.06)" : looping ? "#E5484D" : t.accent,
-                    color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "rgba(28,24,32,0.25)" : "#fff",
+                      ? "rgba(0,0,0,0.06)" : looping ? "#E5484D" : t.accent,
+                    color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "rgba(0,0,0,0.25)" : "#fff",
                     cursor: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "default" : "pointer",
                     minWidth:56 }}>
                   {looping ? "Stop" : "Play"}
                 </button>
 
-                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+                <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
                 <button onClick={() => setPadMapperOpen(true)} style={dawToolBtn(false)}>Pad Map</button>
                 <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
                   style={dawToolBtn(false)}>Clear</button>
 
-                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+                <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
                 {/* Loop toggle */}
                 <button onClick={() => setLoopEnabled(e => !e)}
                   style={{ ...dawToolBtn(false),
-                    border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(28,24,32,0.12)"}`,
-                    color: loopEnabled ? "#2B9A3E" : "rgba(28,24,32,0.35)",
+                    border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
+                    color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)",
                     background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                    fontFamily:"'Share Tech Mono',monospace", fontSize:10, padding:"3px 8px" }}>
+                    fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
                   {loopEnabled ? "LOOP" : "1×"}
                 </button>
 
                 {/* Half-time */}
                 <button onClick={() => setDrumHalfTime(h => !h)}
                   style={{ ...dawToolBtn(false),
-                    border:`1px solid ${drumHalfTime ? t.accentBorder : "rgba(28,24,32,0.12)"}`,
-                    color: drumHalfTime ? t.accent : "rgba(28,24,32,0.35)",
-                    background: drumHalfTime ? "rgba(122,91,175,0.08)" : "transparent",
-                    fontFamily:"'Share Tech Mono',monospace", fontSize:10, padding:"3px 8px" }}>
+                    border:`1px solid ${drumHalfTime ? t.accentBorder : "rgba(0,0,0,0.12)"}`,
+                    color: drumHalfTime ? t.accent : "rgba(0,0,0,0.35)",
+                    background: drumHalfTime ? "rgba(212,53,28,0.08)" : "transparent",
+                    fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
                   ½×
                 </button>
 
@@ -6139,18 +6139,18 @@ export default function App() {
 
                 {/* Parameter readouts */}
                 <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Density</span>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Density</span>
                   <input type="range" min={0} max={100} value={densityDrums}
                     onChange={e => setDensityDrums(Number(e.target.value))}
                     style={{ width:64, accentColor: densityDrums < 100 ? "#E5930A" : t.accent, height:2 }} />
-                  <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color: densityDrums < 100 ? "#E5930A" : "rgba(28,24,32,0.35)", minWidth:28, textAlign:"right" }}>{densityDrums}</span>
+                  <span style={{ fontSize:10, fontFamily:MONO, color: densityDrums < 100 ? "#E5930A" : "rgba(0,0,0,0.35)", minWidth:28, textAlign:"right" }}>{densityDrums}</span>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Swing</span>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Swing</span>
                   <input type="range" min={0} max={100} value={drumSwing}
                     onChange={e => setDrumSwing(Number(e.target.value))}
                     style={{ width:64, accentColor:t.accent, height:2 }} />
-                  <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color:"rgba(28,24,32,0.35)", minWidth:28, textAlign:"right" }}>{drumSwing}</span>
+                  <span style={{ fontSize:10, fontFamily:MONO, color:"rgba(0,0,0,0.35)", minWidth:28, textAlign:"right" }}>{drumSwing}</span>
                 </div>
 
                 {/* Favorites */}
@@ -6171,7 +6171,7 @@ export default function App() {
                       if (fav) { stopLoop(); setDrumPattern(JSON.parse(JSON.stringify(fav.pattern))); setDrumGenre(fav.genre); }
                     }}
                     style={{ fontFamily:SF, padding:"3px 6px", fontSize:11, fontWeight:500,
-                      border:"1px solid rgba(28,24,32,0.12)", background:"#fff", color:t.textSecondary,
+                      border:"1px solid rgba(0,0,0,0.12)", background:"#fff", color:t.textSecondary,
                       cursor:"pointer", borderRadius:2, minWidth:120 }}>
                     <option value="" disabled>Favorites ({drumFavorites.length})</option>
                     {drumFavorites.map(f => (
@@ -6183,16 +6183,16 @@ export default function App() {
 
               {/* ── Step Grid ── */}
               {drumPattern && (
-                <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", overflow:"hidden" }}>
+                <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", overflow:"hidden" }}>
                   {/* Bar header */}
-                  <div style={{ display:"grid", gridTemplateColumns:"132px 1fr", borderBottom:"1px solid rgba(28,24,32,0.10)" }}>
-                    <div style={{ padding:"3px 8px", background:"rgba(28,24,32,0.02)" }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
+                  <div style={{ display:"grid", gridTemplateColumns:"132px 1fr", borderBottom:"1px solid rgba(0,0,0,0.10)" }}>
+                    <div style={{ padding:"3px 8px", background:"rgba(0,0,0,0.02)" }}>
+                      <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
                       {Array.from({length:4},(_,i) => (
-                        <div key={i} style={{ padding:"3px 4px", borderLeft:`1px solid rgba(28,24,32,${i>0?"0.10":"0"})`, background:"rgba(28,24,32,0.02)" }}>
-                          <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>{i+1}</span>
+                        <div key={i} style={{ padding:"3px 4px", borderLeft:`1px solid rgba(0,0,0,${i>0?"0.10":"0"})`, background:"rgba(0,0,0,0.02)" }}>
+                          <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO }}>{i+1}</span>
                         </div>
                       ))}
                     </div>
@@ -6209,11 +6209,11 @@ export default function App() {
                     const isEvenRow = trackIdx % 2 === 0;
                     return (
                       <div key={track.id} style={{ display:"grid", gridTemplateColumns:"132px 1fr",
-                        borderBottom:"1px solid rgba(28,24,32,0.05)", opacity: dimmed ? 0.2 : isMuted ? 0.3 : 1, transition:"opacity 0.1s" }}>
+                        borderBottom:"1px solid rgba(0,0,0,0.05)", opacity: dimmed ? 0.2 : isMuted ? 0.3 : 1, transition:"opacity 0.1s" }}>
                         {/* Label + controls */}
                         <div style={{ display:"flex", alignItems:"center", gap:1, padding:"0 4px", height:20,
-                          background: isEvenRow ? "rgba(28,24,32,0.015)" : "transparent",
-                          borderRight:"1px solid rgba(28,24,32,0.08)" }}>
+                          background: isEvenRow ? "rgba(0,0,0,0.015)" : "transparent",
+                          borderRight:"1px solid rgba(0,0,0,0.08)" }}>
                           <button onClick={() => setLockedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                             title={isLocked ? "Unlock" : "Lock"}
                             style={dawBtn(isLocked)}>
@@ -6236,7 +6236,7 @@ export default function App() {
                               3
                             </button>
                           )}
-                          <span style={{ fontSize:10, fontWeight:600, color: hasHits ? "rgba(28,24,32,0.70)" : "rgba(28,24,32,0.28)",
+                          <span style={{ fontSize:10, fontWeight:600, color: hasHits ? "rgba(0,0,0,0.70)" : "rgba(0,0,0,0.28)",
                             fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1,
                             marginLeft:3, letterSpacing:"0.01em" }}>
                             {track.label}
@@ -6244,7 +6244,7 @@ export default function App() {
                         </div>
                         {/* Steps */}
                         <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0,
-                          background: isEvenRow ? "rgba(28,24,32,0.015)" : "transparent" }}>
+                          background: isEvenRow ? "rgba(0,0,0,0.015)" : "transparent" }}>
                           {drumPattern[track.id].map((vel, step) => {
                             const isPlayhead = drumStep === step;
                             const isBeatLine = step > 0 && step % 4 === 0;
@@ -6258,9 +6258,9 @@ export default function App() {
                                 onClick={() => toggleDrumStep(track.id, step)}
                                 style={{
                                   height:20, position:"relative",
-                                  borderLeft: isBarLine ? "1px solid rgba(28,24,32,0.12)" : isBeatLine ? "1px solid rgba(28,24,32,0.05)" : "none",
+                                  borderLeft: isBarLine ? "1px solid rgba(0,0,0,0.12)" : isBeatLine ? "1px solid rgba(0,0,0,0.05)" : "none",
                                   background: isPlayhead && looping
-                                    ? "rgba(122,91,175,0.18)"
+                                    ? "rgba(212,53,28,0.18)"
                                     : "transparent",
                                   cursor:"pointer",
                                 }}>
@@ -6269,9 +6269,9 @@ export default function App() {
                                     position:"absolute", top:1, bottom:1, left:swingPx, right: Math.max(0, -swingPx),
                                     background: densityRemoved
                                       ? "transparent"
-                                      : `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
+                                      : `rgba(212,53,28,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
                                     transition:"left 0.1s, right 0.1s",
-                                    ...(densityRemoved ? { border:"1px dashed rgba(122,91,175,0.20)" } : {}),
+                                    ...(densityRemoved ? { border:"1px dashed rgba(212,53,28,0.20)" } : {}),
                                   }} />
                                 )}
                               </div>
@@ -6286,9 +6286,9 @@ export default function App() {
 
               {/* Empty state */}
               {!drumPattern && (
-                <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", padding:"40px 20px", textAlign:"center" }}>
-                  <p style={{ fontSize:12, color:"rgba(28,24,32,0.30)", fontFamily:SF, margin:0, letterSpacing:"0.02em" }}>
-                    Select a genre and press <strong style={{ color:"rgba(28,24,32,0.50)" }}>Generate</strong> to create a drum pattern
+                <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", padding:"40px 20px", textAlign:"center" }}>
+                  <p style={{ fontSize:12, color:"rgba(0,0,0,0.30)", fontFamily:SF, margin:0, letterSpacing:"0.02em" }}>
+                    Select a genre and press <strong style={{ color:"rgba(0,0,0,0.50)" }}>Generate</strong> to create a drum pattern
                   </p>
                 </div>
               )}
@@ -6299,12 +6299,12 @@ export default function App() {
                   <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:100 }} />
                   <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
                     width:400, maxHeight:"90vh", overflow:"auto",
-                    background:"#fff", border:"1px solid rgba(28,24,32,0.12)", padding:"16px 18px",
+                    background:"#fff", border:"1px solid rgba(0,0,0,0.12)", padding:"16px 18px",
                     }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                       <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Pad Map</span>
                       <button onClick={() => setPadMapperOpen(false)}
-                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(28,24,32,0.35)", fontFamily:SF }}>×</button>
+                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(0,0,0,0.35)", fontFamily:SF }}>×</button>
                     </div>
 
                     {/* Preset selector */}
@@ -6314,7 +6314,7 @@ export default function App() {
                         return (
                           <button key={preset.id} onClick={() => setPadMap({...preset.map})}
                             style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
-                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(28,24,32,0.10)"}`,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.10)"}`,
                               background: isActive ? "rgba(48,209,88,0.08)" : "transparent",
                               color: isActive ? "#2B9A3E" : t.textSecondary, cursor:"pointer", transition:"all 0.08s" }}>
                             {preset.label}
@@ -6330,22 +6330,22 @@ export default function App() {
                         const currentPadLabel = midiToPadLabel(mapping.midiNote);
                         return (
                           <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"3px 6px",
-                            background: i % 2 === 0 ? "rgba(28,24,32,0.02)" : "transparent" }}>
+                            background: i % 2 === 0 ? "rgba(0,0,0,0.02)" : "transparent" }}>
                             <span style={{ fontSize:11, fontWeight:600, color:t.accent, fontFamily:SF, width:70, flexShrink:0 }}>{track.label}</span>
-                            <span style={{ fontSize:9, color:"rgba(28,24,32,0.20)", fontFamily:"'Share Tech Mono',monospace" }}>→</span>
+                            <span style={{ fontSize:9, color:"rgba(0,0,0,0.20)", fontFamily:MONO }}>→</span>
                             <select value={currentPadLabel}
                               onChange={e => {
                                 const midi = padLabelToMidi(e.target.value);
                                 setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
                               }}
-                              style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:12, fontWeight:700,
-                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(28,24,32,0.10)",
+                              style={{ fontFamily:MONO, fontSize:12, fontWeight:700,
+                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(0,0,0,0.10)",
                                 background:"#fff", color:t.textPrimary, cursor:"pointer", width:60 }}>
                               {MPC_PADS.map(pad => (
                                 <option key={pad.label} value={pad.label}>{pad.label}</option>
                               ))}
                             </select>
-                            <span style={{ fontSize:9, color:"rgba(28,24,32,0.20)", fontFamily:"'Share Tech Mono',monospace" }}>{mapping.midiNote}</span>
+                            <span style={{ fontSize:9, color:"rgba(0,0,0,0.20)", fontFamily:MONO }}>{mapping.midiNote}</span>
                           </div>
                         );
                       })}
@@ -6386,9 +6386,9 @@ export default function App() {
                         }}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1px solid rgba(122,91,175,0.50)` : `1px solid rgba(28,24,32,0.08)`,
+                          border: accent ? `1px solid rgba(212,53,28,0.50)` : `1px solid rgba(0,0,0,0.08)`,
                           borderRadius:2, padding:"10px 6px 8px",
-                          background: isActive ? "rgba(122,91,175,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
+                          background: isActive ? "rgba(212,53,28,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
                           transition:"all 0.08s",
                         }}>
@@ -6470,7 +6470,7 @@ export default function App() {
                       {externalBpm ? "BPM ← MPC" : "BPM"}
                     </span>
                     {clockDebug && midiSyncMode === "receive" && (
-                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.7 }}>{clockDebug}</span>
+                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:MONO, opacity:0.7 }}>{clockDebug}</span>
                     )}
                     {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
@@ -6478,8 +6478,8 @@ export default function App() {
                       onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
                       onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
                       onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(122,91,175,0.35)"}`,
+                      style={{ fontFamily:MONO, fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(212,53,28,0.35)"}`,
                         background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
                         color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
                         cursor: externalBpm ? "default" : "text" }}
@@ -6511,8 +6511,8 @@ export default function App() {
                       if (i===0) return null;
                       let bg;
                       if (i%SLOTS_PER_BAR===0)            bg = t.border;                // bar
-                      else if (i%(SLOTS_PER_BAR/2)===0)   bg = "rgba(28,24,32,0.09)";   // half-bar
-                      else if (i%(SLOTS_PER_BAR/4)===0)   bg = "rgba(28,24,32,0.04)";   // beat
+                      else if (i%(SLOTS_PER_BAR/2)===0)   bg = "rgba(0,0,0,0.09)";   // half-bar
+                      else if (i%(SLOTS_PER_BAR/4)===0)   bg = "rgba(0,0,0,0.04)";   // beat
                       else                                return null;                  // skip eighth/sixteenth
                       return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                     })}
@@ -6599,10 +6599,10 @@ export default function App() {
                                     top:2, bottom:2,
                                     background: isMuted
                                       ? "rgba(128,128,128,0.15)"
-                                      : `rgba(122,91,175,${0.25 + hit.velMult * 0.45})`,
+                                      : `rgba(212,53,28,${0.25 + hit.velMult * 0.45})`,
                                     border: isMuted
                                       ? "1px dashed rgba(128,128,128,0.3)"
-                                      : `1px solid rgba(122,91,175,${0.3 + hit.velMult * 0.3})`,
+                                      : `1px solid rgba(212,53,28,${0.3 + hit.velMult * 0.3})`,
                                     borderRadius:2,
                                     cursor:"pointer",
                                     transition:"all 0.1s",
@@ -6617,7 +6617,7 @@ export default function App() {
                                 style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
                               <div data-resize="1"
                                 onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:5, height:20, borderRadius:2, background:"rgba(122,91,175,0.2)", cursor:"ew-resize", flexShrink:0 }} />
+                                style={{ width:5, height:20, borderRadius:2, background:"rgba(212,53,28,0.2)", cursor:"ew-resize", flexShrink:0 }} />
                             </div>
                           </div>
                         )}
@@ -6640,10 +6640,10 @@ export default function App() {
                 {/* Loop toggle — right below timeline */}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
                   <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
+                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
                       background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(28,24,32,0.35)",
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)",
                       cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
@@ -6700,8 +6700,8 @@ export default function App() {
                               <div key={midi} style={{
                                 height:ROW_H, display:"flex", alignItems:"center", justifyContent:"flex-end",
                                 paddingRight:6, boxSizing:"border-box",
-                                borderBottom: isC ? `1px solid ${t.border}` : `1px solid rgba(28,24,32,0.03)`,
-                                background: black ? "rgba(28,24,32,0.04)" : "transparent",
+                                borderBottom: isC ? `1px solid ${t.border}` : `1px solid rgba(0,0,0,0.03)`,
+                                background: black ? "rgba(0,0,0,0.04)" : "transparent",
                               }}>
                                 <span style={{
                                   fontSize: 8.5, fontFamily:"'SF Pro Text',-apple-system,sans-serif",
@@ -6722,8 +6722,8 @@ export default function App() {
                             return (
                               <div key={midi} style={{
                                 height:ROW_H,
-                                background: black ? "rgba(28,24,32,0.025)" : i % 2 === 0 ? "rgba(28,24,32,0.008)" : "transparent",
-                                borderBottom: isC ? `1px solid rgba(28,24,32,0.08)` : `1px solid rgba(28,24,32,0.02)`,
+                                background: black ? "rgba(0,0,0,0.025)" : i % 2 === 0 ? "rgba(0,0,0,0.008)" : "transparent",
+                                borderBottom: isC ? `1px solid rgba(0,0,0,0.08)` : `1px solid rgba(0,0,0,0.02)`,
                               }} />
                             );
                           })}
@@ -6731,9 +6731,9 @@ export default function App() {
                           {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                             if (i === 0) return null;
                             let bg;
-                            if (i % SLOTS_PER_BAR === 0) bg = "rgba(28,24,32,0.12)";
-                            else if (i % (SLOTS_PER_BAR/2) === 0) bg = "rgba(28,24,32,0.06)";
-                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(28,24,32,0.03)";
+                            if (i % SLOTS_PER_BAR === 0) bg = "rgba(0,0,0,0.12)";
+                            else if (i % (SLOTS_PER_BAR/2) === 0) bg = "rgba(0,0,0,0.06)";
+                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(0,0,0,0.03)";
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
@@ -6773,16 +6773,16 @@ export default function App() {
                                   width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   height: ROW_H - 2,
                                   background: densRemoved
-                                    ? `rgba(122,91,175,0.1)`
-                                    : `rgba(122,91,175,${velOpacity})`,
+                                    ? `rgba(212,53,28,0.1)`
+                                    : `rgba(212,53,28,${velOpacity})`,
                                   borderRadius: 3,
                                   cursor: "pointer",
-                                  border: densRemoved ? "1px dashed rgba(122,91,175,0.25)" : "1px solid rgba(122,91,175,0.5)",
+                                  border: densRemoved ? "1px dashed rgba(212,53,28,0.25)" : "1px solid rgba(212,53,28,0.5)",
                                   transition: "background 0.2s, border 0.2s",
                                   display:"flex", alignItems:"center", paddingLeft:3,
                                   overflow:"hidden",
                                 }}>
-                                <span style={{ fontSize:7.5, color: densRemoved ? "rgba(122,91,175,0.3)" : "#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
+                                <span style={{ fontSize:7.5, color: densRemoved ? "rgba(212,53,28,0.3)" : "#fff", fontWeight:600, fontFamily:SF, opacity:0.9, whiteSpace:"nowrap" }}>
                                   {note.noteName}
                                 </span>
                               </div>
@@ -6807,10 +6807,10 @@ export default function App() {
                                   left: `${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width: `calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   height: ROW_H - 2,
-                                  background: "rgba(28,24,32,0.08)",
+                                  background: "rgba(0,0,0,0.08)",
                                   borderRadius: 3,
                                   cursor: "pointer",
-                                  border: "1px dashed rgba(28,24,32,0.15)",
+                                  border: "1px dashed rgba(0,0,0,0.15)",
                                 }} />
                             );
                           })}
@@ -6896,7 +6896,7 @@ export default function App() {
                             if (i === 0) return null;
                             let bg;
                             if (i % SLOTS_PER_BAR === 0) bg = t.border;
-                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(28,24,32,0.04)";
+                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(0,0,0,0.04)";
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
@@ -6935,8 +6935,8 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 60 + 8}%`, height: 8,
-                                  background:"rgba(28,24,32,0.08)", borderRadius:1,
-                                  border:"1px dashed rgba(28,24,32,0.2)",
+                                  background:"rgba(0,0,0,0.08)", borderRadius:1,
+                                  border:"1px dashed rgba(0,0,0,0.2)",
                                   cursor:"pointer", opacity:0.5,
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
                             );
@@ -7006,7 +7006,7 @@ export default function App() {
                             if (i === 0) return null;
                             let bg;
                             if (i % SLOTS_PER_BAR === 0) bg = t.border;
-                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(28,24,32,0.04)";
+                            else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(0,0,0,0.04)";
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
                           })}
@@ -7045,8 +7045,8 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 70 + 6}%`, height: 8,
-                                  background:"rgba(28,24,32,0.08)", borderRadius:1,
-                                  border:"1px dashed rgba(28,24,32,0.2)",
+                                  background:"rgba(0,0,0,0.08)", borderRadius:1,
+                                  border:"1px dashed rgba(0,0,0,0.2)",
                                   cursor:"pointer", opacity:0.5,
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
                             );
@@ -7154,8 +7154,8 @@ export default function App() {
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
                   <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:700, padding:"5px 16px", borderRadius:2, border:"none",
-                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(28,24,32,0.06)" : looping ? "#E5484D" : t.accent,
-                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(28,24,32,0.25)" : "#fff",
+                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.06)" : looping ? "#E5484D" : t.accent,
+                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.25)" : "#fff",
                       cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "default" : "pointer",
                       letterSpacing:"0.04em", minWidth:52 }}>
                     {looping ? "STOP" : "PLAY"}
@@ -7165,45 +7165,45 @@ export default function App() {
 
                   {/* BPM LCD */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(28,24,32,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
                       readOnly={!!externalBpm}
                       onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
                       onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
                       onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(122,91,175,0.30)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(122,91,175,0.04)",
+                      style={{ fontFamily:MONO, fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(212,53,28,0.30)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(212,53,28,0.04)",
                         color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
                     />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(28,24,32,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
-                    {externalBpm && <span style={{ fontSize:8, color:"#2B9A3E", fontFamily:"'Share Tech Mono',monospace", fontWeight:700 }}>MPC</span>}
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
+                    {externalBpm && <span style={{ fontSize:8, color:"#2B9A3E", fontFamily:MONO, fontWeight:700 }}>MPC</span>}
                   </div>
 
                   <div style={{ width:1, height:22, background:t.border }} />
 
                   {/* Octave */}
                   <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(28,24,32,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
-                    <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:"'Share Tech Mono',monospace", minWidth:14, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(28,24,32,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
+                    <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:14, textAlign:"center" }}>{chordOctave}</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
                   </div>
 
                   <div style={{ width:1, height:22, background:t.border }} />
 
                   {/* Loop */}
                   <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(28,24,32,0.12)"}`,
+                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
                       background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(28,24,32,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
 
                   {looping && (
-                    <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:"'Share Tech Mono',monospace",
+                    <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:MONO,
                       display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ width:5, height:5, borderRadius:"50%", background:"#2B9A3E", display:"inline-block",
                         animation:"pulse 1.2s ease-in-out infinite" }} />
@@ -7217,9 +7217,9 @@ export default function App() {
                   <div style={{ position:"relative" }}>
                     <button onClick={() => setStyleMenuOpen(o => !o)}
                       style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                        border:`1px solid ${playStyle!=="normal"?t.accentBorder:"rgba(28,24,32,0.12)"}`,
+                        border:`1px solid ${playStyle!=="normal"?t.accentBorder:"rgba(0,0,0,0.12)"}`,
                         background:playStyle!=="normal"?t.accentBg:"transparent",
-                        color:playStyle!=="normal"?t.accent:"rgba(28,24,32,0.50)", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                        color:playStyle!=="normal"?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
                       <span style={{ fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", opacity:0.6 }}>Style</span>
                       <span>{STYLES[playStyle].label}</span>
                       <span style={{ fontSize:8, opacity:0.5 }}>▾</span>
@@ -7228,7 +7228,7 @@ export default function App() {
                       <>
                         <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
                         <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:51, minWidth:160,
-                            background:"#fff", border:`1px solid rgba(28,24,32,0.12)`,
+                            background:"#fff", border:`1px solid rgba(0,0,0,0.12)`,
                             padding:2, display:"flex", flexDirection:"column", gap:0 }}>
                           {Object.entries(STYLES).map(([key, cfg]) => (
                             <button key={key} onClick={() => { if(looping) stopLoop(); setPlayStyle(key); setStyleMenuOpen(false); }}
@@ -7251,7 +7251,7 @@ export default function App() {
 
                 {/* ═══ ZONE 2: MIXER ═══ */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
-                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
                   {[
                     { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
                     { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
@@ -7277,27 +7277,27 @@ export default function App() {
                       <div key={key} style={{ display:"flex", alignItems:"center", gap:2, padding:"2px 4px 2px 0",
                         borderRight:`1px solid ${t.border}`, marginRight:2 }}>
                         <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
-                          style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(28,24,32,0.10)"}`,
+                          style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(0,0,0,0.10)"}`,
                             background: muted ? "rgba(229,72,77,0.08)" : isSolod ? "rgba(229,147,10,0.08)" : "transparent",
-                            color: muted ? "#E5484D" : isSolod ? "#E5930A" : disabled ? "rgba(28,24,32,0.20)" : "rgba(28,24,32,0.55)",
+                            color: muted ? "#E5484D" : isSolod ? "#E5930A" : disabled ? "rgba(0,0,0,0.20)" : "rgba(0,0,0,0.55)",
                             cursor: disabled && !muted ? "default" : "pointer",
                             textDecoration: muted ? "line-through" : "none",
                             opacity: disabled && !muted ? 0.35 : 1, letterSpacing:"0.04em" }}>
                           {label}
                         </button>
                         <button onClick={soloThis} title={`Solo ${key}`}
-                          style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:1,
-                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(28,24,32,0.10)"}`,
+                          style={{ fontFamily:MONO, fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:1,
+                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(0,0,0,0.10)"}`,
                             background: isSolod ? "rgba(229,147,10,0.08)" : "transparent",
-                            color: isSolod ? "#E5930A" : "rgba(28,24,32,0.25)", cursor:"pointer" }}>
+                            color: isSolod ? "#E5930A" : "rgba(0,0,0,0.25)", cursor:"pointer" }}>
                           S
                         </button>
                         <input type="range" min={0} max={100} value={density}
                           onChange={e => setDensity(Number(e.target.value))}
                           title={`${key} density: ${density}%`}
-                          style={{ width:56, height:14, accentColor: densActive ? "#E5930A" : "rgba(28,24,32,0.20)", cursor:"pointer" }} />
-                        <span style={{ fontSize:9, fontFamily:"'Share Tech Mono',monospace", color: densActive ? "#E5930A" : "rgba(28,24,32,0.20)", minWidth:22, textAlign:"right" }}>{density}</span>
+                          style={{ width:56, height:14, accentColor: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                        <span style={{ fontSize:9, fontFamily:MONO, color: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", minWidth:22, textAlign:"right" }}>{density}</span>
                       </div>
                     );
                   })}
@@ -7307,47 +7307,47 @@ export default function App() {
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
                   {/* Energy — blue accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(28,24,32,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
                     <input type="range" min={0} max={100} value={energy}
                       onChange={e => { const v = +e.target.value; setEnergy(v); energyRef.current = v; }}
-                      style={{ width:100, accentColor: energy !== 75 ? "#3B82F6" : "rgba(28,24,32,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color: energy !== 75 ? "#3B82F6" : "rgba(28,24,32,0.25)", minWidth:22, textAlign:"right" }}>{energy}</span>
+                      style={{ width:100, accentColor: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{energy}</span>
                   </div>
                   {/* Variation — orange accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(28,24,32,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
                     <input type="range" min={0} max={100} value={variationAmount}
                       onChange={e => { const v = +e.target.value; setVariationAmount(v); variationAmountRef.current = v; }}
-                      style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(28,24,32,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color: variationAmount > 0 ? "#E5930A" : "rgba(28,24,32,0.25)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
+                      style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
                   </div>
-                  {/* Feel — purple accent */}
+                  {/* Feel — neutral accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? t.accent : "rgba(28,24,32,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
                     <input type="range" min={0} max={100} value={humanize}
                       onChange={e => setHumanize(Number(e.target.value))}
-                      style={{ width:100, accentColor: humanize > 0 ? t.accent : "rgba(28,24,32,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color: humanize > 0 ? t.accent : "rgba(28,24,32,0.25)", minWidth:22, textAlign:"right" }}>{humanize}</span>
+                      style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{humanize}</span>
                   </div>
 
                   <div style={{ width:1, height:18, background:t.border }} />
 
                   {/* Fill — green accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
                     <button onClick={() => { fillNextRef.current = true; }}
                       disabled={!drumPattern || !looping}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(28,24,32,0.10)"}`,
+                      style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.10)"}`,
                         background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
-                        color: fillNextRef.current ? "#2B9A3E" : "rgba(28,24,32,0.35)",
+                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.35)",
                         cursor: (!drumPattern || !looping) ? "default" : "pointer",
                         opacity: (!drumPattern || !looping) ? 0.35 : 1, letterSpacing:"0.04em" }}>
                       NEXT
                     </button>
                     <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
                       style={{ fontFamily:SF, fontSize:10, padding:"2px 4px", borderRadius:2,
-                        border:"1px solid rgba(28,24,32,0.10)", background:"transparent", color:"rgba(28,24,32,0.50)" }}>
+                        border:"1px solid rgba(0,0,0,0.10)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
                       <option value="off">Off</option>
                       <option value="auto4">4 loops</option>
                       <option value="auto8">8 loops</option>
@@ -7358,24 +7358,24 @@ export default function App() {
 
                   {/* Arp */}
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(28,24,32,0.10)"}`, background:arpOn?"rgba(122,91,175,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(28,24,32,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpOn?"rgba(212,53,28,0.08)":"transparent",
+                      color:arpOn?t.accent:"rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     ARP
                   </button>
                   {arpOn && <>
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(28,24,32,0.10)"}`, background:arpPattern===v?"rgba(122,91,175,0.08)":"transparent",
-                          color:arpPattern===v?t.accent:"rgba(28,24,32,0.30)", cursor:"pointer" }}>{l}</button>
+                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpPattern===v?"rgba(212,53,28,0.08)":"transparent",
+                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.30)", cursor:"pointer" }}>{l}</button>
                     ))}
                     <div style={{ width:1, height:14, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(28,24,32,0.10)"}`, background:arpRate===v?"rgba(122,91,175,0.08)":"transparent",
-                          color:arpRate===v?t.accent:"rgba(28,24,32,0.30)", cursor:"pointer" }}>{l}</button>
+                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpRate===v?"rgba(212,53,28,0.08)":"transparent",
+                          color:arpRate===v?t.accent:"rgba(0,0,0,0.30)", cursor:"pointer" }}>{l}</button>
                     ))}
                   </>}
                 </div>
@@ -7386,7 +7386,7 @@ export default function App() {
                   <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
                     onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
                     placeholder="Fmaj7…"
-                    style={{ fontFamily:SF, fontSize:12, padding:"4px 8px", borderRadius:2, border:`1px solid ${chordInputErr?"#E5484D":"rgba(28,24,32,0.12)"}`, background:"#fff", color:t.inputColor, outline:"none", width:100 }}
+                    style={{ fontFamily:SF, fontSize:12, padding:"4px 8px", borderRadius:2, border:`1px solid ${chordInputErr?"#E5484D":"rgba(0,0,0,0.12)"}`, background:"#fff", color:t.inputColor, outline:"none", width:100 }}
                   />
                   <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
@@ -7397,7 +7397,7 @@ export default function App() {
                   <div style={{ width:1, height:18, background:t.border }} />
 
                   <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(28,24,32,0.10)`, background:"transparent", color:"rgba(28,24,32,0.50)", cursor:"pointer" }}>
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
                     Clear
                   </button>
                   <button onClick={() => {
@@ -7413,7 +7413,7 @@ export default function App() {
                       slot += len2;
                     });
                     setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(28,24,32,0.10)`, background:"transparent", color:"rgba(28,24,32,0.50)", cursor:"pointer" }}>
+                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
                     Random
                   </button>
                   <button onClick={() => {
@@ -7464,7 +7464,7 @@ export default function App() {
                   <div style={{ flex:1 }} />
 
                   {/* Project */}
-                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF }}>PROJECT</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF }}>PROJECT</span>
                   <button onClick={() => {
                     if (!window.confirm("Start a new project? All unsaved changes will be lost.")) return;
                     setRootDisplay("C"); setScaleKey("major"); setChordType("triad"); setChordOctave(4);
@@ -7495,7 +7495,7 @@ export default function App() {
                     localStorage.removeItem("fiskaturet_project");
                   }}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(28,24,32,0.10)`, background:"transparent", color:"rgba(28,24,32,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     New
                   </button>
                   <button onClick={() => {
@@ -7514,7 +7514,7 @@ export default function App() {
                   </button>
                   <button onClick={() => fileInputRef.current && fileInputRef.current.click()}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(28,24,32,0.10)`, background:"transparent", color:"rgba(28,24,32,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     Load
                   </button>
                   <input ref={fileInputRef} type="file" accept=".json" style={{ display:"none" }}
@@ -7534,7 +7534,7 @@ export default function App() {
                       e.target.value = "";
                     }}
                   />
-                  {lastAutoSave && <span style={{ fontSize:9, color:"rgba(28,24,32,0.25)", fontFamily:"'Share Tech Mono',monospace" }}>saved</span>}
+                  {lastAutoSave && <span style={{ fontSize:9, color:"rgba(0,0,0,0.25)", fontFamily:MONO }}>saved</span>}
 
                   <div style={{ width:1, height:16, background:t.border }} />
 
@@ -7549,17 +7549,17 @@ export default function App() {
                   </button>
                   <button onClick={downloadDrumProgram}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(28,24,32,0.10)`, background:"transparent", color:"rgba(28,24,32,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     .xpm
                   </button>
                   <button onClick={() => setChordPadMode(m => !m)}
-                    style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${chordPadMode ? "#2B9A3E" : "rgba(28,24,32,0.10)"}`,
+                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                      border:`1px solid ${chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.10)"}`,
                       background: chordPadMode ? "rgba(43,154,62,0.08)" : "transparent",
-                      color: chordPadMode ? "#2B9A3E" : "rgba(28,24,32,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                      color: chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     {chordPadMode ? "PAD ON" : "PAD"}
                   </button>
-                  {chordPadMode && <span style={{ fontSize:9, color:"#2B9A3E", fontFamily:"'Share Tech Mono',monospace" }}>A1–A7 → I–VII</span>}
+                  {chordPadMode && <span style={{ fontSize:9, color:"#2B9A3E", fontFamily:MONO }}>A1–A7 → I–VII</span>}
                   {arrangement.length > 0 && (
                     <button onClick={() => {
                       const data = exportToMidi({
