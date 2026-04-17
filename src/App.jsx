@@ -1200,37 +1200,37 @@ function triggerDrumSynth(trackId, velocity, duration) {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
-  pageBg:"#F5F5F3", cardBg:"#FFFFFF", elevatedBg:"#F0F0EE",
-  textPrimary:"#1A1A1A", textSecondary:"#6B6B6B", textTertiary:"#A0A0A0",
-  labelColor:"#1A1A1A", border:"rgba(0,0,0,0.07)",
-  inputBorder:"rgba(0,0,0,0.12)", inputBg:"#FFFFFF", inputColor:"#1A1A1A", colorScheme:"light",
+  pageBg:"#EAEAE8", cardBg:"#FFFFFF", elevatedBg:"#E5E5E3",
+  textPrimary:"#1A1A1A", textSecondary:"#555555", textTertiary:"#888888",
+  labelColor:"#1A1A1A", border:"rgba(0,0,0,0.15)",
+  inputBorder:"rgba(0,0,0,0.20)", inputBg:"#FFFFFF", inputColor:"#1A1A1A", colorScheme:"light",
   cardShadow:"none",
-  accent:"#D4351C", accentBg:"rgba(212,53,28,0.08)", accentBgHover:"rgba(212,53,28,0.14)",
-  accentBorder:"rgba(212,53,28,0.40)", accentCardBg:"rgba(212,53,28,0.04)", accentCardHover:"rgba(212,53,28,0.08)",
-  degreeColor:"#A0A0A0", chordNameColor:"#1A1A1A", chordCardBg:"#FFFFFF",
+  accent:"#D4351C", accentBg:"rgba(212,53,28,0.10)", accentBgHover:"rgba(212,53,28,0.16)",
+  accentBorder:"rgba(212,53,28,0.50)", accentCardBg:"rgba(212,53,28,0.05)", accentCardHover:"rgba(212,53,28,0.10)",
+  degreeColor:"#888888", chordNameColor:"#1A1A1A", chordCardBg:"#FFFFFF",
   chordHoverShadow:"none",
-  segBg:"#F5F5F3", segActiveBg:"#FFFFFF", segActiveColor:"#1A1A1A",
-  segInactiveColor:"#A0A0A0", segShadow:"none",
-  pianoRailBg:"#E8E8E6", pianoRailShadow:"none", pianoKeysBg:"#F5F5F3",
-  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(212,53,28,0.10)",
+  segBg:"#EAEAE8", segActiveBg:"#FFFFFF", segActiveColor:"#1A1A1A",
+  segInactiveColor:"#888888", segShadow:"none",
+  pianoRailBg:"#DDDDD9", pianoRailShadow:"none", pianoKeysBg:"#EAEAE8",
+  whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(212,53,28,0.12)",
   whiteKeyHlBg:"#D4351C",
   whiteKeyAllScaleBg:"#D4351C",
-  whiteKeyBorder:"rgba(0,0,0,0.10)", whiteKeyLabel:"rgba(0,0,0,0.28)", whiteKeyLabelHl:"#FFFFFF",
+  whiteKeyBorder:"rgba(0,0,0,0.13)", whiteKeyLabel:"rgba(0,0,0,0.50)", whiteKeyLabelHl:"#FFFFFF",
   blackKeyBg:"#2A2A2A", blackKeyScaleBg:"#D4351C",
   blackKeyHlBg:"#B02E18", blackKeyAllScaleBg:"#B02E18",
-  legendChord:"#D4351C", legendScale:"rgba(212,53,28,0.10)", legendScaleBdr:"rgba(212,53,28,0.30)",
-  slotBg:"#F0F0EE", slotBorder:"rgba(0,0,0,0.05)",
-  tokenBg:"#FFFFFF", tokenBgHover:"rgba(212,53,28,0.08)", tokenBorder:"rgba(212,53,28,0.35)", tokenColor:"#D4351C",
-  playActiveBg:"#D4351C", playDisabledBg:"rgba(0,0,0,0.05)", playDisabledClr:"rgba(0,0,0,0.22)",
-  btnBg:"transparent", btnColor:"#1A1A1A", btnBorder:"rgba(0,0,0,0.10)",
+  legendChord:"#D4351C", legendScale:"rgba(212,53,28,0.12)", legendScaleBdr:"rgba(212,53,28,0.35)",
+  slotBg:"#E5E5E3", slotBorder:"rgba(0,0,0,0.15)",
+  tokenBg:"#FFFFFF", tokenBgHover:"rgba(212,53,28,0.10)", tokenBorder:"rgba(212,53,28,0.40)", tokenColor:"#D4351C",
+  playActiveBg:"#D4351C", playDisabledBg:"rgba(0,0,0,0.12)", playDisabledClr:"rgba(0,0,0,0.45)",
+  btnBg:"transparent", btnColor:"#1A1A1A", btnBorder:"rgba(0,0,0,0.15)",
   presetBg:"#FFFFFF", presetColor:"#1A1A1A",
-  toggleBg:"#FFFFFF", toggleColor:"#1A1A1A", toggleBorder:"rgba(0,0,0,0.10)",
-  stepBg:"#F0F0EE", stepColor:"#A0A0A0",
-  stepWholeBg:"rgba(212,53,28,0.10)", stepWholeColor:"#D4351C", stepWholeBorder:"rgba(212,53,28,0.25)",
-  stepHalfBg:"#FFFFFF", stepHalfColor:"#A0A0A0", stepHalfBorder:"rgba(0,0,0,0.07)",
-  infoBg:"#F0F0EE", infoBorder:"rgba(0,0,0,0.05)",
-  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(0,0,0,0.10)", modeBtnActiveColor:"#1A1A1A",
-  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(0,0,0,0.35)",
+  toggleBg:"#FFFFFF", toggleColor:"#1A1A1A", toggleBorder:"rgba(0,0,0,0.15)",
+  stepBg:"#E5E5E3", stepColor:"#888888",
+  stepWholeBg:"rgba(212,53,28,0.12)", stepWholeColor:"#D4351C", stepWholeBorder:"rgba(212,53,28,0.30)",
+  stepHalfBg:"#FFFFFF", stepHalfColor:"#888888", stepHalfBorder:"rgba(0,0,0,0.15)",
+  infoBg:"#E5E5E3", infoBorder:"rgba(0,0,0,0.08)",
+  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(0,0,0,0.15)", modeBtnActiveColor:"#1A1A1A",
+  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(0,0,0,0.50)",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -2337,7 +2337,7 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
               fontSize: 9.5,
               fontFamily: SF,
               fontWeight: hl ? 700 : isActive ? 550 : 420,
-              color: hl ? "#fff" : sc ? t.accent : "rgba(0,0,0,0.35)",
+              color: hl ? "#fff" : sc ? t.accent : "rgba(0,0,0,0.50)",
               letterSpacing: "0.02em",
               lineHeight: 1,
             }}>
@@ -5702,7 +5702,7 @@ export default function App() {
         ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-track{background:${t.pageBg}}
         ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.15);border-radius:0}
-        ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.25)}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(0,0,0,0.40)}
         .bpm-lcd{font-family:'JetBrains Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
@@ -5713,7 +5713,7 @@ export default function App() {
           <div style={{
             background:"#FFFFFF",
             padding:"14px 16px", marginBottom:0,
-            borderBottom:`1px solid rgba(0,0,0,0.07)`,
+            borderBottom:`1px solid rgba(0,0,0,0.13)`,
             display:"flex", justifyContent:"space-between", alignItems:"center",
           }}>
             <div style={{ display:"flex", alignItems:"baseline", gap:12 }}>
@@ -5724,7 +5724,7 @@ export default function App() {
               }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:10, color:"#A0A0A0", margin:0, fontWeight:500,
+              <p style={{ fontSize:10, color:"#888888", margin:0, fontWeight:500,
                 letterSpacing:"0.06em", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector"
                   : mode==="hum" ? "Hum to Chords"
@@ -5734,8 +5734,8 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ width:5, height:5, borderRadius:"50%", background: isPlaying ? "#D4351C" : "#A0A0A0" }} />
-              <span style={{ fontSize:9, color:"#A0A0A0", fontWeight:600,
+              <div style={{ width:5, height:5, borderRadius:"50%", background: isPlaying ? "#D4351C" : "#888888" }} />
+              <span style={{ fontSize:9, color:"#888888", fontWeight:600,
                 letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
                 {isPlaying ? "LIVE" : "IDLE"}
               </span>
@@ -5758,7 +5758,7 @@ export default function App() {
                 background: mode===m ? "#fff" : "transparent",
                 border: mode===m ? `1px solid ${t.border}` : "1px solid transparent",
                 borderBottom: mode===m ? "1px solid #fff" : `1px solid ${t.border}`,
-                color: mode===m ? t.textPrimary : "rgba(0,0,0,0.35)",
+                color: mode===m ? t.textPrimary : "rgba(0,0,0,0.50)",
                 cursor:"pointer", transition:"all 0.08s",
                 letterSpacing:"0.02em",
               }}>
@@ -6061,9 +6061,9 @@ export default function App() {
             // DAW-style micro-button
             const dawBtn = (active, activeColor = t.accent) => ({
               fontFamily:MONO, fontSize:9, fontWeight:700, padding:"1px 4px",
-              border:`1px solid ${active ? activeColor : "rgba(0,0,0,0.10)"}`,
+              border:`1px solid ${active ? activeColor : "rgba(0,0,0,0.15)"}`,
               background: active ? (activeColor === t.accent ? "rgba(212,53,28,0.12)" : `${activeColor}18`) : "transparent",
-              color: active ? activeColor : "rgba(0,0,0,0.30)", cursor:"pointer", lineHeight:"14px",
+              color: active ? activeColor : "rgba(0,0,0,0.45)", cursor:"pointer", lineHeight:"14px",
               letterSpacing:"0.04em", borderRadius:1, transition:"all 0.08s",
             });
             const dawToolBtn = (primary) => ({
@@ -6100,8 +6100,8 @@ export default function App() {
                 <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
                   style={{ ...dawToolBtn(true),
                     background: (!drumPattern && timelineItems.length===0 && bassLine.length===0)
-                      ? "rgba(0,0,0,0.06)" : looping ? "#E5484D" : t.accent,
-                    color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "rgba(0,0,0,0.25)" : "#fff",
+                      ? "rgba(0,0,0,0.12)" : looping ? "#E5484D" : t.accent,
+                    color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "rgba(0,0,0,0.40)" : "#fff",
                     cursor: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "default" : "pointer",
                     minWidth:56 }}>
                   {looping ? "Stop" : "Play"}
@@ -6119,7 +6119,7 @@ export default function App() {
                 <button onClick={() => setLoopEnabled(e => !e)}
                   style={{ ...dawToolBtn(false),
                     border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
-                    color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)",
+                    color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
                     background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
                     fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
                   {loopEnabled ? "LOOP" : "1×"}
@@ -6129,7 +6129,7 @@ export default function App() {
                 <button onClick={() => setDrumHalfTime(h => !h)}
                   style={{ ...dawToolBtn(false),
                     border:`1px solid ${drumHalfTime ? t.accentBorder : "rgba(0,0,0,0.12)"}`,
-                    color: drumHalfTime ? t.accent : "rgba(0,0,0,0.35)",
+                    color: drumHalfTime ? t.accent : "rgba(0,0,0,0.50)",
                     background: drumHalfTime ? "rgba(212,53,28,0.08)" : "transparent",
                     fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
                   ½×
@@ -6139,18 +6139,18 @@ export default function App() {
 
                 {/* Parameter readouts */}
                 <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Density</span>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Density</span>
                   <input type="range" min={0} max={100} value={densityDrums}
                     onChange={e => setDensityDrums(Number(e.target.value))}
                     style={{ width:64, accentColor: densityDrums < 100 ? "#E5930A" : t.accent, height:2 }} />
-                  <span style={{ fontSize:10, fontFamily:MONO, color: densityDrums < 100 ? "#E5930A" : "rgba(0,0,0,0.35)", minWidth:28, textAlign:"right" }}>{densityDrums}</span>
+                  <span style={{ fontSize:10, fontFamily:MONO, color: densityDrums < 100 ? "#E5930A" : "rgba(0,0,0,0.50)", minWidth:28, textAlign:"right" }}>{densityDrums}</span>
                 </div>
                 <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Swing</span>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Swing</span>
                   <input type="range" min={0} max={100} value={drumSwing}
                     onChange={e => setDrumSwing(Number(e.target.value))}
                     style={{ width:64, accentColor:t.accent, height:2 }} />
-                  <span style={{ fontSize:10, fontFamily:MONO, color:"rgba(0,0,0,0.35)", minWidth:28, textAlign:"right" }}>{drumSwing}</span>
+                  <span style={{ fontSize:10, fontFamily:MONO, color:"rgba(0,0,0,0.50)", minWidth:28, textAlign:"right" }}>{drumSwing}</span>
                 </div>
 
                 {/* Favorites */}
@@ -6185,14 +6185,14 @@ export default function App() {
               {drumPattern && (
                 <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", overflow:"hidden" }}>
                   {/* Bar header */}
-                  <div style={{ display:"grid", gridTemplateColumns:"132px 1fr", borderBottom:"1px solid rgba(0,0,0,0.10)" }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"132px 1fr", borderBottom:"1px solid rgba(0,0,0,0.15)" }}>
                     <div style={{ padding:"3px 8px", background:"rgba(0,0,0,0.02)" }}>
-                      <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
+                      <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
                       {Array.from({length:4},(_,i) => (
                         <div key={i} style={{ padding:"3px 4px", borderLeft:`1px solid rgba(0,0,0,${i>0?"0.10":"0"})`, background:"rgba(0,0,0,0.02)" }}>
-                          <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO }}>{i+1}</span>
+                          <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO }}>{i+1}</span>
                         </div>
                       ))}
                     </div>
@@ -6209,7 +6209,7 @@ export default function App() {
                     const isEvenRow = trackIdx % 2 === 0;
                     return (
                       <div key={track.id} style={{ display:"grid", gridTemplateColumns:"132px 1fr",
-                        borderBottom:"1px solid rgba(0,0,0,0.05)", opacity: dimmed ? 0.2 : isMuted ? 0.3 : 1, transition:"opacity 0.1s" }}>
+                        borderBottom:"1px solid rgba(0,0,0,0.12)", opacity: dimmed ? 0.2 : isMuted ? 0.3 : 1, transition:"opacity 0.1s" }}>
                         {/* Label + controls */}
                         <div style={{ display:"flex", alignItems:"center", gap:1, padding:"0 4px", height:20,
                           background: isEvenRow ? "rgba(0,0,0,0.015)" : "transparent",
@@ -6258,7 +6258,7 @@ export default function App() {
                                 onClick={() => toggleDrumStep(track.id, step)}
                                 style={{
                                   height:20, position:"relative",
-                                  borderLeft: isBarLine ? "1px solid rgba(0,0,0,0.12)" : isBeatLine ? "1px solid rgba(0,0,0,0.05)" : "none",
+                                  borderLeft: isBarLine ? "1px solid rgba(0,0,0,0.12)" : isBeatLine ? "1px solid rgba(0,0,0,0.12)" : "none",
                                   background: isPlayhead && looping
                                     ? "rgba(212,53,28,0.18)"
                                     : "transparent",
@@ -6287,7 +6287,7 @@ export default function App() {
               {/* Empty state */}
               {!drumPattern && (
                 <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", padding:"40px 20px", textAlign:"center" }}>
-                  <p style={{ fontSize:12, color:"rgba(0,0,0,0.30)", fontFamily:SF, margin:0, letterSpacing:"0.02em" }}>
+                  <p style={{ fontSize:12, color:"rgba(0,0,0,0.45)", fontFamily:SF, margin:0, letterSpacing:"0.02em" }}>
                     Select a genre and press <strong style={{ color:"rgba(0,0,0,0.50)" }}>Generate</strong> to create a drum pattern
                   </p>
                 </div>
@@ -6304,7 +6304,7 @@ export default function App() {
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                       <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Pad Map</span>
                       <button onClick={() => setPadMapperOpen(false)}
-                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(0,0,0,0.35)", fontFamily:SF }}>×</button>
+                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(0,0,0,0.50)", fontFamily:SF }}>×</button>
                     </div>
 
                     {/* Preset selector */}
@@ -6314,7 +6314,7 @@ export default function App() {
                         return (
                           <button key={preset.id} onClick={() => setPadMap({...preset.map})}
                             style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
-                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.10)"}`,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.15)"}`,
                               background: isActive ? "rgba(48,209,88,0.08)" : "transparent",
                               color: isActive ? "#2B9A3E" : t.textSecondary, cursor:"pointer", transition:"all 0.08s" }}>
                             {preset.label}
@@ -6339,7 +6339,7 @@ export default function App() {
                                 setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
                               }}
                               style={{ fontFamily:MONO, fontSize:12, fontWeight:700,
-                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(0,0,0,0.10)",
+                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)",
                                 background:"#fff", color:t.textPrimary, cursor:"pointer", width:60 }}>
                               {MPC_PADS.map(pad => (
                                 <option key={pad.label} value={pad.label}>{pad.label}</option>
@@ -6643,7 +6643,7 @@ export default function App() {
                     style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
                       background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)",
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
                       cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
@@ -6732,7 +6732,7 @@ export default function App() {
                             if (i === 0) return null;
                             let bg;
                             if (i % SLOTS_PER_BAR === 0) bg = "rgba(0,0,0,0.12)";
-                            else if (i % (SLOTS_PER_BAR/2) === 0) bg = "rgba(0,0,0,0.06)";
+                            else if (i % (SLOTS_PER_BAR/2) === 0) bg = "rgba(0,0,0,0.12)";
                             else if (i % (SLOTS_PER_BAR/4) === 0) bg = "rgba(0,0,0,0.03)";
                             else return null;
                             return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
@@ -7154,8 +7154,8 @@ export default function App() {
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
                   <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:700, padding:"5px 16px", borderRadius:2, border:"none",
-                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.06)" : looping ? "#E5484D" : t.accent,
-                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.25)" : "#fff",
+                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.12)" : looping ? "#E5484D" : t.accent,
+                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.40)" : "#fff",
                       cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "default" : "pointer",
                       letterSpacing:"0.04em", minWidth:52 }}>
                     {looping ? "STOP" : "PLAY"}
@@ -7165,7 +7165,7 @@ export default function App() {
 
                   {/* BPM LCD */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
                     {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
                       readOnly={!!externalBpm}
@@ -7185,7 +7185,7 @@ export default function App() {
 
                   {/* Octave */}
                   <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
                     <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
                     <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:14, textAlign:"center" }}>{chordOctave}</span>
                     <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
@@ -7198,7 +7198,7 @@ export default function App() {
                     style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
                       background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
 
@@ -7251,7 +7251,7 @@ export default function App() {
 
                 {/* ═══ ZONE 2: MIXER ═══ */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
-                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
                   {[
                     { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
                     { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
@@ -7278,7 +7278,7 @@ export default function App() {
                         borderRight:`1px solid ${t.border}`, marginRight:2 }}>
                         <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
                           style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(0,0,0,0.10)"}`,
+                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
                             background: muted ? "rgba(229,72,77,0.08)" : isSolod ? "rgba(229,147,10,0.08)" : "transparent",
                             color: muted ? "#E5484D" : isSolod ? "#E5930A" : disabled ? "rgba(0,0,0,0.20)" : "rgba(0,0,0,0.55)",
                             cursor: disabled && !muted ? "default" : "pointer",
@@ -7288,9 +7288,9 @@ export default function App() {
                         </button>
                         <button onClick={soloThis} title={`Solo ${key}`}
                           style={{ fontFamily:MONO, fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:1,
-                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(0,0,0,0.10)"}`,
+                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
                             background: isSolod ? "rgba(229,147,10,0.08)" : "transparent",
-                            color: isSolod ? "#E5930A" : "rgba(0,0,0,0.25)", cursor:"pointer" }}>
+                            color: isSolod ? "#E5930A" : "rgba(0,0,0,0.40)", cursor:"pointer" }}>
                           S
                         </button>
                         <input type="range" min={0} max={100} value={density}
@@ -7307,47 +7307,47 @@ export default function App() {
                 <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
                   {/* Energy — blue accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
                     <input type="range" min={0} max={100} value={energy}
                       onChange={e => { const v = +e.target.value; setEnergy(v); energyRef.current = v; }}
                       style={{ width:100, accentColor: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{energy}</span>
+                    <span style={{ fontSize:10, fontFamily:MONO, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{energy}</span>
                   </div>
                   {/* Variation — orange accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
                     <input type="range" min={0} max={100} value={variationAmount}
                       onChange={e => { const v = +e.target.value; setVariationAmount(v); variationAmountRef.current = v; }}
                       style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
+                    <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
                   </div>
                   {/* Feel — neutral accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
+                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
                     <input type="range" min={0} max={100} value={humanize}
                       onChange={e => setHumanize(Number(e.target.value))}
                       style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.25)", minWidth:22, textAlign:"right" }}>{humanize}</span>
+                    <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{humanize}</span>
                   </div>
 
                   <div style={{ width:1, height:18, background:t.border }} />
 
                   {/* Fill — green accent */}
                   <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
                     <button onClick={() => { fillNextRef.current = true; }}
                       disabled={!drumPattern || !looping}
                       style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.10)"}`,
+                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
                         background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
-                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.35)",
+                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
                         cursor: (!drumPattern || !looping) ? "default" : "pointer",
                         opacity: (!drumPattern || !looping) ? 0.35 : 1, letterSpacing:"0.04em" }}>
                       NEXT
                     </button>
                     <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
                       style={{ fontFamily:SF, fontSize:10, padding:"2px 4px", borderRadius:2,
-                        border:"1px solid rgba(0,0,0,0.10)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
+                        border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
                       <option value="off">Off</option>
                       <option value="auto4">4 loops</option>
                       <option value="auto8">8 loops</option>
@@ -7359,23 +7359,23 @@ export default function App() {
                   {/* Arp */}
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
                     style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpOn?"rgba(212,53,28,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(212,53,28,0.08)":"transparent",
+                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     ARP
                   </button>
                   {arpOn && <>
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
                         style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpPattern===v?"rgba(212,53,28,0.08)":"transparent",
-                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.30)", cursor:"pointer" }}>{l}</button>
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(212,53,28,0.08)":"transparent",
+                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
                     <div style={{ width:1, height:14, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
                         style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.10)"}`, background:arpRate===v?"rgba(212,53,28,0.08)":"transparent",
-                          color:arpRate===v?t.accent:"rgba(0,0,0,0.30)", cursor:"pointer" }}>{l}</button>
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(212,53,28,0.08)":"transparent",
+                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
                   </>}
                 </div>
@@ -7397,7 +7397,7 @@ export default function App() {
                   <div style={{ width:1, height:18, background:t.border }} />
 
                   <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
                     Clear
                   </button>
                   <button onClick={() => {
@@ -7413,7 +7413,7 @@ export default function App() {
                       slot += len2;
                     });
                     setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                  }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
                     Random
                   </button>
                   <button onClick={() => {
@@ -7464,7 +7464,7 @@ export default function App() {
                   <div style={{ flex:1 }} />
 
                   {/* Project */}
-                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.25)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF }}>PROJECT</span>
+                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF }}>PROJECT</span>
                   <button onClick={() => {
                     if (!window.confirm("Start a new project? All unsaved changes will be lost.")) return;
                     setRootDisplay("C"); setScaleKey("major"); setChordType("triad"); setChordOctave(4);
@@ -7495,7 +7495,7 @@ export default function App() {
                     localStorage.removeItem("fiskaturet_project");
                   }}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     New
                   </button>
                   <button onClick={() => {
@@ -7514,7 +7514,7 @@ export default function App() {
                   </button>
                   <button onClick={() => fileInputRef.current && fileInputRef.current.click()}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     Load
                   </button>
                   <input ref={fileInputRef} type="file" accept=".json" style={{ display:"none" }}
@@ -7534,7 +7534,7 @@ export default function App() {
                       e.target.value = "";
                     }}
                   />
-                  {lastAutoSave && <span style={{ fontSize:9, color:"rgba(0,0,0,0.25)", fontFamily:MONO }}>saved</span>}
+                  {lastAutoSave && <span style={{ fontSize:9, color:"rgba(0,0,0,0.40)", fontFamily:MONO }}>saved</span>}
 
                   <div style={{ width:1, height:16, background:t.border }} />
 
@@ -7549,14 +7549,14 @@ export default function App() {
                   </button>
                   <button onClick={downloadDrumProgram}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid rgba(0,0,0,0.10)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
+                      border:`1px solid rgba(0,0,0,0.15)`, background:"transparent", color:"rgba(0,0,0,0.45)", cursor:"pointer" }}>
                     .xpm
                   </button>
                   <button onClick={() => setChordPadMode(m => !m)}
                     style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.10)"}`,
+                      border:`1px solid ${chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
                       background: chordPadMode ? "rgba(43,154,62,0.08)" : "transparent",
-                      color: chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.35)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                      color: chordPadMode ? "#2B9A3E" : "rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     {chordPadMode ? "PAD ON" : "PAD"}
                   </button>
                   {chordPadMode && <span style={{ fontSize:9, color:"#2B9A3E", fontFamily:MONO }}>A1–A7 → I–VII</span>}
