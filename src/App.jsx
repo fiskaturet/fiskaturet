@@ -5656,6 +5656,8 @@ export default function App() {
   useEffect(() => { muteDrumsRef.current = muteDrums; }, [muteDrums]);
   // ── Arrangement playback ──
   const [arrangementPlaying, setArrangementPlaying] = useState(false);
+  const [arrangementSectionIdx, setArrangementSectionIdx] = useState(-1);
+  const arrangementSectionIdxRef = useRef(-1);
   // ── Pad-to-chord mode ──
   const [chordPadMode, setChordPadMode] = useState(false); // when true, incoming MIDI pads trigger chords
   const [drumStep,       setDrumStep]       = useState(-1);
@@ -6510,6 +6512,8 @@ export default function App() {
     } catch(e) {}
     setLooping(false);
     setArrangementPlaying(false);
+    setArrangementSectionIdx(-1);
+    arrangementSectionIdxRef.current = -1;
     setPlayheadPct(0);
     setDrumStep(-1);
   };
@@ -7695,12 +7699,37 @@ export default function App() {
     doScheduleArrangement();
     setLooping(true);
     setArrangementPlaying(true);
+    setArrangementSectionIdx(0);
+    arrangementSectionIdxRef.current = 0;
+    // Load first section into main view
+    if (resolvedSecs.length > 0) {
+      const first = resolvedSecs[0];
+      setTimelineItems(JSON.parse(JSON.stringify(first.timelineItems)));
+      if (first.drumPattern) setDrumPattern(JSON.parse(JSON.stringify(first.drumPattern)));
+      setBassLine(JSON.parse(JSON.stringify(first.bassLine || [])));
+      setMelodyLine(JSON.parse(JSON.stringify(first.melodyLine || [])));
+    }
     const wallStart = performance.now();
+    const sectionMs = slotsPerSection * slotSec * 1000;
     const animate = () => {
       const musicElapsed = Math.max(0, performance.now() - wallStart - preroll);
       const loopElapsed = musicElapsed % totalMs;
       const raw = loopElapsed / totalMs;
       setPlayheadPct(raw);
+      // Track which section is currently playing
+      const secIdx = Math.min(resolvedSecs.length - 1, Math.floor(loopElapsed / sectionMs));
+      if (secIdx !== arrangementSectionIdxRef.current) {
+        arrangementSectionIdxRef.current = secIdx;
+        setArrangementSectionIdx(secIdx);
+        // Load this section's data into main view so user can SEE what's playing
+        const sec = resolvedSecs[secIdx];
+        if (sec) {
+          setTimelineItems(JSON.parse(JSON.stringify(sec.timelineItems)));
+          if (sec.drumPattern) setDrumPattern(JSON.parse(JSON.stringify(sec.drumPattern)));
+          setBassLine(JSON.parse(JSON.stringify(sec.bassLine || [])));
+          setMelodyLine(JSON.parse(JSON.stringify(sec.melodyLine || [])));
+        }
+      }
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
@@ -8234,16 +8263,6 @@ export default function App() {
                   style={dawToolBtn(false)}>Clear All</button>
 
                 <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
-
-                {/* Loop toggle */}
-                <button onClick={() => setLoopEnabled(e => !e)}
-                  style={{ ...dawToolBtn(false),
-                    border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
-                    color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                    background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                    fontFamily:MONO, fontSize:10, padding:"3px 8px" }}>
-                  {loopEnabled ? "LOOP" : "1×"}
-                </button>
 
                 {/* Half-time */}
                 <button onClick={() => setDrumHalfTime(h => !h)}
@@ -8913,47 +8932,31 @@ export default function App() {
 
               {/* ── Timeline ── */}
               <div style={card}>
-                {/* Header row */}
+                {/* Header row — clean: just label + status badges */}
                 <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
                   <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                     <div style={labelStyle}>Timeline — {barCount} bars</div>
-                    {looping && (
-                      <span style={{ fontSize:11, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
-                        display:"flex", alignItems:"center", gap:5 }}>
-                        <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
+                    {looping && !arrangementPlaying && (
+                      <span style={{ fontSize:10, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
+                        display:"flex", alignItems:"center", gap:4 }}>
+                        <span style={{ width:6, height:6, borderRadius:"50%", background:"#30D158",
                           display:"inline-block",
                           animation:"pulse 1.2s ease-in-out infinite" }} />
-                        LOOPING
+                        PLAYING
                       </span>
                     )}
-                  </div>
-                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
-                    {/* BPM */}
-                    <span style={{ fontSize:11, fontWeight:600, color: externalBpm ? "#30D158" : t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>
-                      {externalBpm ? "BPM ← MPC" : "BPM"}
-                    </span>
-                    {clockDebug && midiSyncMode === "receive" && (
-                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:MONO, opacity:0.7 }}>{clockDebug}</span>
-                    )}
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
-                      readOnly={!!externalBpm}
-                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
-                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:MONO, fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.35)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
-                        color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
-                        cursor: externalBpm ? "default" : "text" }}
-                    />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
-                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
-                    {/* Octave */}
-                    <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
-                    <span style={{ fontSize:14, fontWeight:700, color:t.textPrimary, minWidth:16, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
+                    {arrangementPlaying && arrangementSectionIdx >= 0 && (() => {
+                      const currentSec = arrangement[arrangementSectionIdx] && sections.find(s => s.id === arrangement[arrangementSectionIdx]);
+                      return currentSec ? (
+                        <span style={{ fontSize:10, fontWeight:700, color:"#34C759", letterSpacing:"0.05em",
+                          display:"flex", alignItems:"center", gap:4, padding:"2px 8px", borderRadius:2,
+                          background:"rgba(52,199,89,0.12)", border:"1px solid rgba(52,199,89,0.3)" }}>
+                          <span style={{ width:5, height:5, borderRadius:"50%", background:"#34C759",
+                            display:"inline-block", animation:"pulse 1s infinite" }} />
+                          {currentSec.name} ({arrangementSectionIdx + 1}/{arrangement.length})
+                        </span>
+                      ) : null;
+                    })()}
                   </div>
                 </div>
 
@@ -9240,83 +9243,6 @@ export default function App() {
                   }} style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                     Suggest
                   </button>
-
-                  <select value={chordPlayPattern}
-                    onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 8px", borderRadius:2,
-                      border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
-                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
-                      <option key={key} value={key}>{cfg.label}</option>
-                    ))}
-                  </select>
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Arp */}
-                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
-                    Arp
-                  </button>
-                  {arpOn && <>
-                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:MONO, fontSize:11, fontWeight:700, padding:"3px 6px", borderRadius:2,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                    <div style={{ width:1, height:14, background:t.border }} />
-                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 6px", borderRadius:2,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                  </>}
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Fill + Bridge */}
-                  <button onClick={() => { fillNextRef.current = true; }}
-                    disabled={!drumPattern || !looping}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                      border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
-                      background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
-                      color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                      cursor: (!drumPattern || !looping) ? "default" : "pointer",
-                      opacity: (!drumPattern || !looping) ? 0.35 : 1 }}>
-                    Fill
-                  </button>
-                  <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
-                    style={{ fontFamily:SF, fontSize:11, padding:"4px 6px", borderRadius:2,
-                      border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
-                    <option value="off">Fill Off</option>
-                    <option value="auto4">Every 4</option>
-                    <option value="auto8">Every 8</option>
-                  </select>
-                  <button onClick={() => { bridgeNextRef.current = true; }}
-                    disabled={!looping}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                      border:`1px solid rgba(0,0,0,0.12)`,
-                      color: "rgba(0,0,0,0.50)",
-                      background: "transparent",
-                      cursor: !looping ? "default" : "pointer",
-                      opacity: !looping ? 0.35 : 1 }}>
-                    Bridge
-                  </button>
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Loop toggle */}
-                  <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:MONO, fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:2,
-                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                      cursor:"pointer", transition:"all 0.08s" }}>
-                    {loopEnabled ? "LOOP" : "1×"}
-                  </button>
                 </div>
                 {timelineItems.length > 0 && (
                   <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF, padding:"2px 0 4px", letterSpacing:"0.02em" }}>
@@ -9326,8 +9252,8 @@ export default function App() {
               </div>
 
               <div style={card}>
-                {/* ═══ ZONE 1: TRANSPORT ═══ */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
+                {/* ═══ TRANSPORT — single source of truth for playback ═══ */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
                   <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:700, padding:"5px 16px", borderRadius:2, border:"none",
                       background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.12)" : looping ? "#E5484D" : t.accent,
@@ -9336,38 +9262,6 @@ export default function App() {
                       letterSpacing:"0.04em", minWidth:52 }}>
                     {looping ? "STOP" : "PLAY"}
                   </button>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
-
-                  {/* BPM LCD */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
-                      readOnly={!!externalBpm}
-                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
-                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:MONO, fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.30)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(92,124,138,0.04)",
-                        color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
-                    />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
-                    {externalBpm && <span style={{ fontSize:8, color:"#2B9A3E", fontFamily:MONO, fontWeight:700 }}>MPC</span>}
-                  </div>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
-
-                  {/* Octave */}
-                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
-                    <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:14, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
-                  </div>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
 
                   {/* Loop */}
                   <button onClick={() => setLoopEnabled(e => !e)}
@@ -9395,16 +9289,7 @@ export default function App() {
                     ))}
                   </div>
 
-                  {looping && (
-                    <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:MONO,
-                      display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ width:5, height:5, borderRadius:"50%", background:"#2B9A3E", display:"inline-block",
-                        animation:"pulse 1.2s ease-in-out infinite" }} />
-                      PLAYING
-                    </span>
-                  )}
-
-                  <div style={{ flex:1 }} />
+                  <div style={{ width:1, height:22, background:t.border }} />
 
                   {/* Style dropdown */}
                   <div style={{ position:"relative" }}>
@@ -9439,6 +9324,106 @@ export default function App() {
                         </div>
                       </>
                     )}
+                  </div>
+
+                  <div style={{ width:1, height:22, background:t.border }} />
+
+                  {/* Chord rhythm pattern */}
+                  <select value={chordPlayPattern}
+                    onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
+                    style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:2,
+                      border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.label}</option>
+                    ))}
+                  </select>
+
+                  {/* Arp */}
+                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
+                    style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
+                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                    Arp
+                  </button>
+                  {arpOn && <>
+                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
+                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:2,
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
+                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:2,
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                  </>}
+
+                  <div style={{ flex:1 }} />
+
+                  {/* BPM — right side, compact */}
+                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: externalBpm ? "#2B9A3E" : "rgba(0,0,0,0.40)", letterSpacing:"0.08em", fontFamily:SF }}>
+                      {externalBpm ? "BPM ← MPC" : "BPM"}
+                    </span>
+                    {clockDebug && midiSyncMode === "receive" && (
+                      <span style={{ fontSize:7, color:t.textTertiary, fontFamily:MONO, opacity:0.6 }}>{clockDebug}</span>
+                    )}
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:10, fontWeight:700, width:18, height:20, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1, padding:0 }}>-</button>}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
+                      readOnly={!!externalBpm}
+                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
+                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
+                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
+                      style={{ fontFamily:MONO, fontSize:13, fontWeight:700, textAlign:"center", width:38, padding:"2px 2px", borderRadius:1,
+                        border:`1px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.25)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(92,124,138,0.04)",
+                        color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.05em", caretColor:t.accent }}
+                    />
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:10, fontWeight:700, width:18, height:20, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1, padding:0 }}>+</button>}
+                  </div>
+                </div>
+
+                {/* ═══ PERFORMANCE — Fill, Bridge ═══ */}
+                <div style={{ display:"flex", alignItems:"center", gap:6, padding:"4px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
+                  {/* Fill + Bridge */}
+                  <button onClick={() => { fillNextRef.current = true; }}
+                    disabled={!drumPattern || !looping}
+                    style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
+                      background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
+                      color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
+                      cursor: (!drumPattern || !looping) ? "default" : "pointer",
+                      opacity: (!drumPattern || !looping) ? 0.35 : 1 }}>
+                    Fill
+                  </button>
+                  <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
+                    style={{ fontFamily:SF, fontSize:10, padding:"3px 6px", borderRadius:2,
+                      border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
+                    <option value="off">Fill Off</option>
+                    <option value="auto4">Every 4</option>
+                    <option value="auto8">Every 8</option>
+                  </select>
+                  <button onClick={() => { bridgeNextRef.current = true; }}
+                    disabled={!looping}
+                    style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid rgba(0,0,0,0.12)`,
+                      color: "rgba(0,0,0,0.50)",
+                      background: "transparent",
+                      cursor: !looping ? "default" : "pointer",
+                      opacity: !looping ? 0.35 : 1 }}>
+                    Bridge
+                  </button>
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Octave (chord) */}
+                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:10, fontWeight:700, width:18, height:20, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1, padding:0 }}>-</button>
+                    <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:12, textAlign:"center" }}>{chordOctave}</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:10, fontWeight:700, width:18, height:20, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1, padding:0 }}>+</button>
                   </div>
                 </div>
 
@@ -9986,6 +9971,17 @@ export default function App() {
                           color:"#fff", cursor:"pointer", letterSpacing:"0.03em" }}>
                           Generate Song
                         </button>
+                        {sections.length > 0 && (
+                          <button onClick={() => {
+                            if (!window.confirm("Fjern alle sections og arrangement?")) return;
+                            if (looping) stopLoop();
+                            setSections([]); setArrangement([]); setEditingSectionId(null);
+                            setArrangementSectionIdx(-1); arrangementSectionIdxRef.current = -1;
+                          }} style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"7px 16px", borderRadius:2,
+                            border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:"#FF453A", cursor:"pointer" }}>
+                            Clear Song
+                          </button>
+                        )}
                         {editingSectionId && (
                           <button onClick={() => updateSection(editingSectionId)}
                             style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"7px 16px", borderRadius:2,
@@ -10021,14 +10017,36 @@ export default function App() {
                             {arrangement.map((secId, idx) => {
                               const sec = sections.find(s => s.id === secId);
                               if (!sec) return null;
+                              const isActive = arrangementPlaying && idx === arrangementSectionIdx;
+                              const chordNames = sec.timelineItems.map(it => {
+                                const root = NOTE_DISPLAY[it.chord.noteIdx] || NOTES[it.chord.noteIdx];
+                                return root + (it.chord.quality === "minor" ? "m" : it.chord.quality === "dim" ? "°" : it.chord.quality === "aug" ? "+" : it.chord.quality === "sus4" ? "sus4" : it.chord.quality === "sus2" ? "sus2" : it.chord.quality === "7" ? "7" : it.chord.quality === "maj7" ? "M7" : it.chord.quality === "min7" ? "m7" : "");
+                              }).join(" → ");
+                              const hasDrums = !!sec.drumPattern;
+                              const hasBass = sec.bassLine && sec.bassLine.length > 0;
+                              const hasMelody = sec.melodyLine && sec.melodyLine.length > 0;
                               return (
                                 <div key={idx} style={{ display:"flex", alignItems:"center", gap:2 }}>
                                   {idx > 0 && <span style={{ fontSize:10, color:t.textTertiary }}>→</span>}
-                                  <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:2,
-                                    background:t.accentBg, border:`1px solid ${t.accentBorder}` }}>
-                                    <span style={{ fontSize:11, fontWeight:600, color:t.accent, fontFamily:SF }}>{sec.name}</span>
-                                    <button onClick={() => setArrangement(a => a.filter((_,i) => i !== idx))}
-                                      style={{ background:"none", border:"none", color:t.accent, cursor:"pointer", fontSize:11, padding:0, opacity:0.6 }}>×</button>
+                                  <div style={{ display:"flex", flexDirection:"column", gap:2, padding:"5px 10px", borderRadius:2,
+                                    background: isActive ? "rgba(52,199,89,0.18)" : t.accentBg,
+                                    border: isActive ? "2px solid #34C759" : `1px solid ${t.accentBorder}`,
+                                    transition:"all 0.15s", minWidth: 60,
+                                    boxShadow: isActive ? "0 0 8px rgba(52,199,89,0.3)" : "none" }}>
+                                    <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                                      {isActive && <span style={{ width:6, height:6, borderRadius:"50%", background:"#34C759", display:"inline-block", animation:"pulse 1s infinite" }} />}
+                                      <span style={{ fontSize:11, fontWeight:700, color: isActive ? "#34C759" : t.accent, fontFamily:SF }}>{sec.name}</span>
+                                      <button onClick={() => setArrangement(a => a.filter((_,i) => i !== idx))}
+                                        style={{ background:"none", border:"none", color:t.accent, cursor:"pointer", fontSize:11, padding:0, opacity:0.6, marginLeft:"auto" }}>×</button>
+                                    </div>
+                                    <div style={{ fontSize:9, color: isActive ? "rgba(52,199,89,0.8)" : t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:160 }}>
+                                      {chordNames || "—"}
+                                    </div>
+                                    <div style={{ display:"flex", gap:4, fontSize:8, color: isActive ? "rgba(52,199,89,0.7)" : t.textTertiary }}>
+                                      {hasDrums && <span>🥁</span>}
+                                      {hasBass && <span>🎸</span>}
+                                      {hasMelody && <span>🎵</span>}
+                                    </div>
                                   </div>
                                 </div>
                               );
