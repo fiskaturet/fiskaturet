@@ -6353,6 +6353,34 @@ export default function App() {
     setDrumPattern(fresh);
   }, [drumGenre, drumPattern, lockedTracks, DRUM_STEPS_LIVE]);
 
+  const stopLoop = () => {
+    if (loopRef.current)  { clearTimeout(loopRef.current);       loopRef.current = null; }
+    if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
+    // Cancel all pending scheduled notes
+    if (tlTimeoutsRef.current) {
+      tlTimeoutsRef.current.forEach(id => clearTimeout(id));
+      tlTimeoutsRef.current = [];
+    }
+    // Release all playing Tone.js voices
+    try { instRef.current?.releaseAll?.(); } catch(e) {}
+    // Stop MIDI Clock
+    stopMidiClock();
+    // Send MIDI all-notes-off / all-sound-off on every channel, just in case
+    try {
+      const midiOut = getMIDIOut();
+      if (midiOut) {
+        for (let c = 0; c < 16; c++) {
+          midiOut.send([0xB0|c, 120, 0]); // all sound off
+          midiOut.send([0xB0|c, 123, 0]); // all notes off
+        }
+      }
+    } catch(e) {}
+    setLooping(false);
+    setArrangementPlaying(false);
+    setPlayheadPct(0);
+    setDrumStep(-1);
+  };
+
   // ── Full Auto — producer preset one-click generation ──────────────────────
   const runFullAuto = useCallback((presetKey) => {
     const p = PRODUCER_PRESETS[presetKey];
@@ -6508,34 +6536,6 @@ export default function App() {
       return { ...prev, [trackId]: track };
     });
   }, []);
-
-  const stopLoop = () => {
-    if (loopRef.current)  { clearTimeout(loopRef.current);       loopRef.current = null; }
-    if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
-    // Cancel all pending scheduled notes
-    if (tlTimeoutsRef.current) {
-      tlTimeoutsRef.current.forEach(id => clearTimeout(id));
-      tlTimeoutsRef.current = [];
-    }
-    // Release all playing Tone.js voices
-    try { instRef.current?.releaseAll?.(); } catch(e) {}
-    // Stop MIDI Clock
-    stopMidiClock();
-    // Send MIDI all-notes-off / all-sound-off on every channel, just in case
-    try {
-      const midiOut = getMIDIOut();
-      if (midiOut) {
-        for (let c = 0; c < 16; c++) {
-          midiOut.send([0xB0|c, 120, 0]); // all sound off
-          midiOut.send([0xB0|c, 123, 0]); // all notes off
-        }
-      }
-    } catch(e) {}
-    setLooping(false);
-    setArrangementPlaying(false);
-    setPlayheadPct(0);
-    setDrumStep(-1);
-  };
 
   // ── Timeline drag/resize with push/swap ─────────────────────────────────────
   // Given items array, move draggedId to newStart and push overlapping items out of the way
@@ -7729,7 +7729,7 @@ export default function App() {
               {mode !== "sheet" && mode !== "drums" && <div>
                 <label style={labelStyle}>Root</label>
                 <select value={rootDisplay}
-                  onChange={e => { setRootDisplay(e.target.value); setProgression([]); setActiveChord(null); }}
+                  onChange={e => { setRootDisplay(e.target.value); setTimelineItems([]); setActiveChord(null); }}
                   style={selectStyle}>
                   {getSortedRoots(scaleKey).map(n => {
                     const blacks = countBlackKeys(NOTE_DISPLAY.indexOf(n), scaleKey);
@@ -7740,7 +7740,7 @@ export default function App() {
               {mode !== "sheet" && mode !== "drums" && <div>
                 <label style={labelStyle}>Scale</label>
                 <select value={scaleKey}
-                  onChange={e => { setScaleKey(e.target.value); setProgression([]); setActiveChord(null); }}
+                  onChange={e => { setScaleKey(e.target.value); setTimelineItems([]); setActiveChord(null); }}
                   style={selectStyle}>
                   <option value="major">Major</option>
                   <option value="minor">Minor</option>
