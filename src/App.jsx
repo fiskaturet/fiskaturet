@@ -3953,6 +3953,7 @@ export default function App() {
   useEffect(() => { humanizeRef.current = humanize; }, [humanize]);
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
+  const [drumDensity,    setDrumDensity]    = useState(100);  // 100 = play all, 0 = silence — applies to all tracks
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
   const [drumFavorites,  setDrumFavorites]  = useState([]);    // [{ id, genre, pattern, label }]
@@ -3969,6 +3970,7 @@ export default function App() {
   // Live refs for values read inside scheduling closures
   const drumSwingRef    = useRef(drumSwing);
   const drumHalfTimeRef = useRef(drumHalfTime);
+  const drumDensityRef  = useRef(drumDensity);
   const soloTrackRef    = useRef(soloTrack);
   const mutedTracksRef  = useRef(mutedTracks);
   const tripletTracksRef = useRef(tripletTracks);
@@ -3992,6 +3994,7 @@ export default function App() {
   // Keep refs in sync with state for live scheduling reads
   useEffect(() => { drumSwingRef.current = drumSwing; }, [drumSwing]);
   useEffect(() => { drumHalfTimeRef.current = drumHalfTime; }, [drumHalfTime]);
+  useEffect(() => { drumDensityRef.current = drumDensity; }, [drumDensity]);
   useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
   useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
   useEffect(() => { tripletTracksRef.current = tripletTracks; }, [tripletTracks]);
@@ -4589,8 +4592,14 @@ export default function App() {
       timelineItems.forEach(item => {
         const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         // Filter out muted notes from piano roll
-        const noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
+        let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
         if (noteNames.length === 0) return; // all muted, skip this chord
+        // Density: thin chord voicing — randomly drop notes but always keep at least 1 (root)
+        const density = drumDensityRef.current;
+        if (density < 100 && noteNames.length > 1) {
+          noteNames = noteNames.filter((_, i) => i === 0 || Math.random() < density * 0.01);
+          if (noteNames.length === 0) noteNames = [allNoteNames[0]]; // safety: keep root
+        }
         const startSec  = item.startSlot * slotSec;
         const durSec    = item.lengthSlots * slotSec;
         const styledDur = durSec * style.durMult;
@@ -4730,6 +4739,14 @@ export default function App() {
             const vel = drumPattern[track.id]?.[step] || 0;
             if (vel <= 0) return;
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
+            // Density filter: at 100% play all, at 0% play none
+            // Kick/snare on downbeats are more resistant to removal
+            const density = drumDensityRef.current;
+            if (density < 100) {
+              const isBackbone = (track.id === "kick" || track.id === "snare") && step % 8 === 0;
+              const threshold = isBackbone ? density * 0.01 + (1 - density * 0.01) * 0.7 : density * 0.01;
+              if (Math.random() > threshold) return;
+            }
             const { tMs: hzT, vScale: hzV } = hz();
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = Math.max(0, (step * slotSec + swingDelay) * 1000 + hzT);
@@ -4749,8 +4766,15 @@ export default function App() {
       // ── Bass line scheduling ──
       if (bassLine.length > 0) {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
-        bassLine.forEach(note => {
+        bassLine.forEach((note, nIdx) => {
           if (note.muted) return;
+          // Density: skip bass notes randomly — keep first note of each bar
+          const density = drumDensityRef.current;
+          if (density < 100) {
+            const isDownbeat = note.startSlot % 16 === 0;
+            const threshold = isDownbeat ? density * 0.01 + (1 - density * 0.01) * 0.6 : density * 0.01;
+            if (Math.random() > threshold) return;
+          }
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4776,6 +4800,9 @@ export default function App() {
         const cpatMelVel = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
         melodyLine.forEach(note => {
           if (note.muted) return;
+          // Density: skip melody notes randomly
+          const density = drumDensityRef.current;
+          if (density < 100 && Math.random() > density * 0.01) return;
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4910,7 +4937,13 @@ export default function App() {
         if (sec.timelineItems) {
           const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
           sec.timelineItems.forEach(item => {
-            const noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+            let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+            // Density: thin chord voicing — keep root
+            const density = drumDensityRef.current;
+            if (density < 100 && noteNames.length > 1) {
+              noteNames = noteNames.filter((_, i) => i === 0 || Math.random() < density * 0.01);
+              if (noteNames.length === 0) noteNames = [getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave)[0]];
+            }
             const chordStartSec = (offset + item.startSlot) * slotSec;
             const chordDurSec = item.lengthSlots * slotSec;
             const hits = cpat.generate(item.lengthSlots);
@@ -4949,6 +4982,12 @@ export default function App() {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
+            const density = drumDensityRef.current;
+            if (density < 100) {
+              const isDownbeat = note.startSlot % 16 === 0;
+              const threshold = isDownbeat ? density * 0.01 + (1 - density * 0.01) * 0.6 : density * 0.01;
+              if (Math.random() > threshold) return;
+            }
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4971,6 +5010,8 @@ export default function App() {
           const cpatMelVelA = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
+            const density = drumDensityRef.current;
+            if (density < 100 && Math.random() > density * 0.01) return;
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
@@ -4996,6 +5037,13 @@ export default function App() {
             if (!steps) return;
             steps.forEach((vel, step) => {
               if (vel === 0) return;
+              // Density filter
+              const density = drumDensityRef.current;
+              if (density < 100) {
+                const isBackbone = (track.id === "kick" || track.id === "snare") && step % 8 === 0;
+                const threshold = isBackbone ? density * 0.01 + (1 - density * 0.01) * 0.7 : density * 0.01;
+                if (Math.random() > threshold) return;
+              }
               const { tMs: ht, vScale: hv } = hzA();
               const onMs = Math.max(0, (offset + step) * slotSec * 1000 + ht);
               const hzVel = Math.max(1, Math.min(127, Math.round(vel * hv)));
@@ -5039,7 +5087,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
+  }, [drumSwing, drumHalfTime, drumDensity, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
 
   return (
     <>
@@ -5467,6 +5515,15 @@ export default function App() {
                 </div>
                 {/* Swing + Half-tempo + Favorites row */}
                 <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center", marginTop:10 }}>
+                  {/* Density */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
+                    <input type="range" min={0} max={100} value={drumDensity}
+                      onChange={e => setDrumDensity(Number(e.target.value))}
+                      style={{ width:100, accentColor: drumDensity < 100 ? "#FF9F0A" : t.accent }} />
+                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color: drumDensity < 100 ? "#FF9F0A" : t.textTertiary, minWidth:30 }}>{drumDensity}%</span>
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
                   {/* Swing */}
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Swing</span>
@@ -6545,6 +6602,16 @@ export default function App() {
                     <input type="range" min={0} max={100} value={humanize}
                       onChange={e => setHumanize(Number(e.target.value))}
                       style={{ width:72, accentColor:t.accent, cursor:"pointer" }} />
+                  </div>
+                  {/* Density slider */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:10, fontWeight:600, color: drumDensity < 100 ? "#FF9F0A" : t.labelColor, textTransform:"uppercase",
+                      letterSpacing:"0.06em", fontFamily:SF, whiteSpace:"nowrap" }}>
+                      Density {drumDensity < 100 ? `${drumDensity}%` : ""}
+                    </span>
+                    <input type="range" min={0} max={100} value={drumDensity}
+                      onChange={e => setDrumDensity(Number(e.target.value))}
+                      style={{ width:72, accentColor: drumDensity < 100 ? "#FF9F0A" : t.accent, cursor:"pointer" }} />
                   </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
