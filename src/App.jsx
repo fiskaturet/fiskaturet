@@ -4928,39 +4928,65 @@ export default function App() {
   }, [padMap]);
 
   // ── Pad Mapper MIDI input listener ──────────────────────────────────────
+  // Refs for wizard state so the handler always reads current values
+  const wizardStepRef = useRef(wizardStep);
+  const wizardDoneRef = useRef(wizardDone);
+  const padMapModeRef = useRef(padMapMode);
+  const tapSelectedTrackRef = useRef(tapSelectedTrack);
+  useEffect(() => { wizardStepRef.current = wizardStep; }, [wizardStep]);
+  useEffect(() => { wizardDoneRef.current = wizardDone; }, [wizardDone]);
+  useEffect(() => { padMapModeRef.current = padMapMode; }, [padMapMode]);
+  useEffect(() => { tapSelectedTrackRef.current = tapSelectedTrack; }, [tapSelectedTrack]);
+
   useEffect(() => {
-    const listening = padMapperOpen && (padMapMode === "wizard" || padMapMode === "tap");
-    if (!listening || !midiAccess.current) return;
+    if (!padMapperOpen || !midiReady || !midiAccess.current) return;
+    const mode = padMapModeRef.current;
+    if (mode !== "wizard" && mode !== "tap") return;
+
     const handler = (e) => {
       if (!e.data || e.data.length < 3) return;
-      const [status, note, velocity] = e.data;
-      if ((status & 0xF0) !== 0x90 || velocity === 0) return; // only note-on
+      const status = e.data[0];
+      const note = e.data[1];
+      const velocity = e.data[2];
+      // Accept note-on on any channel (0x90-0x9F with velocity > 0)
+      if ((status & 0xF0) !== 0x90 || velocity === 0) return;
+      // Filter out clock/system messages
+      if (status >= 0xF0) return;
+
       setLastMidiNote(note);
-      setTimeout(() => setLastMidiNote(null), 300); // flash duration
-      if (padMapMode === "wizard" && !wizardDone) {
-        const track = DRUM_TRACKS[wizardStep];
+      setTimeout(() => setLastMidiNote(null), 300);
+
+      const curMode = padMapModeRef.current;
+      if (curMode === "wizard" && !wizardDoneRef.current) {
+        const step = wizardStepRef.current;
+        const track = DRUM_TRACKS[step];
         if (track) {
           const padLabel = midiToPadLabel(note);
-          setWizardMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
-          // Auto-advance to next step
-          if (wizardStep < DRUM_TRACKS.length - 1) {
-            setWizardStep(s => s + 1);
+          setWizardMap(prev => {
+            const base = prev || {};
+            return { ...base, [track.id]: { padId: padLabel, midiNote: note } };
+          });
+          if (step < DRUM_TRACKS.length - 1) {
+            setWizardStep(step + 1);
           } else {
             setWizardDone(true);
           }
         }
-      } else if (padMapMode === "tap") {
-        const track = DRUM_TRACKS[tapSelectedTrack];
+      } else if (curMode === "tap") {
+        const idx = tapSelectedTrackRef.current;
+        const track = DRUM_TRACKS[idx];
         if (track) {
           const padLabel = midiToPadLabel(note);
           setPadMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
         }
       }
     };
+
+    // Attach to ALL MIDI inputs
     const inputs = [...midiAccess.current.inputs.values()];
     inputs.forEach(input => input.addEventListener("midimessage", handler));
     return () => inputs.forEach(input => input.removeEventListener("midimessage", handler));
-  }, [padMapperOpen, padMapMode, wizardStep, wizardDone, tapSelectedTrack]);
+  }, [padMapperOpen, padMapMode, midiReady]);
 
   // ── Pad-to-chord MIDI input listener ──────────────────────────────────────
   useEffect(() => {
