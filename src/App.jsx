@@ -4995,9 +4995,12 @@ export default function App() {
       }
     };
 
+    // Use onmidimessage property (more reliable) + addEventListener as backup
+    const prevHandlers = inputs.map(input => input.onmidimessage);
+    inputs.forEach(input => { input.onmidimessage = handler; });
     inputs.forEach(input => input.addEventListener("midimessage", handler));
     return () => {
-      console.log("[PadWizard] Cleaning up listeners");
+      inputs.forEach((input, i) => { input.onmidimessage = prevHandlers[i] || null; });
       inputs.forEach(input => input.removeEventListener("midimessage", handler));
     };
   }, [padMapperOpen, padMapMode, midiReady]);
