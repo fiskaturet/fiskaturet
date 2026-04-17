@@ -314,18 +314,112 @@ const CHORD_PLAY_PATTERNS = {
     label: "Nordic Arp", desc: "Broken chord arpeggiation — Nordic pop / ambient",
     melodyVelMult: 0.65,
     generate: (lenSlots) => {
-      // This is handled specially in scheduling — breaks chord into individual notes
       const hits = [];
       const eighthLen = 2;
       const count = Math.floor(lenSlots / eighthLen);
       for (let i = 0; i < count; i++) {
         hits.push({
           offset: (i * eighthLen) / lenSlots,
-          duration: (eighthLen * 1.5) / lenSlots, // overlapping sustain
+          duration: (eighthLen * 1.5) / lenSlots,
           velMult: 0.6 + (i % 3 === 0 ? 0.3 : 0),
-          _arpNote: i, // flag: use individual chord note instead of full chord
+          _arpNote: i,
         });
       }
+      return hits;
+    },
+  },
+  offbeat: {
+    label: "Offbeat", desc: "Upbeat skank — reggae / dub / dancehall",
+    melodyVelMult: 0.7,
+    generate: (lenSlots) => {
+      const hits = [];
+      const beatLen = 4;
+      const beats = Math.floor(lenSlots / beatLen);
+      for (let b = 0; b < Math.max(1, beats); b++) {
+        // Hit on the "and" of each beat (2 sixteenths in)
+        hits.push({ offset: (b * beatLen + 2) / lenSlots, duration: 1.5 / lenSlots, velMult: b === 0 ? 0.9 : 0.75 });
+      }
+      return hits;
+    },
+  },
+  syncopated: {
+    label: "Synkopiert", desc: "Off-grid rhythmic pushes — syncopated modern",
+    melodyVelMult: 0.8,
+    generate: (lenSlots) => {
+      const hits = [];
+      // Hit on 1
+      hits.push({ offset: 0, duration: 2 / lenSlots, velMult: 1 });
+      // Hit on "e of 2" (slot 5)
+      if (lenSlots >= 8) hits.push({ offset: 5 / lenSlots, duration: 2 / lenSlots, velMult: 0.65 });
+      // Hit on "and of 3" (slot 10)
+      if (lenSlots >= 12) hits.push({ offset: 10 / lenSlots, duration: 2 / lenSlots, velMult: 0.8 });
+      // Hit on "e of 4" (slot 13)
+      if (lenSlots >= 16) hits.push({ offset: 13 / lenSlots, duration: 2 / lenSlots, velMult: 0.55 });
+      return hits;
+    },
+  },
+  sparse: {
+    label: "Sparse", desc: "Minimal — only beat 1, lots of space",
+    melodyVelMult: 1.0,
+    generate: (lenSlots) => {
+      return [{ offset: 0, duration: Math.min(4, lenSlots) / lenSlots, velMult: 0.85 }];
+    },
+  },
+  gospel: {
+    label: "Gospel", desc: "Rolling chords with anticipation — gospel / church",
+    melodyVelMult: 0.75,
+    generate: (lenSlots) => {
+      const hits = [];
+      // Anticipation before beat 1 — last 16th of prev bar
+      hits.push({ offset: 0, duration: 3 / lenSlots, velMult: 1 });
+      // "And" of 1
+      if (lenSlots >= 4) hits.push({ offset: 3 / lenSlots, duration: 1.5 / lenSlots, velMult: 0.5 });
+      // Beat 2
+      if (lenSlots >= 8) hits.push({ offset: 4 / lenSlots, duration: 2 / lenSlots, velMult: 0.85 });
+      // "And" of 3
+      if (lenSlots >= 12) hits.push({ offset: 10 / lenSlots, duration: 2 / lenSlots, velMult: 0.7 });
+      // Beat 4
+      if (lenSlots >= 16) hits.push({ offset: 12 / lenSlots, duration: 2 / lenSlots, velMult: 0.8 });
+      // Anticipation
+      if (lenSlots >= 16) hits.push({ offset: 15 / lenSlots, duration: 1 / lenSlots, velMult: 0.9 });
+      return hits;
+    },
+  },
+  house: {
+    label: "House", desc: "Pumping quarter-note chords — house / disco",
+    melodyVelMult: 0.7,
+    generate: (lenSlots) => {
+      const hits = [];
+      const beatLen = 4;
+      const beats = Math.floor(lenSlots / beatLen);
+      for (let b = 0; b < Math.max(1, beats); b++) {
+        hits.push({ offset: (b * beatLen) / lenSlots, duration: 3 / lenSlots, velMult: 0.85 });
+      }
+      return hits;
+    },
+  },
+  sixteenths: {
+    label: "16ths", desc: "Rapid stutter — drill / electronic",
+    melodyVelMult: 0.6,
+    generate: (lenSlots) => {
+      const hits = [];
+      for (let i = 0; i < lenSlots; i++) {
+        hits.push({
+          offset: i / lenSlots,
+          duration: 0.8 / lenSlots,
+          velMult: i % 4 === 0 ? 0.9 : i % 2 === 0 ? 0.6 : 0.35,
+        });
+      }
+      return hits;
+    },
+  },
+  halftime: {
+    label: "Halftime", desc: "Hit on 1 and 3 only — half-time feel",
+    melodyVelMult: 0.9,
+    generate: (lenSlots) => {
+      const hits = [];
+      hits.push({ offset: 0, duration: 4 / lenSlots, velMult: 1 });
+      if (lenSlots >= 12) hits.push({ offset: 8 / lenSlots, duration: 4 / lenSlots, velMult: 0.8 });
       return hits;
     },
   },
@@ -5175,7 +5269,7 @@ export default function App() {
   const timelineItemsRef = useRef([]);
   const [hoveredChord, setHoveredChord] = useState(null);
   const [activeChord,  setActiveChord]  = useState(null);
-  const [bpm,          setBpm]          = useState(90);
+  const [bpm,          setBpm]          = useState(85);
   const [looping,      setLooping]      = useState(false);
   const [loopEnabled,  setLoopEnabled]  = useState(true);  // repeat vs one-shot
   const loopEnabledRef = useRef(true);
@@ -8525,9 +8619,19 @@ export default function App() {
                   <button onClick={() => {
                     stopLoop();
                     const PREFERRED_GENRES = ["Hip-Hop","R&B","Nordic Pop","Radiohead","Soul","Dark"];
-                    const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre));
-                    const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre));
-                    const pool = Math.random() < 0.8 && preferred.length > 0 ? preferred : other.length > 0 ? other : FAMOUS_PROGRESSIONS;
+                    // Filter by ideal chord count for current bar length
+                    // Goal: ~1 chord per bar (± some flex), so 8 bars → prefer 6-10 chords
+                    const idealMin = Math.max(2, barCount - 1);
+                    const idealMax = Math.min(16, barCount * 2);
+                    const lenFilter = (p) => p.degrees.length >= idealMin && p.degrees.length <= idealMax;
+                    const preferred = FAMOUS_PROGRESSIONS.filter(p => PREFERRED_GENRES.includes(p.genre) && lenFilter(p));
+                    const other = FAMOUS_PROGRESSIONS.filter(p => !PREFERRED_GENRES.includes(p.genre) && lenFilter(p));
+                    // Fallback: if no length-matched progressions, use all
+                    const allMatched = FAMOUS_PROGRESSIONS.filter(lenFilter);
+                    const pool = preferred.length > 0 && Math.random() < 0.8 ? preferred
+                               : other.length > 0 ? other
+                               : allMatched.length > 0 ? allMatched
+                               : FAMOUS_PROGRESSIONS;
                     const pick = pool[Math.floor(Math.random()*pool.length)];
                     const scaleObj = SCALES[scaleKey];
                     const seventhList = scaleKey==="major" ? SEVENTHS_MAJOR : scaleKey==="minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
