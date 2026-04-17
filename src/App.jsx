@@ -1947,137 +1947,434 @@ function generateFill(genre) {
   return fills[Math.floor(Math.random() * fills.length)]();
 }
 
+// Velocity humanization helper — adds jitter to a base velocity
+const FV = (base, jitter=15) => Math.max(1, Math.min(127, base + Math.floor((Math.random()-0.5)*jitter*2)));
+
 const FILL_PATTERNS = {
   _default: [
-    // Snare roll — building snare hits getting louder
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 80,0,80,0, 90,90,95,95, 100,105,110,115];
-      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
-      fill.crash = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]; // crash goes on beat 1 of NEXT bar
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]; // silence hats during fill
-      fill.hatO = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
-    // Tom descent — high to low toms with snare accents
-    () => {
-      const fill = {};
-      fill.tom = [0,0,0,0, 95,0,90,0, 85,0,80,0, 75,0,70,0];
-      fill.snare = [0,0,0,0, 0,100,0,100, 0,0,0,0, 110,0,110,115];
-      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
-    // Rapid snare build
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 0,0,0,0, 85,0,90,0, 95,100,105,110];
-      fill.kick = [110,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,110];
-      fill.hatC = [70,0,70,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: Snare roll — building snare hits getting louder
+    () => ({
+      snare: [0,0,0,0, FV(80),0,FV(80),0, FV(90),FV(90),FV(95),FV(95), FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      crash: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatO: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Tom descent
+    () => ({
+      tom: [0,0,0,0, FV(95),0,FV(90),0, FV(85),0,FV(80),0, FV(75),0,FV(70),0],
+      snare: [0,0,0,0, 0,FV(100),0,FV(100), 0,0,0,0, FV(110),0,FV(110),FV(115)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(100)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: Rapid snare build
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, FV(85),0,FV(90),0, FV(95),FV(100),FV(105),FV(110)],
+      kick: [FV(110),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,FV(110)],
+      hatC: [FV(70),0,FV(70),0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Kick march — driving kick pattern with snare accent
+    () => ({
+      kick: [FV(110),0,FV(90),0, FV(100),0,FV(90),0, FV(105),0,FV(95),0, FV(110),0,FV(100),FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),0,FV(110),FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 5: Hat flutter into crash
+    () => ({
+      hatC: [FV(70),FV(75),FV(80),FV(85), FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(110),FV(110),FV(115),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      crash: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 6: Syncopated snare and kick
+    () => ({
+      snare: [0,0,FV(85),0, 0,FV(90),0,0, FV(95),0,0,FV(100), 0,FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,FV(90), 0,0,FV(95),0, 0,FV(100),0,0, FV(105),0,0,FV(110)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   boombap_classic: [
-    // Classic boom bap fill — snare flams and kick accents
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 95,0,0,90, 0,100,0,0, 95,100,105,110];
-      fill.kick = [110,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,100];
-      fill.ghost = [0,40,0,0, 0,35,40,0, 0,0,35,40, 0,0,0,0];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 100,0,95,0, 100,0,100,100, 105,105,110,115];
-      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
-      fill.hatC = [70,70,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: Classic boom bap fill — snare flams and kick accents
+    () => ({
+      snare: [0,0,0,0, FV(95),0,0,FV(90), 0,FV(100),0,0, FV(95),FV(100),FV(105),FV(110)],
+      kick: [FV(110),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,FV(100)],
+      ghost: [0,FV(40),0,0, 0,FV(35),FV(40),0, 0,0,FV(35),FV(40), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Snare roll with hat accents
+    () => ({
+      snare: [0,0,0,0, FV(100),0,FV(95),0, FV(100),0,FV(100),FV(100), FV(105),FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      hatC: [FV(70),FV(70),0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: SP-1200 chop style — syncopated ghost notes
+    () => ({
+      snare: [0,0,0,0, 0,FV(100),0,0, FV(105),0,0,FV(95), 0,FV(100),FV(110),FV(115)],
+      kick: [FV(110),0,0,FV(85), 0,0,0,0, 0,0,FV(90),0, 0,0,0,FV(105)],
+      ghost: [0,FV(35),FV(30),0, FV(40),0,FV(35),FV(30), 0,FV(35),0,0, FV(40),0,0,0],
+      hatC: [FV(60),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Flam-heavy with kick punctuation
+    () => ({
+      snare: [0,0,0,0, FV(90),FV(55),0,0, FV(95),FV(55),0,0, FV(100),FV(60),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,FV(90),0, 0,0,FV(95),0, 0,0,0,FV(110)],
+      ghost: [0,FV(30),0,FV(35), 0,0,0,FV(30), 0,0,0,FV(35), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 5: Kick-snare call and response
+    () => ({
+      snare: [0,0,0,0, 0,0,FV(100),0, 0,0,0,0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,FV(95),0, FV(100),0,0,0, FV(105),0,FV(95),0, 0,0,0,FV(110)],
+      ghost: [0,FV(35),0,FV(30), 0,FV(35),0,FV(40), 0,FV(30),0,FV(35), 0,0,0,0],
+      hatC: [FV(55),0,0,0, 0,0,0,0, FV(55),0,0,0, 0,0,0,0],
+    }),
+    // 6: Breakbeat homage — fast snare triplet feel
+    () => ({
+      snare: [0,0,0,0, FV(95),0,FV(90),FV(85), FV(95),FV(90),FV(100),0, FV(105),FV(110),FV(112),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,FV(95), 0,0,0,FV(110)],
+      ghost: [0,FV(30),FV(25),0, 0,FV(35),0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   griselda: [
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 0,0,100,0, 0,100,0,100, 105,0,110,115];
-      fill.kick = [100,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0];
-      fill.rim = [0,0,0,70, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: Dark minimal rim shot fill
+    () => ({
+      snare: [0,0,0,0, 0,0,FV(100),0, 0,FV(100),0,FV(100), FV(105),0,FV(110),FV(115)],
+      kick: [FV(100),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,0],
+      rim: [0,0,0,FV(70),0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Sparse snare with hard kick
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,FV(105),0, 0,0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,FV(95), 0,0,0,0, FV(105),0,0,FV(110)],
+      rim: [0,0,FV(65),0, 0,FV(70),0,0, 0,0,0,FV(65), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: Rim shot pattern into snare crash
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(105),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,0],
+      rim: [0,0,FV(70),0, FV(75),0,FV(70),0, 0,FV(75),0,FV(70), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Grimy kick-heavy with sparse rim
+    () => ({
+      snare: [0,0,0,0, 0,0,0,FV(100), 0,0,0,0, 0,FV(105),0,FV(115)],
+      kick: [FV(110),0,FV(90),0, 0,0,0,0, FV(100),0,0,FV(90), FV(105),0,0,FV(110)],
+      rim: [0,0,0,FV(65), 0,0,0,0, 0,0,FV(70),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 5: Minimal tension build
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, FV(95),0,0,FV(100), 0,FV(105),FV(110),FV(115)],
+      kick: [FV(105),0,0,0, FV(95),0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      rim: [0,FV(60),0,0, 0,0,FV(65),0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 6: Silence then hard snare burst
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),FV(108),FV(112),FV(120)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      rim: [0,0,0,0, 0,FV(65),0,0, 0,0,FV(70),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   trap_modern: [
-    // Trap fill — rapid hi-hat + snare rolls
-    () => {
-      const fill = {};
-      fill.hatC = [90,90,95,95, 100,100,105,105, 110,110,110,110, 115,115,115,115];
-      fill.snare = [0,0,0,0, 0,0,0,0, 0,0,100,0, 105,0,110,115];
-      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 110,0,0,0];
-      return fill;
-    },
-    () => {
-      const fill = {};
-      fill.hatC = [85,0,85,85, 90,0,90,90, 95,95,95,95, 100,100,105,110];
-      fill.snare = [0,0,0,0, 100,0,0,0, 0,0,100,0, 100,100,110,115];
-      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
-      return fill;
-    },
+    // 1: Rapid hi-hat rolls with snare
+    () => ({
+      hatC: [FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(110),FV(110),FV(110),FV(110), FV(115),FV(115),FV(115),FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,FV(100),0, FV(105),0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, FV(110),0,0,0],
+    }),
+    // 2: Building hats with snare rolls
+    () => ({
+      hatC: [FV(85),0,FV(85),FV(85), FV(90),0,FV(90),FV(90), FV(95),FV(95),FV(95),FV(95), FV(100),FV(100),FV(105),FV(110)],
+      snare: [0,0,0,0, FV(100),0,0,0, 0,0,FV(100),0, FV(100),FV(100),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 3: 808 drop with hi-hat triplets
+    () => ({
+      hatC: [FV(95),FV(80),FV(95), FV(80),FV(95),FV(80), FV(100),FV(85),FV(100), FV(85),FV(105),FV(90), FV(110),FV(95),FV(115),FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(115),0,0,0, 0,0,0,0, FV(110),0,0,0, 0,0,0,FV(115)],
+    }),
+    // 4: Snare roll dominant
+    () => ({
+      hatC: [FV(80),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      snare: [0,0,0,0, FV(85),FV(85),FV(90),FV(90), FV(95),FV(95),FV(100),FV(100), FV(105),FV(108),FV(112),FV(118)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+    }),
+    // 5: Open hat stutters into crash
+    () => ({
+      hatO: [0,0,0,0, FV(85),0,FV(90),0, FV(95),FV(95),FV(100),FV(100), FV(105),FV(105),FV(110),0],
+      hatC: [FV(90),FV(85),FV(90),FV(85), 0,FV(85),0,FV(85), 0,0,0,0, 0,0,0,FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, FV(110),0,0,0],
+    }),
+    // 6: Machine-gun hats
+    () => ({
+      hatC: [FV(100),FV(100),FV(105),FV(105), FV(108),FV(108),FV(110),FV(110), FV(112),FV(112),FV(115),FV(115), FV(118),FV(118),FV(120),FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,FV(110),FV(115)],
+      kick: [FV(115),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+    }),
+    // 7: Sparse 808 bounce
+    () => ({
+      hatC: [FV(85),0,FV(90),0, FV(95),0,FV(100),0, FV(105),0,FV(110),0, FV(115),0,FV(115),FV(115)],
+      snare: [0,0,0,0, FV(100),0,0,0, 0,0,FV(105),0, FV(108),FV(110),FV(112),FV(118)],
+      kick: [FV(115),0,0,FV(90), 0,0,0,0, FV(105),0,0,0, 0,0,0,FV(115)],
+    }),
   ],
   drill: [
-    () => {
-      const fill = {};
-      fill.hatC = [95,95,100,100, 105,105,105,105, 110,110,110,110, 115,115,115,115];
-      fill.snare = [0,0,0,0, 0,0,0,0, 100,0,0,0, 105,105,110,115];
-      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
-      return fill;
-    },
+    // 1: Hi-hat dominant sliding
+    () => ({
+      hatC: [FV(95),FV(95),FV(100),FV(100), FV(105),FV(105),FV(105),FV(105), FV(110),FV(110),FV(110),FV(110), FV(115),FV(115),FV(115),FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, FV(100),0,0,0, FV(105),FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(100)],
+    }),
+    // 2: Sliding hats with snare flurry
+    () => ({
+      hatC: [FV(90),FV(85),FV(95),FV(90), FV(100),FV(95),FV(105),FV(100), FV(110),FV(105),FV(110),FV(110), FV(115),FV(112),FV(118),FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,FV(100), FV(105),0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(105)],
+    }),
+    // 3: Open hat stutter
+    () => ({
+      hatO: [0,0,0,0, FV(90),0,FV(90),0, FV(95),0,FV(95),0, FV(100),FV(105),FV(110),0],
+      hatC: [FV(95),FV(90),FV(95),FV(90), 0,FV(90),0,FV(90), 0,FV(95),0,FV(95), 0,0,0,FV(115)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 4: Snare roll with hat accents
+    () => ({
+      hatC: [FV(90),0,FV(95),0, FV(100),0,FV(100),0, FV(105),0,FV(105),0, FV(110),0,FV(115),0],
+      snare: [0,0,0,0, 0,FV(90),0,FV(90), FV(95),FV(95),FV(100),FV(100), FV(105),FV(108),FV(112),FV(118)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 5: Rapid hat decay
+    () => ({
+      hatC: [FV(115),FV(110),FV(105),FV(100), FV(95),FV(100),FV(105),FV(110), FV(115),FV(115),FV(115),FV(115), FV(118),FV(118),FV(120),FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),FV(108),FV(112),FV(115)],
+      kick: [FV(110),0,0,0, FV(95),0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 6: Drill bounce
+    () => ({
+      hatC: [FV(100),0,FV(105),FV(100), 0,FV(105),FV(100),0, FV(110),FV(105),0,FV(110), FV(115),FV(110),FV(118),FV(120)],
+      snare: [0,0,0,0, FV(95),0,0,0, 0,0,FV(100),0, 0,FV(105),FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,FV(90), 0,0,0,0, 0,0,0,FV(110)],
+    }),
   ],
   lofi: [
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 70,0,0,75, 0,80,0,0, 85,0,90,95];
-      fill.kick = [90,0,0,0, 0,0,0,0, 80,0,0,0, 0,0,0,0];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      fill.ghost = [0,30,0,30, 0,0,35,0, 0,0,30,35, 0,35,0,0];
-      return fill;
-    },
+    // 1: Soft dusty ghost snares
+    () => ({
+      snare: [0,0,0,0, FV(70,10),0,0,FV(75,10), 0,FV(80,10),0,0, FV(85,10),0,FV(90,10),FV(95,10)],
+      kick: [FV(90,10),0,0,0, 0,0,0,0, FV(80,10),0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      ghost: [0,FV(30,8),0,FV(30,8), 0,0,FV(35,8),0, 0,0,FV(30,8),FV(35,8), 0,FV(35,8),0,0],
+    }),
+    // 2: Vinyl crackle feel — gentle hat taps
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, FV(75,10),0,0,0, FV(80,10),0,FV(85,10),FV(90,10)],
+      kick: [FV(85,10),0,0,0, 0,0,FV(75,10),0, 0,0,0,0, 0,0,0,FV(80,10)],
+      hatC: [FV(50,8),0,FV(45,8),0, FV(50,8),0,FV(45,8),0, 0,0,0,0, 0,0,0,0],
+      ghost: [0,FV(25,8),0,0, 0,FV(28,8),0,FV(25,8), 0,FV(30,8),0,0, 0,0,0,0],
+    }),
+    // 3: Brush-stroke snare with tape wobble feel
+    () => ({
+      snare: [0,0,0,0, FV(65,10),0,FV(70,10),0, 0,FV(75,10),0,FV(70,10), FV(80,10),FV(82,10),FV(88,10),FV(92,10)],
+      kick: [FV(88,10),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      ghost: [FV(25,6),0,FV(22,6),0, 0,0,0,FV(28,6), FV(25,6),0,0,0, 0,0,0,0],
+    }),
+    // 4: Mellow tom fill
+    () => ({
+      tom: [0,0,0,0, FV(65,10),0,0,0, FV(60,10),0,FV(55,10),0, FV(50,10),0,0,0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(75,10),FV(80,10),FV(85,10)],
+      kick: [FV(85,10),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      ghost: [0,FV(20,6),0,FV(22,6), 0,0,FV(25,6),0, 0,0,0,FV(22,6), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 5: Dusty open hat swell
+    () => ({
+      hatO: [0,0,0,0, 0,0,FV(50,8),0, FV(55,8),0,FV(60,8),0, FV(65,8),0,FV(70,8),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(70,10),FV(78,10),FV(85,10)],
+      kick: [FV(82,10),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(80,10)],
+      hatC: [FV(50,8),0,FV(45,8),0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 6: Ghost note cascade
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(80,10),0,FV(85,10),FV(90,10)],
+      kick: [FV(85,10),0,0,0, 0,0,0,0, FV(78,10),0,0,0, 0,0,0,0],
+      ghost: [0,FV(30,6),FV(25,6),FV(28,6), FV(32,6),FV(28,6),FV(30,6),FV(25,6), FV(35,6),FV(30,6),FV(32,6),FV(28,6), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   memphis: [
-    () => {
-      const fill = {};
-      fill.hatC = [90,90,90,90, 95,95,95,95, 100,100,100,100, 110,110,110,110];
-      fill.snare = [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,100,105,110];
-      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
-      return fill;
-    },
+    // 1: Rapid hi-hats with cowbell
+    () => ({
+      hatC: [FV(90),FV(90),FV(90),FV(90), FV(95),FV(95),FV(95),FV(95), FV(100),FV(100),FV(100),FV(100), FV(110),FV(110),FV(110),FV(110)],
+      snare: [0,0,0,0, 0,0,0,0, FV(100),0,0,0, 0,FV(100),FV(105),FV(110)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 2: Cowbell accent pattern
+    () => ({
+      hatC: [FV(85),FV(85),FV(90),FV(90), FV(95),FV(95),FV(100),FV(100), FV(105),FV(105),FV(110),FV(110), FV(112),FV(115),FV(118),FV(120)],
+      perc: [0,0,FV(80),0, 0,0,FV(85),0, 0,0,FV(90),0, 0,0,FV(95),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(105),FV(108),FV(112),FV(118)],
+      kick: [FV(110),0,0,0, 0,0,0,0, FV(105),0,0,0, 0,0,0,FV(110)],
+    }),
+    // 3: Aggressive snare roll
+    () => ({
+      snare: [0,0,0,0, FV(90),FV(90),FV(95),FV(95), FV(100),FV(100),FV(105),FV(105), FV(110),FV(112),FV(115),FV(120)],
+      hatC: [FV(95),FV(90),FV(95),FV(90), 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+    }),
+    // 4: Triple hat stutter
+    () => ({
+      hatC: [FV(100),FV(95),FV(100), FV(95),FV(100),FV(95), FV(105),FV(100),FV(105), FV(100),FV(110),FV(105), FV(112),FV(115),FV(118),FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,FV(95), 0,0,0,0, 0,0,0,FV(110)],
+    }),
+    // 5: Memphis bounce with perc
+    () => ({
+      hatC: [FV(90),0,FV(95),FV(90), 0,FV(95),FV(90),0, FV(100),FV(95),FV(100),FV(95), FV(105),FV(110),FV(115),FV(118)],
+      perc: [0,FV(75),0,0, FV(80),0,0,FV(75), 0,0,0,0, 0,0,0,0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,FV(100),0, FV(105),0,FV(110),FV(115)],
+      kick: [FV(110),0,0,0, 0,0,0,0, 0,0,0,0, FV(105),0,0,FV(110)],
+    }),
+    // 6: All-out hat barrage
+    () => ({
+      hatC: [FV(105),FV(105),FV(108),FV(108), FV(110),FV(110),FV(112),FV(112), FV(115),FV(115),FV(115),FV(115), FV(118),FV(118),FV(120),FV(120)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(110),FV(112),FV(115),FV(120)],
+      kick: [FV(115),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+    }),
   ],
   detroit: [
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 90,0,85,0, 95,0,95,100, 105,105,110,110];
-      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
-      fill.hatC = [60,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: J Dilla off-grid — velocity variation for drunk feel
+    () => ({
+      snare: [0,0,0,0, FV(90,20),0,FV(85,20),0, FV(95,20),0,FV(95,20),FV(100,20), FV(105,20),FV(105,20),FV(110,20),FV(110,20)],
+      kick: [FV(100,18),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(100,18)],
+      hatC: [FV(60,15),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Ghost note shuffle
+    () => ({
+      snare: [0,0,0,0, 0,FV(95,20),0,0, FV(100,20),0,0,0, FV(100,20),FV(105,20),FV(110,20),FV(115,20)],
+      kick: [FV(105,18),0,0,FV(80,18), 0,0,0,0, 0,FV(85,18),0,0, 0,0,0,FV(105,18)],
+      ghost: [0,FV(35,10),FV(30,10),0, FV(35,10),0,FV(30,10),FV(35,10), 0,0,FV(30,10),FV(35,10), 0,0,0,0],
+      hatC: [FV(55,12),0,FV(50,12),0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: Drunken swing kick and snare
+    () => ({
+      snare: [0,0,0,0, FV(88,22),0,0,FV(82,22), 0,FV(92,22),0,0, FV(98,22),FV(102,22),FV(108,22),FV(112,22)],
+      kick: [FV(100,20),0,0,0, 0,0,FV(85,20),0, FV(95,20),0,0,0, 0,0,0,FV(105,20)],
+      ghost: [0,FV(28,8),0,FV(30,8), 0,FV(25,8),0,0, 0,0,FV(32,8),FV(28,8), 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Swung hat and rim
+    () => ({
+      hatC: [FV(60,15),0,FV(55,15),0, FV(60,15),0,FV(55,15),0, 0,0,0,0, 0,0,0,0],
+      rim: [0,0,0,0, 0,0,0,FV(65,12), 0,0,FV(70,12),0, FV(72,12),0,FV(75,12),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(100,20),FV(108,20),FV(115,20)],
+      kick: [FV(100,18),0,0,0, 0,0,0,0, FV(90,18),0,0,0, 0,0,0,FV(100,18)],
+    }),
+    // 5: Lazy pocket fill
+    () => ({
+      snare: [0,0,0,0, 0,0,FV(85,22),0, 0,0,0,FV(90,22), 0,FV(100,22),FV(108,22),FV(112,22)],
+      kick: [FV(105,18),0,0,0, FV(88,18),0,0,0, 0,0,0,0, 0,0,0,FV(105,18)],
+      ghost: [0,FV(30,8),0,FV(25,8), 0,FV(28,8),0,FV(32,8), FV(30,8),0,FV(28,8),0, FV(35,8),0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   experimental: [
-    () => {
-      const fill = {};
-      fill.perc = [0,70,0,75, 80,0,85,0, 0,90,0,0, 95,0,100,105];
-      fill.snare = [0,0,0,0, 0,0,0,90, 0,0,100,0, 0,105,0,110];
-      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: Perc-heavy fill
+    () => ({
+      perc: [0,FV(70),0,FV(75), FV(80),0,FV(85),0, 0,FV(90),0,0, FV(95),0,FV(100),FV(105)],
+      snare: [0,0,0,0, 0,0,0,FV(90), 0,0,FV(100),0, 0,FV(105),0,FV(110)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(100)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Reverse build — loud to soft then crash
+    () => ({
+      perc: [FV(110),FV(105),FV(100),FV(95), FV(90),FV(85),FV(80),FV(75), FV(70),0,0,0, 0,0,0,0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,FV(110),FV(120)],
+      kick: [0,0,0,0, 0,0,0,0, 0,0,0,FV(100), 0,FV(105),0,FV(115)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: Glitchy random accents
+    () => ({
+      perc: [FV(80),0,0,FV(85), 0,FV(75),0,0, FV(90),0,FV(80),0, 0,FV(95),0,FV(100)],
+      rim: [0,FV(65),0,0, FV(70),0,0,FV(65), 0,FV(70),0,FV(75), FV(80),0,FV(85),0],
+      snare: [0,0,FV(90),0, 0,0,FV(95),0, 0,0,0,FV(100), 0,0,FV(108),FV(115)],
+      kick: [FV(105),0,0,0, 0,0,0,FV(90), 0,0,0,0, 0,0,0,FV(105)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Polyrhythmic perc layers
+    () => ({
+      perc: [FV(85),0,0,FV(80), 0,0,FV(85),0, 0,FV(90),0,0, FV(95),0,0,FV(100)],
+      rim: [0,0,FV(70),0, 0,FV(70),0,0, FV(75),0,0,FV(70), 0,FV(75),0,0],
+      hatO: [0,FV(60),0,0, FV(65),0,0,FV(60), 0,0,FV(65),0, 0,0,FV(70),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(100),FV(105),FV(110),FV(115)],
+      kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(105)],
+    }),
+    // 5: Sparse chaos
+    () => ({
+      perc: [0,0,FV(90),0, 0,0,0,FV(85), 0,FV(95),0,0, 0,0,FV(100),0],
+      snare: [FV(90),0,0,0, 0,FV(85),0,0, 0,0,0,FV(95), 0,FV(100),0,FV(110)],
+      kick: [0,0,0,FV(95), FV(100),0,0,0, 0,0,FV(90),0, FV(105),0,0,FV(110)],
+      hatC: [0,FV(60),0,0, 0,0,FV(55),0, 0,0,0,0, 0,0,0,FV(70)],
+    }),
+    // 6: Industrial perc cascade
+    () => ({
+      perc: [FV(75),FV(80),FV(85),FV(90), FV(95),FV(100),FV(105),FV(100), FV(95),FV(90),FV(95),FV(100), FV(105),FV(110),FV(115),FV(120)],
+      kick: [FV(110),0,0,0, 0,0,0,0, FV(100),0,0,0, 0,0,0,FV(110)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,FV(110),FV(118)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
   halftime: [
-    () => {
-      const fill = {};
-      fill.snare = [0,0,0,0, 0,0,0,0, 85,0,0,0, 95,0,105,110];
-      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      fill.tom = [0,0,0,0, 80,0,0,0, 0,0,70,0, 0,0,0,0];
-      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
-      return fill;
-    },
+    // 1: Slow spacious snare with toms
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, FV(85),0,0,0, FV(95),0,FV(105),FV(110)],
+      kick: [FV(100),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      tom: [0,0,0,0, FV(80),0,0,0, 0,0,FV(70),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 2: Deep tom descent
+    () => ({
+      tom: [0,0,0,0, FV(90),0,0,0, FV(85),0,0,0, FV(80),0,FV(75),0],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(110)],
+      kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(105)],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 3: Kick and snare dialogue
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, FV(90),0,0,0, 0,0,FV(105),FV(112)],
+      kick: [FV(100),0,0,0, FV(90),0,0,0, 0,0,FV(85),0, FV(95),0,0,0],
+      tom: [0,0,FV(70),0, 0,0,FV(65),0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 4: Spacious crash buildup
+    () => ({
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, FV(95),0,FV(108),FV(115)],
+      kick: [FV(100),0,0,0, 0,0,0,0, FV(90),0,0,0, 0,0,0,0],
+      tom: [0,0,0,0, FV(75),0,0,FV(70), 0,0,FV(65),0, 0,0,0,0],
+      crash: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 5: Minimal kick march
+    () => ({
+      kick: [FV(100),0,0,0, 0,0,FV(90),0, 0,0,0,0, FV(95),0,0,FV(105)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,FV(100),0,FV(110)],
+      tom: [0,0,0,0, 0,0,0,0, FV(75),0,FV(70),0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
+    // 6: Tom roll into crash
+    () => ({
+      tom: [0,0,0,0, 0,0,0,0, FV(80),0,FV(85),0, FV(90),FV(90),FV(95),FV(100)],
+      snare: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,FV(115)],
+      kick: [FV(105),0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+      hatC: [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0],
+    }),
   ],
 };
 
@@ -4271,6 +4568,9 @@ export default function App() {
   const [bassSound, setBassSound] = useState("808"); // "piano" | "808"
   const [bassOctaveOffset, setBassOctaveOffset] = useState(0); // -2..+2
   const [melodyOctaveOffset, setMelodyOctaveOffset] = useState(0); // -2..+2
+  // ── Bridge ──
+  const [bridgeActive, setBridgeActive] = useState(false);
+  const preBridgeSnapshot = useRef(null);
   // ── Mute controls ──
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
@@ -5076,6 +5376,43 @@ export default function App() {
     DRUM_TRACKS.forEach(t => { if (!out[t.id]) out[t.id] = new Array(targetLen).fill(0); });
     return out;
   };
+
+  // ── Bridge toggle ──
+  const activateBridge = useCallback(() => {
+    if (bridgeActive) {
+      const snap = preBridgeSnapshot.current;
+      if (snap) {
+        setTimelineItems(snap.timelineItems);
+        setDrumPattern(snap.drumPattern);
+        setBassLine(snap.bassLine);
+        setMelodyLine(snap.melodyLine);
+        setBarCount(snap.barCount);
+      }
+      setBridgeActive(false);
+      preBridgeSnapshot.current = null;
+    } else {
+      preBridgeSnapshot.current = {
+        timelineItems: JSON.parse(JSON.stringify(timelineItems)),
+        drumPattern: drumPattern ? JSON.parse(JSON.stringify(drumPattern)) : null,
+        bassLine: JSON.parse(JSON.stringify(bassLine)),
+        melodyLine: JSON.parse(JSON.stringify(melodyLine)),
+        barCount,
+      };
+      const bridgeSlots = 32;
+      setTimelineItems(items => items
+        .filter(it => it.startSlot < bridgeSlots)
+        .map(it => ({
+          ...it,
+          lengthSlots: Math.min(it.lengthSlots, bridgeSlots - it.startSlot)
+        }))
+      );
+      setDrumPattern(null);
+      setBassLine([]);
+      setMelodyLine(prev => prev.filter(n => n.startSlot < bridgeSlots));
+      setBarCount(2);
+      setBridgeActive(true);
+    }
+  }, [bridgeActive, timelineItems, drumPattern, bassLine, melodyLine, barCount]);
 
   // ── Drum generator ──
   const generateDrumPattern = useCallback(() => {
@@ -6474,6 +6811,14 @@ export default function App() {
                   style={{ ...dawToolBtn(false), opacity:drumPattern?1:0.35, cursor:drumPattern?"pointer":"default" }}>
                   Variation
                 </button>
+                <button onClick={activateBridge}
+                  style={{ ...dawToolBtn(false),
+                    border:`1px solid ${bridgeActive ? "#E5484D" : "rgba(0,0,0,0.12)"}`,
+                    color: bridgeActive ? "#E5484D" : "rgba(0,0,0,0.50)",
+                    background: bridgeActive ? "rgba(229,72,77,0.08)" : "transparent",
+                    fontFamily:SF, fontSize:11, padding:"3px 8px" }}>
+                  {bridgeActive ? "Exit Bridge" : "Bridge"}
+                </button>
                 <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
                   style={{ ...dawToolBtn(true),
                     background: (!drumPattern && timelineItems.length===0 && bassLine.length===0)
@@ -6487,8 +6832,8 @@ export default function App() {
                 <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
                 <button onClick={() => { setWizardMap({...padMap}); setWizardStep(0); setWizardDone(false); setPadMapMode("wizard"); setPadMapperOpen(true); }} style={dawToolBtn(false)}>Pad Map</button>
-                <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
-                  style={dawToolBtn(false)}>Clear</button>
+                <button onClick={() => { stopLoop(); setTimelineItems([]); setDrumPattern(null); setBassLine([]); setMelodyLine([]); setPianoRollEdits({}); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
+                  style={dawToolBtn(false)}>Clear All</button>
 
                 <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
