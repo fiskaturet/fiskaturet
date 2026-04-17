@@ -1577,13 +1577,21 @@ function varDrumVelocity(seed, trackId, step, originalVel, amount) {
 
 // Drum ghost note: occasionally add a quiet hit where there was none
 // Returns velocity (0 = don't add) — only triggers when variation is high enough
-function varDrumGhost(seed, trackId, step, amount) {
-  if (amount < 20) return 0; // need at least 20% variation for ghosts
+// prevStepHasHit: whether the previous step already has a note (prevents rapid-fire)
+function varDrumGhost(seed, trackId, step, amount, prevStepHasHit) {
+  if (amount < 30) return 0; // need at least 30% for ghosts
+  // Prevent consecutive hits — no ghost if previous step had a note
+  if (prevStepHasHit) return 0;
+  // Track-specific probability: snare/clap get far fewer ghosts than hats
+  const trackScale = (trackId === "snare" || trackId === "clap" || trackId === "rim") ? 0.25
+    : (trackId === "kick") ? 0.35
+    : (trackId === "crash" || trackId === "ride") ? 0.3
+    : 1.0; // hats, perc, etc. can have more
   const r = variationHash(seed, trackId + "_ghost", step);
-  const threshold = 1 - ((amount - 20) / 80) * 0.12; // max 12% chance at full variation
-  if (r > threshold) return 0;
-  // Ghost velocity: 15-35
-  return Math.round(15 + variationHash(seed, trackId + "_gv", step) * 20);
+  const baseChance = ((amount - 30) / 70) * 0.08 * trackScale; // max 8% * trackScale
+  if (r > baseChance) return 0;
+  // Ghost velocity: 15-30 (very quiet)
+  return Math.round(15 + variationHash(seed, trackId + "_gv", step) * 15);
 }
 
 // Drum rest: occasionally skip a note (replace with silence)
@@ -4165,6 +4173,7 @@ const MONO = "'JetBrains Mono',monospace";
 export default function App() {
   const [soundType,    setSoundType]    = useState("rhodes"); // "piano" | "rhodes"
   const [mode,         setMode]         = useState("chords"); // "chords" | "scales" | "detect"
+  const [showToolsMenu, setShowToolsMenu] = useState(false);
   const [rootDisplay,  setRootDisplay]  = useState("C");
   const [scaleKey,     setScaleKey]     = useState("major");
   const [chordType,    setChordType]    = useState("triad");
@@ -5275,14 +5284,16 @@ export default function App() {
         // Ghost notes from variation
         const varAmt2 = variationAmountRef.current;
         const varSeed2 = densitySeedRef.current;
-        if (varAmt2 >= 20) {
+        if (varAmt2 >= 30) {
+          const prevHit = {}; // track whether previous step had a hit (original or ghost)
           for (let step = 0; step < DRUM_STEPS; step++) {
             DRUM_TRACKS.forEach(track => {
               const existingVel = drumPattern[track.id]?.[step] || 0;
-              if (existingVel > 0) return; // already has a note
+              if (existingVel > 0) { prevHit[track.id] = true; return; }
               if (curSolo && curSolo !== track.id) return;
               if (!curSolo && curMuted[track.id]) return;
-              const ghostVelRaw = varDrumGhost(varSeed2, track.id, step, varAmt2);
+              const ghostVelRaw = varDrumGhost(varSeed2, track.id, step, varAmt2, prevHit[track.id]);
+              prevHit[track.id] = ghostVelRaw > 0; // track for next step
               if (ghostVelRaw <= 0) return;
               const ghostVel = Math.max(1, Math.min(127, Math.round(ghostVelRaw * energyVel)));
               const swingDelay = (step % 2 === 1) ? swingAmt : 0;
@@ -5706,7 +5717,8 @@ export default function App() {
         .bpm-lcd{font-family:'JetBrains Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
-      <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}>
+      <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}
+        onClick={() => showToolsMenu && setShowToolsMenu(false)}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
 
           {/* ── Header ── */}
@@ -5743,28 +5755,63 @@ export default function App() {
           </div>
 
           {/* ── Mode switcher ── */}
-          <div style={{ display:"flex", gap:0, marginBottom:1, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:0, marginBottom:1, alignItems:"stretch" }}>
             {[
-              { key:"chords",  label:"Chords" },
-              { key:"drums",   label:"Drums" },
-              { key:"scales",  label:"Scale Explorer" },
-              { key:"detect",  label:"Key Detector" },
-              { key:"sheet",   label:"Sheet Music" },
-              { key:"hum",     label:"Hum" },
+              { key:"chords", label:"Instruments" },
+              { key:"drums",  label:"Drums" },
             ].map(({ key: m, label }) => (
               <button key={m} onClick={() => setMode(m)} style={{
-                fontFamily:SF, fontSize:11, fontWeight: mode===m ? 700 : 500,
-                padding:"6px 14px",
+                fontFamily:SF, fontSize:12, fontWeight: mode===m ? 700 : 500,
+                padding:"8px 18px",
                 background: mode===m ? "#fff" : "transparent",
                 border: mode===m ? `1px solid ${t.border}` : "1px solid transparent",
                 borderBottom: mode===m ? "1px solid #fff" : `1px solid ${t.border}`,
                 color: mode===m ? t.textPrimary : "rgba(0,0,0,0.50)",
                 cursor:"pointer", transition:"all 0.08s",
-                letterSpacing:"0.02em",
+                letterSpacing:"0.03em",
               }}>
                 {label}
               </button>
             ))}
+            {/* Tools dropdown for secondary modes */}
+            <div style={{ position:"relative", display:"flex" }}>
+              <button onClick={() => setShowToolsMenu(p => !p)} style={{
+                fontFamily:SF, fontSize:12, fontWeight: ["scales","detect","sheet","hum"].includes(mode) ? 700 : 500,
+                padding:"8px 14px",
+                background: ["scales","detect","sheet","hum"].includes(mode) ? "#fff" : "transparent",
+                border: ["scales","detect","sheet","hum"].includes(mode) ? `1px solid ${t.border}` : "1px solid transparent",
+                borderBottom: ["scales","detect","sheet","hum"].includes(mode) ? "1px solid #fff" : `1px solid ${t.border}`,
+                color: ["scales","detect","sheet","hum"].includes(mode) ? t.textPrimary : "rgba(0,0,0,0.50)",
+                cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.03em",
+              }}>
+                {mode==="scales" ? "Scales" : mode==="detect" ? "Detect" : mode==="sheet" ? "Sheet" : mode==="hum" ? "Hum" : "Tools"} ▾
+              </button>
+              {showToolsMenu && (
+                <div style={{
+                  position:"absolute", top:"100%", left:0, zIndex:100,
+                  background:"#fff", border:`1px solid ${t.border}`, minWidth:150,
+                  padding:"4px 0",
+                }}>
+                  {[
+                    { key:"scales", label:"Scale Explorer" },
+                    { key:"detect", label:"Key Detector" },
+                    { key:"sheet",  label:"Sheet Music" },
+                    { key:"hum",    label:"Hum to Chords" },
+                  ].map(({ key: m, label }) => (
+                    <button key={m} onClick={() => { setMode(m); setShowToolsMenu(false); }} style={{
+                      display:"block", width:"100%", textAlign:"left",
+                      fontFamily:SF, fontSize:11, fontWeight: mode===m ? 700 : 400,
+                      padding:"6px 14px", border:"none",
+                      background: mode===m ? t.elevatedBg : "transparent",
+                      color: mode===m ? t.textPrimary : t.textSecondary,
+                      cursor:"pointer",
+                    }}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div style={{ flex:1, borderBottom:`1px solid ${t.border}` }} />
           </div>
 
@@ -5801,7 +5848,7 @@ export default function App() {
                   <label style={labelStyle}>Type</label>
                   <SegmentedControl
                     value={chordType}
-                    options={[{value:"triad",label:"Triads"},{value:"7",label:"With 7ths"},{value:"9",label:"With 9ths"}]}
+                    options={[{value:"triad",label:"3"},{value:"7",label:"7"},{value:"9",label:"9"}]}
                     onChange={v => setChordType(v)}
                     t={t}
                   />
@@ -5811,7 +5858,7 @@ export default function App() {
                 <label style={labelStyle}>Sound</label>
                 <SegmentedControl
                   value={soundType}
-                  options={[{value:"piano",label:"Grand Piano"},{value:"rhodes",label:"Rhodes"}]}
+                  options={[{value:"piano",label:"Piano"},{value:"rhodes",label:"Rhodes"}]}
                   onChange={v => setSoundType(v)}
                   t={t}
                 />
@@ -6366,6 +6413,237 @@ export default function App() {
           {/* ════════════════ CHORDS MODE ════════════════ */}
           {mode === "chords" && (
             <>
+              <div style={card}>
+                {/* ═══ ZONE 1: TRANSPORT ═══ */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
+                  <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:700, padding:"5px 16px", borderRadius:2, border:"none",
+                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.12)" : looping ? "#E5484D" : t.accent,
+                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.40)" : "#fff",
+                      cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "default" : "pointer",
+                      letterSpacing:"0.04em", minWidth:52 }}>
+                    {looping ? "STOP" : "PLAY"}
+                  </button>
+
+                  <div style={{ width:1, height:22, background:t.border }} />
+
+                  {/* BPM LCD */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
+                      readOnly={!!externalBpm}
+                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
+                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
+                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
+                      style={{ fontFamily:MONO, fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.30)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(92,124,138,0.04)",
+                        color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
+                    />
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
+                    {externalBpm && <span style={{ fontSize:8, color:"#2B9A3E", fontFamily:MONO, fontWeight:700 }}>MPC</span>}
+                  </div>
+
+                  <div style={{ width:1, height:22, background:t.border }} />
+
+                  {/* Octave */}
+                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
+                    <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:14, textAlign:"center" }}>{chordOctave}</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
+                  </div>
+
+                  <div style={{ width:1, height:22, background:t.border }} />
+
+                  {/* Loop */}
+                  <button onClick={() => setLoopEnabled(e => !e)}
+                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
+                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                    {loopEnabled ? "LOOP" : "1×"}
+                  </button>
+
+                  {looping && (
+                    <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:MONO,
+                      display:"flex", alignItems:"center", gap:4 }}>
+                      <span style={{ width:5, height:5, borderRadius:"50%", background:"#2B9A3E", display:"inline-block",
+                        animation:"pulse 1.2s ease-in-out infinite" }} />
+                      PLAYING
+                    </span>
+                  )}
+
+                  <div style={{ flex:1 }} />
+
+                  {/* Style dropdown */}
+                  <div style={{ position:"relative" }}>
+                    <button onClick={() => setStyleMenuOpen(o => !o)}
+                      style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 10px", borderRadius:2,
+                        border:`1px solid ${playStyle!=="normal"?t.accentBorder:"rgba(0,0,0,0.12)"}`,
+                        background:playStyle!=="normal"?t.accentBg:"transparent",
+                        color:playStyle!=="normal"?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
+                      <span style={{ fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", opacity:0.6 }}>Style</span>
+                      <span>{STYLES[playStyle].label}</span>
+                      <span style={{ fontSize:8, opacity:0.5 }}>▾</span>
+                    </button>
+                    {styleMenuOpen && (
+                      <>
+                        <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
+                        <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:51, minWidth:160,
+                            background:"#fff", border:`1px solid rgba(0,0,0,0.12)`,
+                            padding:2, display:"flex", flexDirection:"column", gap:0 }}>
+                          {Object.entries(STYLES).map(([key, cfg]) => (
+                            <button key={key} onClick={() => { if(looping) stopLoop(); setPlayStyle(key); setStyleMenuOpen(false); }}
+                              style={{ fontFamily:SF, fontSize:11, fontWeight:playStyle===key?700:500,
+                                padding:"6px 10px", borderRadius:1, border:"none", textAlign:"left",
+                                background:playStyle===key?t.accentBg:"transparent",
+                                color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer",
+                                display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}
+                              onMouseEnter={e=>{ if(playStyle!==key) e.currentTarget.style.background=t.elevatedBg; }}
+                              onMouseLeave={e=>{ if(playStyle!==key) e.currentTarget.style.background="transparent"; }}>
+                              <span>{cfg.label}</span>
+                              {playStyle===key && <span style={{ fontSize:10 }}>✓</span>}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {/* ═══ ZONE 2: MIXER ═══ */}
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
+                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
+                  {[
+                    { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
+                    { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
+                    { key:"melody", label:"MEL", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0, density:densityMelody, setDensity:setDensityMelody },
+                    { key:"drums",  label:"DRM", muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern, density:densityDrums, setDensity:setDensityDrums },
+                  ].map(({ key, label, muted, setMute, disabled, density, setDensity }) => {
+                    const soloThis = () => {
+                      const others = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
+                      delete others[key];
+                      const isSolo = !muted && Object.values(others).every(m => m);
+                      if (isSolo) {
+                        setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
+                      } else {
+                        setMuteChords(key!=="chords"); setMuteBass(key!=="bass");
+                        setMuteMelody(key!=="melody"); setMuteDrums(key!=="drums");
+                      }
+                    };
+                    const others2 = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
+                    delete others2[key];
+                    const isSolod = !muted && Object.values(others2).every(m => m);
+                    const densActive = density < 100;
+                    return (
+                      <div key={key} style={{ display:"flex", alignItems:"center", gap:2, padding:"2px 4px 2px 0",
+                        borderRight:`1px solid ${t.border}`, marginRight:2 }}>
+                        <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
+                          style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
+                            background: muted ? "rgba(229,72,77,0.08)" : isSolod ? "rgba(229,147,10,0.08)" : "transparent",
+                            color: muted ? "#E5484D" : isSolod ? "#E5930A" : disabled ? "rgba(0,0,0,0.20)" : "rgba(0,0,0,0.55)",
+                            cursor: disabled && !muted ? "default" : "pointer",
+                            textDecoration: muted ? "line-through" : "none",
+                            opacity: disabled && !muted ? 0.35 : 1, letterSpacing:"0.04em" }}>
+                          {label}
+                        </button>
+                        <button onClick={soloThis} title={`Solo ${key}`}
+                          style={{ fontFamily:MONO, fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:1,
+                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
+                            background: isSolod ? "rgba(229,147,10,0.08)" : "transparent",
+                            color: isSolod ? "#E5930A" : "rgba(0,0,0,0.40)", cursor:"pointer" }}>
+                          S
+                        </button>
+                        <input type="range" min={0} max={100} value={density}
+                          onChange={e => setDensity(Number(e.target.value))}
+                          title={`${key} density: ${density}%`}
+                          style={{ width:56, height:14, accentColor: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                        <span style={{ fontSize:9, fontFamily:MONO, color: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", minWidth:22, textAlign:"right" }}>{density}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* ═══ ZONE 3: PERFORMANCE ═══ */}
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
+                  {/* Energy — blue accent */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
+                    <input type="range" min={0} max={100} value={energy}
+                      onChange={e => { const v = +e.target.value; setEnergy(v); energyRef.current = v; }}
+                      style={{ width:100, accentColor: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{energy}</span>
+                  </div>
+                  {/* Variation — orange accent */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
+                    <input type="range" min={0} max={100} value={variationAmount}
+                      onChange={e => { const v = +e.target.value; setVariationAmount(v); variationAmountRef.current = v; }}
+                      style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
+                  </div>
+                  {/* Feel — neutral accent */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
+                    <input type="range" min={0} max={100} value={humanize}
+                      onChange={e => setHumanize(Number(e.target.value))}
+                      style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
+                    <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{humanize}</span>
+                  </div>
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Fill — green accent */}
+                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
+                    <button onClick={() => { fillNextRef.current = true; }}
+                      disabled={!drumPattern || !looping}
+                      style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
+                        background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
+                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
+                        cursor: (!drumPattern || !looping) ? "default" : "pointer",
+                        opacity: (!drumPattern || !looping) ? 0.35 : 1, letterSpacing:"0.04em" }}>
+                      NEXT
+                    </button>
+                    <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
+                      style={{ fontFamily:SF, fontSize:10, padding:"2px 4px", borderRadius:2,
+                        border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
+                      <option value="off">Off</option>
+                      <option value="auto4">4 loops</option>
+                      <option value="auto8">8 loops</option>
+                    </select>
+                  </div>
+
+                  <div style={{ width:1, height:18, background:t.border }} />
+
+                  {/* Arp */}
+                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
+                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
+                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
+                    ARP
+                  </button>
+                  {arpOn && <>
+                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
+                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                    <div style={{ width:1, height:14, background:t.border }} />
+                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
+                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
+                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
+                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
+                    ))}
+                  </>}
+                </div>
+              </div>
               {/* Chord grid */}
               <div style={card}>
                 <div style={{ ...labelStyle, marginBottom:14 }}>Scale chords</div>
@@ -7148,236 +7426,6 @@ export default function App() {
                       )}
                     </div>
                   )}
-                </div>
-
-                {/* ═══ ZONE 1: TRANSPORT ═══ */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
-                  <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:700, padding:"5px 16px", borderRadius:2, border:"none",
-                      background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.12)" : looping ? "#E5484D" : t.accent,
-                      color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "rgba(0,0,0,0.40)" : "#fff",
-                      cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "default" : "pointer",
-                      letterSpacing:"0.04em", minWidth:52 }}>
-                    {looping ? "STOP" : "PLAY"}
-                  </button>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
-
-                  {/* BPM LCD */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>BPM</span>
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>}
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
-                      readOnly={!!externalBpm}
-                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
-                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:MONO, fontSize:18, fontWeight:700, textAlign:"center", width:48, padding:"2px 2px", borderRadius:1,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.30)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.06)" : "rgba(92,124,138,0.04)",
-                        color: externalBpm ? "#2B9A3E" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent }}
-                    />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>}
-                    {externalBpm && <span style={{ fontSize:8, color:"#2B9A3E", fontFamily:MONO, fontWeight:700 }}>MPC</span>}
-                  </div>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
-
-                  {/* Octave */}
-                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>OCT</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>-</button>
-                    <span style={{ fontSize:13, fontWeight:700, color:t.textPrimary, fontFamily:MONO, minWidth:14, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:20, height:22, border:`1px solid ${t.btnBorder}`, background:"transparent", color:"rgba(0,0,0,0.40)", cursor:"pointer", lineHeight:1, borderRadius:1 }}>+</button>
-                  </div>
-
-                  <div style={{ width:1, height:22, background:t.border }} />
-
-                  {/* Loop */}
-                  <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
-                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
-                    {loopEnabled ? "LOOP" : "1×"}
-                  </button>
-
-                  {looping && (
-                    <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:MONO,
-                      display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ width:5, height:5, borderRadius:"50%", background:"#2B9A3E", display:"inline-block",
-                        animation:"pulse 1.2s ease-in-out infinite" }} />
-                      PLAYING
-                    </span>
-                  )}
-
-                  <div style={{ flex:1 }} />
-
-                  {/* Style dropdown */}
-                  <div style={{ position:"relative" }}>
-                    <button onClick={() => setStyleMenuOpen(o => !o)}
-                      style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                        border:`1px solid ${playStyle!=="normal"?t.accentBorder:"rgba(0,0,0,0.12)"}`,
-                        background:playStyle!=="normal"?t.accentBg:"transparent",
-                        color:playStyle!=="normal"?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", display:"flex", alignItems:"center", gap:4 }}>
-                      <span style={{ fontSize:8, fontWeight:700, textTransform:"uppercase", letterSpacing:"0.06em", opacity:0.6 }}>Style</span>
-                      <span>{STYLES[playStyle].label}</span>
-                      <span style={{ fontSize:8, opacity:0.5 }}>▾</span>
-                    </button>
-                    {styleMenuOpen && (
-                      <>
-                        <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
-                        <div style={{ position:"absolute", top:"calc(100% + 4px)", right:0, zIndex:51, minWidth:160,
-                            background:"#fff", border:`1px solid rgba(0,0,0,0.12)`,
-                            padding:2, display:"flex", flexDirection:"column", gap:0 }}>
-                          {Object.entries(STYLES).map(([key, cfg]) => (
-                            <button key={key} onClick={() => { if(looping) stopLoop(); setPlayStyle(key); setStyleMenuOpen(false); }}
-                              style={{ fontFamily:SF, fontSize:11, fontWeight:playStyle===key?700:500,
-                                padding:"6px 10px", borderRadius:1, border:"none", textAlign:"left",
-                                background:playStyle===key?t.accentBg:"transparent",
-                                color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer",
-                                display:"flex", justifyContent:"space-between", alignItems:"center", gap:8 }}
-                              onMouseEnter={e=>{ if(playStyle!==key) e.currentTarget.style.background=t.elevatedBg; }}
-                              onMouseLeave={e=>{ if(playStyle!==key) e.currentTarget.style.background="transparent"; }}>
-                              <span>{cfg.label}</span>
-                              {playStyle===key && <span style={{ fontSize:10 }}>✓</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* ═══ ZONE 2: MIXER ═══ */}
-                <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
-                  <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.10em", textTransform:"uppercase", fontFamily:SF, marginRight:2 }}>MIX</span>
-                  {[
-                    { key:"chords", label:"CHD", muted:muteChords, setMute:setMuteChords, disabled:false, density:densityChords, setDensity:setDensityChords },
-                    { key:"bass",   label:"BAS", muted:muteBass,   setMute:setMuteBass,   disabled:bassLine.length===0, density:densityBass, setDensity:setDensityBass },
-                    { key:"melody", label:"MEL", muted:muteMelody, setMute:setMuteMelody, disabled:melodyLine.length===0, density:densityMelody, setDensity:setDensityMelody },
-                    { key:"drums",  label:"DRM", muted:muteDrums,  setMute:setMuteDrums,  disabled:!drumPattern, density:densityDrums, setDensity:setDensityDrums },
-                  ].map(({ key, label, muted, setMute, disabled, density, setDensity }) => {
-                    const soloThis = () => {
-                      const others = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
-                      delete others[key];
-                      const isSolo = !muted && Object.values(others).every(m => m);
-                      if (isSolo) {
-                        setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
-                      } else {
-                        setMuteChords(key!=="chords"); setMuteBass(key!=="bass");
-                        setMuteMelody(key!=="melody"); setMuteDrums(key!=="drums");
-                      }
-                    };
-                    const others2 = { chords:muteChords, bass:muteBass, melody:muteMelody, drums:muteDrums };
-                    delete others2[key];
-                    const isSolod = !muted && Object.values(others2).every(m => m);
-                    const densActive = density < 100;
-                    return (
-                      <div key={key} style={{ display:"flex", alignItems:"center", gap:2, padding:"2px 4px 2px 0",
-                        borderRight:`1px solid ${t.border}`, marginRight:2 }}>
-                        <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
-                          style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                            border:`1px solid ${muted ? "#E5484D" : isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
-                            background: muted ? "rgba(229,72,77,0.08)" : isSolod ? "rgba(229,147,10,0.08)" : "transparent",
-                            color: muted ? "#E5484D" : isSolod ? "#E5930A" : disabled ? "rgba(0,0,0,0.20)" : "rgba(0,0,0,0.55)",
-                            cursor: disabled && !muted ? "default" : "pointer",
-                            textDecoration: muted ? "line-through" : "none",
-                            opacity: disabled && !muted ? 0.35 : 1, letterSpacing:"0.04em" }}>
-                          {label}
-                        </button>
-                        <button onClick={soloThis} title={`Solo ${key}`}
-                          style={{ fontFamily:MONO, fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:1,
-                            border:`1px solid ${isSolod ? "#E5930A" : "rgba(0,0,0,0.15)"}`,
-                            background: isSolod ? "rgba(229,147,10,0.08)" : "transparent",
-                            color: isSolod ? "#E5930A" : "rgba(0,0,0,0.40)", cursor:"pointer" }}>
-                          S
-                        </button>
-                        <input type="range" min={0} max={100} value={density}
-                          onChange={e => setDensity(Number(e.target.value))}
-                          title={`${key} density: ${density}%`}
-                          style={{ width:56, height:14, accentColor: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                        <span style={{ fontSize:9, fontFamily:MONO, color: densActive ? "#E5930A" : "rgba(0,0,0,0.20)", minWidth:22, textAlign:"right" }}>{density}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* ═══ ZONE 3: PERFORMANCE ═══ */}
-                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center", padding:"6px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8 }}>
-                  {/* Energy — blue accent */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Energy</span>
-                    <input type="range" min={0} max={100} value={energy}
-                      onChange={e => { const v = +e.target.value; setEnergy(v); energyRef.current = v; }}
-                      style={{ width:100, accentColor: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: energy !== 75 ? "#3B82F6" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{energy}</span>
-                  </div>
-                  {/* Variation — orange accent */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Variation</span>
-                    <input type="range" min={0} max={100} value={variationAmount}
-                      onChange={e => { const v = +e.target.value; setVariationAmount(v); variationAmountRef.current = v; }}
-                      style={{ width:100, accentColor: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: variationAmount > 0 ? "#E5930A" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{variationAmount}</span>
-                  </div>
-                  {/* Feel — neutral accent */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Feel</span>
-                    <input type="range" min={0} max={100} value={humanize}
-                      onChange={e => setHumanize(Number(e.target.value))}
-                      style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
-                    <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{humanize}</span>
-                  </div>
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Fill — green accent */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
-                    <button onClick={() => { fillNextRef.current = true; }}
-                      disabled={!drumPattern || !looping}
-                      style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
-                        background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
-                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                        cursor: (!drumPattern || !looping) ? "default" : "pointer",
-                        opacity: (!drumPattern || !looping) ? 0.35 : 1, letterSpacing:"0.04em" }}>
-                      NEXT
-                    </button>
-                    <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
-                      style={{ fontFamily:SF, fontSize:10, padding:"2px 4px", borderRadius:2,
-                        border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
-                      <option value="off">Off</option>
-                      <option value="auto4">4 loops</option>
-                      <option value="auto8">8 loops</option>
-                    </select>
-                  </div>
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Arp */}
-                  <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                      border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
-                    ARP
-                  </button>
-                  {arpOn && <>
-                    {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                    <div style={{ width:1, height:14, background:t.border }} />
-                    {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
-                      <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
-                          border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
-                          color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
-                    ))}
-                  </>}
                 </div>
 
                 {/* ═══ ZONE 4: TOOLS ═══ */}
