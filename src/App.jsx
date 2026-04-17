@@ -6068,211 +6068,221 @@ export default function App() {
           )}
 
           {/* ════════════════ DRUMS MODE ════════════════ */}
-          {mode === "drums" && (
+          {mode === "drums" && (() => {
+            // DAW-style micro-button
+            const dawBtn = (active, activeColor = t.accent) => ({
+              fontFamily:"'Share Tech Mono',monospace", fontSize:9, fontWeight:700, padding:"1px 4px",
+              border:`1px solid ${active ? activeColor : "rgba(28,24,32,0.10)"}`,
+              background: active ? (activeColor === t.accent ? "rgba(122,91,175,0.12)" : `${activeColor}18`) : "transparent",
+              color: active ? activeColor : "rgba(28,24,32,0.30)", cursor:"pointer", lineHeight:"14px",
+              letterSpacing:"0.04em", borderRadius:1, transition:"all 0.08s",
+            });
+            const dawToolBtn = (primary) => ({
+              fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 12px",
+              border: primary ? "none" : "1px solid rgba(28,24,32,0.12)",
+              background: primary ? t.accent : "transparent",
+              color: primary ? "#fff" : t.textSecondary,
+              cursor:"pointer", borderRadius:2, letterSpacing:"0.02em", transition:"all 0.08s",
+            });
+            return (
             <>
-              {/* Genre + controls */}
-              <div style={card}>
-                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
-                  <div>
-                    <label style={labelStyle}>Sjanger</label>
-                    <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)} style={{ ...selectStyle, minWidth:200 }}>
-                      {Object.entries(DRUM_GENRES).map(([k,g]) => (
-                        <option key={k} value={k}>{g.label} ({g.bpm} BPM)</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div style={{ display:"flex", gap:8, alignItems:"flex-end", paddingTop:18 }}>
-                    <button onClick={generateDrumPattern}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10,
-                        border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
-                      Generate
-                    </button>
-                    <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { const fresh = genre.generate(); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); }); setDrumPattern(fresh); }}}}
-                      disabled={!drumPattern}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:drumPattern?"pointer":"not-allowed", opacity:drumPattern?1:0.4 }}>
-                      Variation
-                    </button>
-                    <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
-                        background: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
-                        color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? t.playDisabledClr : "#FFFFFF",
-                        cursor: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "not-allowed" : "pointer" }}>
-                      {looping ? "⬛ Stop" : "▶  Play"}
-                    </button>
-                    <button onClick={() => setPadMapperOpen(true)}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                      Pad Map
-                    </button>
-                    <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                      Clear
-                    </button>
-                    <div style={{ width:1, height:24, background:t.border }} />
-                    <button onClick={() => setLoopEnabled(e => !e)}
-                      style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
-                        border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                        background: loopEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
-                        color: loopEnabled ? "#30D158" : t.textTertiary,
-                        cursor:"pointer", transition:"all 0.12s", display:"flex", alignItems:"center", gap:5 }}>
-                      <span style={{ fontSize:13 }}>🔁</span>
-                      {loopEnabled ? "Loop" : "1×"}
-                    </button>
-                  </div>
+              {/* ── Toolbar ── */}
+              <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", marginBottom:1,
+                padding:"8px 12px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                {/* Genre select */}
+                <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)}
+                  style={{ fontFamily:SF, padding:"4px 8px", fontSize:12, fontWeight:500,
+                    border:"1px solid rgba(28,24,32,0.12)", background:"#fff", color:t.textPrimary,
+                    cursor:"pointer", appearance:"auto", borderRadius:2, minWidth:170 }}>
+                  {Object.entries(DRUM_GENRES).map(([k,g]) => (
+                    <option key={k} value={k}>{g.label} · {g.bpm}</option>
+                  ))}
+                </select>
+
+                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+
+                {/* Action buttons */}
+                <button onClick={generateDrumPattern} style={dawToolBtn(true)}>Generate</button>
+                <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { const fresh = genre.generate(); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); }); setDrumPattern(fresh); }}}}
+                  disabled={!drumPattern}
+                  style={{ ...dawToolBtn(false), opacity:drumPattern?1:0.35, cursor:drumPattern?"pointer":"default" }}>
+                  Variation
+                </button>
+                <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
+                  style={{ ...dawToolBtn(true),
+                    background: (!drumPattern && timelineItems.length===0 && bassLine.length===0)
+                      ? "rgba(28,24,32,0.06)" : looping ? "#E5484D" : t.accent,
+                    color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "rgba(28,24,32,0.25)" : "#fff",
+                    cursor: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "default" : "pointer",
+                    minWidth:56 }}>
+                  {looping ? "Stop" : "Play"}
+                </button>
+
+                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+
+                <button onClick={() => setPadMapperOpen(true)} style={dawToolBtn(false)}>Pad Map</button>
+                <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
+                  style={dawToolBtn(false)}>Clear</button>
+
+                <div style={{ width:1, height:18, background:"rgba(28,24,32,0.08)" }} />
+
+                {/* Loop toggle */}
+                <button onClick={() => setLoopEnabled(e => !e)}
+                  style={{ ...dawToolBtn(false),
+                    border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : "rgba(28,24,32,0.12)"}`,
+                    color: loopEnabled ? "#2B9A3E" : "rgba(28,24,32,0.35)",
+                    background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
+                    fontFamily:"'Share Tech Mono',monospace", fontSize:10, padding:"3px 8px" }}>
+                  {loopEnabled ? "LOOP" : "1×"}
+                </button>
+
+                {/* Half-time */}
+                <button onClick={() => setDrumHalfTime(h => !h)}
+                  style={{ ...dawToolBtn(false),
+                    border:`1px solid ${drumHalfTime ? t.accentBorder : "rgba(28,24,32,0.12)"}`,
+                    color: drumHalfTime ? t.accent : "rgba(28,24,32,0.35)",
+                    background: drumHalfTime ? "rgba(122,91,175,0.08)" : "transparent",
+                    fontFamily:"'Share Tech Mono',monospace", fontSize:10, padding:"3px 8px" }}>
+                  ½×
+                </button>
+
+                <div style={{ flex:1 }} />
+
+                {/* Parameter readouts */}
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Density</span>
+                  <input type="range" min={0} max={100} value={densityDrums}
+                    onChange={e => setDensityDrums(Number(e.target.value))}
+                    style={{ width:64, accentColor: densityDrums < 100 ? "#E5930A" : t.accent, height:2 }} />
+                  <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color: densityDrums < 100 ? "#E5930A" : "rgba(28,24,32,0.35)", minWidth:28, textAlign:"right" }}>{densityDrums}</span>
                 </div>
-                {/* Swing + Half-tempo + Favorites row */}
-                <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center", marginTop:10 }}>
-                  {/* Drum Density */}
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
-                    <input type="range" min={0} max={100} value={densityDrums}
-                      onChange={e => setDensityDrums(Number(e.target.value))}
-                      style={{ width:100, accentColor: densityDrums < 100 ? "#FF9F0A" : t.accent }} />
-                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color: densityDrums < 100 ? "#FF9F0A" : t.textTertiary, minWidth:30 }}>{densityDrums}%</span>
-                  </div>
-                  <div style={{ width:1, height:20, background:t.border }} />
-                  {/* Swing */}
-                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Swing</span>
-                    <input type="range" min={0} max={100} value={drumSwing}
-                      onChange={e => setDrumSwing(Number(e.target.value))}
-                      style={{ width:100, accentColor:t.accent }} />
-                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color:t.textTertiary, minWidth:30 }}>{drumSwing}%</span>
-                  </div>
-                  <div style={{ width:1, height:20, background:t.border }} />
-                  {/* Half-tempo */}
-                  <button onClick={() => setDrumHalfTime(h => !h)}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
-                      border:`1px solid ${drumHalfTime?t.accentBorder:t.btnBorder}`,
-                      background:drumHalfTime?t.accentBg:t.btnBg,
-                      color:drumHalfTime?t.accent:t.btnColor, cursor:"pointer" }}>
-                    ½ Half-time
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <span style={{ fontSize:9, fontWeight:700, color:"rgba(28,24,32,0.35)", fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.08em" }}>Swing</span>
+                  <input type="range" min={0} max={100} value={drumSwing}
+                    onChange={e => setDrumSwing(Number(e.target.value))}
+                    style={{ width:64, accentColor:t.accent, height:2 }} />
+                  <span style={{ fontSize:10, fontFamily:"'Share Tech Mono',monospace", color:"rgba(28,24,32,0.35)", minWidth:28, textAlign:"right" }}>{drumSwing}</span>
+                </div>
+
+                {/* Favorites */}
+                {drumPattern && (
+                  <button onClick={() => {
+                    const id = Date.now();
+                    const label = `${DRUM_GENRES[drumGenre]?.label || drumGenre} #${drumFavorites.length+1}`;
+                    setDrumFavorites(f => [...f, { id, genre:drumGenre, pattern:JSON.parse(JSON.stringify(drumPattern)), label }]);
+                  }}
+                    style={{ ...dawToolBtn(false), fontSize:10, padding:"3px 8px" }}>
+                    Save
                   </button>
-                  <div style={{ width:1, height:20, background:t.border }} />
-                  {/* Favorite */}
-                  {drumPattern && (
-                    <button onClick={() => {
-                      const id = Date.now();
-                      const label = `${DRUM_GENRES[drumGenre]?.label || drumGenre} #${drumFavorites.length+1}`;
-                      setDrumFavorites(f => [...f, { id, genre:drumGenre, pattern:JSON.parse(JSON.stringify(drumPattern)), label }]);
+                )}
+                {drumFavorites.length > 0 && (
+                  <select value=""
+                    onChange={e => {
+                      const fav = drumFavorites.find(f => String(f.id) === e.target.value);
+                      if (fav) { stopLoop(); setDrumPattern(JSON.parse(JSON.stringify(fav.pattern))); setDrumGenre(fav.genre); }
                     }}
-                      style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
-                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
-                      ★ Lagre
-                    </button>
-                  )}
-                  {drumFavorites.length > 0 && (
-                    <select
-                      value=""
-                      onChange={e => {
-                        const fav = drumFavorites.find(f => String(f.id) === e.target.value);
-                        if (fav) { stopLoop(); setDrumPattern(JSON.parse(JSON.stringify(fav.pattern))); setDrumGenre(fav.genre); }
-                      }}
-                      style={{ ...selectStyle, minWidth:160 }}>
-                      <option value="" disabled>Favoritter ({drumFavorites.length})</option>
-                      {drumFavorites.map(f => (
-                        <option key={f.id} value={f.id}>{f.label}</option>
-                      ))}
-                    </select>
-                  )}
-                </div>
+                    style={{ fontFamily:SF, padding:"3px 6px", fontSize:11, fontWeight:500,
+                      border:"1px solid rgba(28,24,32,0.12)", background:"#fff", color:t.textSecondary,
+                      cursor:"pointer", borderRadius:2, minWidth:120 }}>
+                    <option value="" disabled>Favorites ({drumFavorites.length})</option>
+                    {drumFavorites.map(f => (
+                      <option key={f.id} value={f.id}>{f.label}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              {/* Step grid */}
+              {/* ── Step Grid ── */}
               {drumPattern && (
-                <div style={{ ...card, padding:0, overflow:"hidden" }}>
-                  {/* Bar labels */}
-                  <div style={{ display:"grid", gridTemplateColumns:`170px 1fr`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
-                    <div style={{ padding:"4px 10px" }}>
-                      <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Track</span>
+                <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", overflow:"hidden" }}>
+                  {/* Bar header */}
+                  <div style={{ display:"grid", gridTemplateColumns:"132px 1fr", borderBottom:"1px solid rgba(28,24,32,0.10)" }}>
+                    <div style={{ padding:"3px 8px", background:"rgba(28,24,32,0.02)" }}>
+                      <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
                     </div>
                     <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
                       {Array.from({length:4},(_,i) => (
-                        <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
-                          <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
+                        <div key={i} style={{ padding:"3px 4px", borderLeft:`1px solid rgba(28,24,32,${i>0?"0.10":"0"})`, background:"rgba(28,24,32,0.02)" }}>
+                          <span style={{ fontSize:8, fontWeight:700, color:"rgba(28,24,32,0.25)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>{i+1}</span>
                         </div>
                       ))}
                     </div>
                   </div>
 
                   {/* Track rows */}
-                  {DRUM_TRACKS.map(track => {
+                  {DRUM_TRACKS.map((track, trackIdx) => {
                     const hasHits = drumPattern[track.id]?.some(v => v > 0);
                     const isMuted = !!mutedTracks[track.id];
                     const isLocked = !!lockedTracks[track.id];
                     const isSolo = soloTrack === track.id;
                     const isTriplet = !!tripletTracks[track.id];
                     const dimmed = soloTrack && !isSolo;
+                    const isEvenRow = trackIdx % 2 === 0;
                     return (
-                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"170px 1fr",
-                        borderBottom:`1px solid ${t.border}`, opacity: dimmed ? 0.25 : isMuted ? 0.35 : 1, transition:"opacity 0.15s" }}>
+                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"132px 1fr",
+                        borderBottom:"1px solid rgba(28,24,32,0.05)", opacity: dimmed ? 0.2 : isMuted ? 0.3 : 1, transition:"opacity 0.1s" }}>
                         {/* Label + controls */}
-                        <div style={{ display:"flex", alignItems:"center", gap:2, padding:"3px 4px", background:t.cardBg, borderRight:`1px solid ${t.border}` }}>
+                        <div style={{ display:"flex", alignItems:"center", gap:1, padding:"0 4px", height:20,
+                          background: isEvenRow ? "rgba(28,24,32,0.015)" : "transparent",
+                          borderRight:"1px solid rgba(28,24,32,0.08)" }}>
                           <button onClick={() => setLockedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                             title={isLocked ? "Unlock" : "Lock"}
-                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isLocked?1:0.3 }}>
-                            {isLocked ? "🔒" : "🔓"}
+                            style={dawBtn(isLocked)}>
+                            L
                           </button>
                           <button onClick={() => setMutedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                             title={isMuted ? "Unmute" : "Mute"}
-                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isMuted?1:0.3 }}>
-                            {isMuted ? "🔇" : "🔊"}
+                            style={dawBtn(isMuted, "#E5484D")}>
+                            M
                           </button>
                           <button onClick={() => setSoloTrack(s => s === track.id ? null : track.id)}
                             title={isSolo ? "Unsolo" : "Solo"}
-                            style={{ fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:3,
-                              border:`1px solid ${isSolo?t.accent:"transparent"}`, background:isSolo?t.accentBg:"none",
-                              color:isSolo?t.accent:t.textTertiary, cursor:"pointer", fontFamily:SF, letterSpacing:"0.05em" }}>
+                            style={dawBtn(isSolo, "#E5930A")}>
                             S
                           </button>
                           {(track.id==="hatC"||track.id==="hatO"||track.id==="ride"||track.id==="shaker") && (
                             <button onClick={() => setTripletTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
                               title={isTriplet ? "16th grid" : "Triplet grid"}
-                              style={{ fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:3,
-                                border:`1px solid ${isTriplet?"#FF9F0A":"transparent"}`, background:isTriplet?"rgba(255,159,10,0.12)":"none",
-                                color:isTriplet?"#FF9F0A":t.textTertiary, cursor:"pointer", fontFamily:SF }}>
+                              style={dawBtn(isTriplet, "#E5930A")}>
                               3
                             </button>
                           )}
-                          <span style={{ fontSize:10, fontWeight:hasHits?600:400, color:hasHits?t.textPrimary:t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                          <span style={{ fontSize:10, fontWeight:600, color: hasHits ? "rgba(28,24,32,0.70)" : "rgba(28,24,32,0.28)",
+                            fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1,
+                            marginLeft:3, letterSpacing:"0.01em" }}>
                             {track.label}
                           </span>
                         </div>
                         {/* Steps */}
-                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0, background:t.cardBg }}>
+                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0,
+                          background: isEvenRow ? "rgba(28,24,32,0.015)" : "transparent" }}>
                           {drumPattern[track.id].map((vel, step) => {
                             const isPlayhead = drumStep === step;
                             const isBeatLine = step > 0 && step % 4 === 0;
                             const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
                             const isOddStep = step % 2 === 1;
-                            const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 6) : 0;
-                            // Density visual: is this hit removed?
+                            const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 4) : 0;
                             const densityRemoved = vel > 0 && densityDrums < 100 &&
                               !densityPass(densitySeed, track.id, step, densityDrums, drumImportance(track.id, step));
                             return (
                               <div key={step}
                                 onClick={() => toggleDrumStep(track.id, step)}
                                 style={{
-                                  height:22, position:"relative",
-                                  borderLeft: isBarLine ? `1.5px solid ${t.border}` : isBeatLine ? `0.5px solid rgba(28,24,32,0.06)` : "none",
+                                  height:20, position:"relative",
+                                  borderLeft: isBarLine ? "1px solid rgba(28,24,32,0.12)" : isBeatLine ? "1px solid rgba(28,24,32,0.05)" : "none",
                                   background: isPlayhead && looping
-                                    ? "rgba(122,91,175,0.25)"
-                                    : vel > 0 ? "transparent"
-                                    : step % 2 === 0 ? "transparent" : "rgba(28,24,32,0.015)",
+                                    ? "rgba(122,91,175,0.18)"
+                                    : "transparent",
                                   cursor:"pointer",
-                                  transition:"background 0.08s",
                                 }}>
                                 {vel > 0 && (
                                   <div style={{
-                                    position:"absolute", top:1, bottom:1, borderRadius:2,
-                                    left: swingPx, right: Math.max(0, -swingPx + 1),
+                                    position:"absolute", top:1, bottom:1, left:swingPx, right: Math.max(0, -swingPx),
                                     background: densityRemoved
-                                      ? `rgba(122,91,175,0.12)`
+                                      ? "transparent"
                                       : `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
-                                    transition:"left 0.15s ease, right 0.15s ease, background 0.2s ease",
-                                    ...(densityRemoved ? { border:"1px dashed rgba(122,91,175,0.25)" } : {}),
+                                    transition:"left 0.1s, right 0.1s",
+                                    ...(densityRemoved ? { border:"1px dashed rgba(122,91,175,0.20)" } : {}),
                                   }} />
                                 )}
                               </div>
@@ -6287,9 +6297,9 @@ export default function App() {
 
               {/* Empty state */}
               {!drumPattern && (
-                <div style={{ ...card, textAlign:"center", padding:"48px 20px" }}>
-                  <p style={{ fontSize:15, color:t.textTertiary, fontFamily:SF, margin:0 }}>
-                    Select a genre and press <strong>Generate</strong> to create a drum pattern
+                <div style={{ background:"#fff", border:"1px solid rgba(28,24,32,0.08)", padding:"40px 20px", textAlign:"center" }}>
+                  <p style={{ fontSize:12, color:"rgba(28,24,32,0.30)", fontFamily:SF, margin:0, letterSpacing:"0.02em" }}>
+                    Select a genre and press <strong style={{ color:"rgba(28,24,32,0.50)" }}>Generate</strong> to create a drum pattern
                   </p>
                 </div>
               )}
@@ -6297,72 +6307,72 @@ export default function App() {
               {/* ── Pad Mapper Modal ── */}
               {padMapperOpen && (
                 <>
-                  <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:100 }} />
+                  <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:100 }} />
                   <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
-                    width:440, maxHeight:"90vh", overflow:"auto",
-                    background:t.cardBg, borderRadius:16, padding:24, border:`1px solid ${t.border}`,
-                    boxShadow:"0 16px 48px rgba(28,24,32,0.2)" }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                      <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:t.textPrimary, fontFamily:SF }}>Pad Map</h3>
-                      <button onClick={() => setPadMapperOpen(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:t.textSecondary }}>✕</button>
+                    width:400, maxHeight:"90vh", overflow:"auto",
+                    background:"#fff", border:"1px solid rgba(28,24,32,0.12)", padding:"16px 18px",
+                    boxShadow:"0 8px 32px rgba(28,24,32,0.12)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+                      <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Pad Map</span>
+                      <button onClick={() => setPadMapperOpen(false)}
+                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(28,24,32,0.35)", fontFamily:SF }}>×</button>
                     </div>
 
                     {/* Preset selector */}
-                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+                    <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:12 }}>
                       {PAD_MAP_PRESETS.map(preset => {
                         const isActive = DRUM_TRACKS.every(tr => padMap[tr.id]?.midiNote === preset.map[tr.id]?.midiNote);
                         return (
                           <button key={preset.id} onClick={() => setPadMap({...preset.map})}
-                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
-                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                              background: isActive ? "rgba(48,209,88,0.12)" : t.btnBg,
-                              color: isActive ? "#30D158" : t.btnColor, cursor:"pointer", transition:"all 0.12s" }}>
+                            style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(28,24,32,0.10)"}`,
+                              background: isActive ? "rgba(48,209,88,0.08)" : "transparent",
+                              color: isActive ? "#2B9A3E" : t.textSecondary, cursor:"pointer", transition:"all 0.08s" }}>
                             {preset.label}
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* Simple list: Sound → Pad dropdown */}
-                    <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-                      {DRUM_TRACKS.map(track => {
+                    {/* Sound → Pad list */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                      {DRUM_TRACKS.map((track, i) => {
                         const mapping = padMap[track.id];
                         const currentPadLabel = midiToPadLabel(mapping.midiNote);
                         return (
-                          <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px",
-                            background:t.elevatedBg, borderRadius:8, border:`1px solid ${t.border}` }}>
-                            <span style={{ fontSize:12, fontWeight:600, color:t.accent, fontFamily:SF, width:75, flexShrink:0 }}>{track.label}</span>
-                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>→</span>
+                          <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"3px 6px",
+                            background: i % 2 === 0 ? "rgba(28,24,32,0.02)" : "transparent" }}>
+                            <span style={{ fontSize:11, fontWeight:600, color:t.accent, fontFamily:SF, width:70, flexShrink:0 }}>{track.label}</span>
+                            <span style={{ fontSize:9, color:"rgba(28,24,32,0.20)", fontFamily:"'Share Tech Mono',monospace" }}>→</span>
                             <select value={currentPadLabel}
                               onChange={e => {
                                 const midi = padLabelToMidi(e.target.value);
                                 setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
                               }}
-                              style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:13, fontWeight:700,
-                                padding:"4px 6px", borderRadius:6, border:`1px solid ${t.inputBorder}`,
-                                background:t.inputBg, color:t.inputColor, cursor:"pointer", width:70 }}>
+                              style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:12, fontWeight:700,
+                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(28,24,32,0.10)",
+                                background:"#fff", color:t.textPrimary, cursor:"pointer", width:60 }}>
                               {MPC_PADS.map(pad => (
                                 <option key={pad.label} value={pad.label}>{pad.label}</option>
                               ))}
                             </select>
-                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.6 }}>({mapping.midiNote})</span>
+                            <span style={{ fontSize:9, color:"rgba(28,24,32,0.20)", fontFamily:"'Share Tech Mono',monospace" }}>{mapping.midiNote}</span>
                           </div>
                         );
                       })}
                     </div>
 
-                    <div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}>
+                    <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end" }}>
                       <button onClick={() => setPadMapperOpen(false)}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
-                          border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
-                        Ferdig
+                        style={{ ...dawToolBtn(true), fontSize:11, padding:"4px 12px" }}>
+                        Done
                       </button>
                     </div>
                   </div>
                 </>
               )}
             </>
-          )}
+          );})()}
 
           {/* ════════════════ CHORDS MODE ════════════════ */}
           {mode === "chords" && (
