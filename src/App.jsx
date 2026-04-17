@@ -1446,6 +1446,110 @@ const FAMOUS_PROGRESSIONS = [
   { name:"Hollow",                 genre:"Dark",    degrees:[0,5,0,1]         }, // i–VI–i–bII (empty, desolate)
   { name:"Endless Tunnel",         genre:"Dark",    degrees:[0,6,0,6]         }, // i–VII–i–VII (hypnotic dark)
   { name:"Buried Alive",           genre:"Dark",    degrees:[0,1,6,5]         }, // i–bII–VII–VI (descending terror)
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // ─── EXTENDED PROGRESSIONS (5–16 chords) ──────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // ── Pop (Extended) ─────────────────────────────────────────────────────
+  { name:"Pop Verse-Chorus",       genre:"Pop",     degrees:[5,3,0,4,0,4,5,3]             }, // vi–IV–I–V → I–V–vi–IV
+  { name:"Full Pop Song",          genre:"Pop",     degrees:[0,4,5,3,3,0,4,5]             }, // I–V–vi–IV → IV–I–V–vi
+  { name:"Pop Journey",            genre:"Pop",     degrees:[0,3,5,4,0,5,3,4,0,4,5,3]     }, // 12-chord verse-prechorus-chorus
+  { name:"Evolving Pop",           genre:"Pop",     degrees:[0,4,5,3,0,3,4,5,5,3,0,4]     }, // shifting IV/V emphasis
+  { name:"Pop Epic",               genre:"Pop",     degrees:[5,3,0,4,5,4,3,0]             }, // vi-start → I-end
+  { name:"Anthem Build",           genre:"Pop",     degrees:[0,3,0,4,0,3,5,4,3,0,4,5]     }, // I grounding, building toward V–vi
+  { name:"Pop Marathon",           genre:"Pop",     degrees:[0,4,5,3,0,3,4,5,0,5,3,4,0,4,3,5] }, // 16-chord pop cycle
+  { name:"ABBA Turnaround",        genre:"Pop",     degrees:[0,1,3,4,5,3,0,4]             }, // I–ii–IV–V–vi–IV–I–V
+
+  // ── Hip-Hop (Extended) ─────────────────────────────────────────────────
+  { name:"Trap Odyssey",           genre:"Hip-Hop", degrees:[0,6,5,4,0,5,6,0]             }, // i–VII–VI–V → i–VI–VII–i
+  { name:"Drake 8-Bar",            genre:"Hip-Hop", degrees:[0,6,5,3,0,5,6,3]             }, // doubled minor loop w/ IV
+  { name:"Kanye Arc",              genre:"Hip-Hop", degrees:[0,5,2,6,0,3,6,5]             }, // i–VI–III–VII–i–iv–VII–VI
+  { name:"Emotional Trap",         genre:"Hip-Hop", degrees:[0,6,5,6,0,5,6,5,0,6,3,6]    }, // hypnotic 12-chord
+  { name:"J Cole Journey",         genre:"Hip-Hop", degrees:[0,5,3,6,5,0,6,3]             }, // i–VI–iv–VII–VI–i–VII–iv
+  { name:"Kendrick Suite",         genre:"Hip-Hop", degrees:[0,2,5,6,0,3,5,4,0,6,5,2]    }, // 12-chord cinematic hip-hop
+  { name:"Tyler Creator",          genre:"Hip-Hop", degrees:[0,2,5,3,6,5,0,4]             }, // major/minor ambiguity
+  { name:"Travis Scott",           genre:"Hip-Hop", degrees:[0,6,0,5,0,6,0,3,0,6,0,5,0,6,0,1] }, // 16-chord oscillating dark trap
+  { name:"Frank Ocean",            genre:"Hip-Hop", degrees:[0,5,3,4,2,5,0,3]             }, // warm extended R&B-hip-hop
+
+  // ── R&B & Neo-Soul (Extended) ──────────────────────────────────────────
+  { name:"Neo-Soul Suite",         genre:"R&B",     degrees:[0,3,1,4,0,5,1,3]             }, // I–IV–ii–V → I–vi–ii–IV
+  { name:"Erykah Badu",            genre:"R&B",     degrees:[0,3,5,4,1,3,0,5]             }, // wandering neo-soul
+  { name:"D'Angelo Flow",          genre:"R&B",     degrees:[1,4,0,5,3,1,4,0]             }, // ii–V–I turnaround doubled
+  { name:"SZA Vibes",              genre:"R&B",     degrees:[0,5,3,1,4,0,5,3,1,4,0,5]    }, // 12-chord spiraling
+  { name:"Silk Sonic",             genre:"R&B",     degrees:[0,3,1,4,5,2,3,4]             }, // I–IV–ii–V–vi–iii–IV–V
+  { name:"Gospel Journey",         genre:"R&B",     degrees:[0,3,1,4,0,5,2,4,3,0,1,4]    }, // 12-chord gospel-soul
+  { name:"Babyface Ballad",        genre:"R&B",     degrees:[0,5,1,4,3,0,5,1,4,3,0,4]    }, // 12-chord slow jam
+  { name:"Jazmine Sullivan",       genre:"R&B",     degrees:[0,3,5,1,4,0,2,5]             }, // chromatic soul movement
+
+  // ── Jazz (Extended) ────────────────────────────────────────────────────
+  { name:"Jazz Standard",          genre:"Jazz",    degrees:[0,5,1,4,0,2,5,1,4,0]        }, // 10-chord jazz form
+  { name:"Autumn Leaves",          genre:"Jazz",    degrees:[1,4,0,3,6,2,5]               }, // ii–V–I–IV–VII–III–vi (7 chords)
+  { name:"Giant Steps Lite",       genre:"Jazz",    degrees:[0,2,5,1,4,0]                 }, // I–iii–vi–ii–V–I (6-chord)
+  { name:"Jazz Waltz",             genre:"Jazz",    degrees:[0,1,4,0,3,1,4,0]             }, // I–ii–V–I–IV–ii–V–I turnaround
+  { name:"Blue Note Session",      genre:"Jazz",    degrees:[1,4,0,5,2,5,1,4,0,3]        }, // 10-chord bop
+  { name:"Modal Jazz",             genre:"Jazz",    degrees:[0,1,0,1,0,1,3,1]             }, // Dorian vamp (Miles Davis)
+  { name:"Coltrane Changes",       genre:"Jazz",    degrees:[0,2,5,4,1,6,3,0]             }, // 8-chord substitution cycle
+  { name:"Bill Evans",             genre:"Jazz",    degrees:[1,4,0,5,1,4,2,5,1,4,0,3]    }, // 12-chord impressionist
+  { name:"Lo-Fi Extended",         genre:"Jazz",    degrees:[0,5,3,1,0,2,5,3,0,5,1,4]    }, // 12-chord lo-fi study
+
+  // ── Minor (Extended) ──────────────────────────────────────────────────
+  { name:"Minor Odyssey",          genre:"Minor",   degrees:[0,6,5,4,0,3,6,5]             }, // i–VII–VI–V–i–iv–VII–VI
+  { name:"Epic Minor",             genre:"Minor",   degrees:[0,5,2,6,0,3,4,0,5,6,3,4]    }, // 12-chord cinematic minor
+  { name:"Descending Spiral",      genre:"Minor",   degrees:[0,6,5,4,3,2,1,0]             }, // i–VII–VI–V–iv–III–II–i (chromatic descent)
+  { name:"Phrygian Suite",         genre:"Minor",   degrees:[0,1,6,5,0,1,3,0]             }, // Phrygian dominant 8-chord
+  { name:"Minor Key Suite",        genre:"Minor",   degrees:[0,2,5,6,3,0,4,5,0,6,3,4,0,5,6,0] }, // 16-chord minor journey
+
+  // ── Rock & Blues (Extended) ────────────────────────────────────────────
+  { name:"Classic Rock Suite",     genre:"Rock",    degrees:[0,3,4,0,0,3,4,4]             }, // I–IV–V–I doubled with variation
+  { name:"12-Bar Full",            genre:"Blues",   degrees:[0,0,0,0,3,3,0,0,4,3,0,4]    }, // full 12-bar blues
+  { name:"Rock Anthem",            genre:"Rock",    degrees:[0,3,4,0,5,3,0,4]             }, // I–IV–V–I–vi–IV–I–V
+  { name:"Prog Rock",              genre:"Rock",    degrees:[0,6,3,4,5,2,0,1,3,4]        }, // 10-chord prog
+  { name:"Blues Journey",          genre:"Blues",   degrees:[0,3,0,0,3,3,0,0,4,3,0,4,0,3,4,0] }, // 16-bar blues
+
+  // ── Cinematic (Extended) ───────────────────────────────────────────────
+  { name:"Film Score Arc",         genre:"Film",    degrees:[0,4,5,2,3,0,4,5]             }, // I–V–vi–iii–IV–I–V–vi
+  { name:"Trailer Build",          genre:"Film",    degrees:[0,3,5,0,3,4,5,0,3,4,5,4]    }, // 12-chord escalating
+  { name:"Interstellar",           genre:"Film",    degrees:[0,2,5,0,3,5,0,4]             }, // wide, spacious
+  { name:"Miyazaki Dream",         genre:"Film",    degrees:[0,3,5,2,0,4,5,3,0,2,3,4]    }, // 12-chord nostalgic
+  { name:"Nolan Tension",          genre:"Film",    degrees:[0,1,0,6,0,1,0,5,0,1,0,4,0,1,0,3] }, // 16-chord building dread
+  { name:"Villeneuve Void",        genre:"Film",    degrees:[0,6,0,6,5,6,0,6,5,4]        }, // 10-chord desolate
+  { name:"Pixar Warmth",           genre:"Film",    degrees:[0,4,5,3,0,3,1,4,0,5,3,4]    }, // 12-chord emotional arc
+
+  // ── Nordic Pop (Extended) ──────────────────────────────────────────────
+  { name:"Nordic Verse-Chorus",    genre:"Nordic Pop", degrees:[0,5,3,4,0,3,5,4]          }, // I–vi–IV–V → I–IV–vi–V
+  { name:"Aurora Full Arc",        genre:"Nordic Pop", degrees:[0,2,5,3,0,4,5,3,0,2,3,4] }, // 12-chord Aurora-style
+  { name:"Sigrid Build",           genre:"Nordic Pop", degrees:[5,3,0,4,5,0,3,4]          }, // vi start, building
+  { name:"Röyksopp Extended",      genre:"Nordic Pop", degrees:[0,5,1,3,0,2,5,1,3,4]     }, // 10-chord electronic Nordic
+  { name:"Nordic Noir Suite",      genre:"Nordic Pop", degrees:[0,6,5,3,0,1,6,5,0,3,6,1] }, // 12-chord dark Nordic
+  { name:"Scandi Epic",            genre:"Nordic Pop", degrees:[0,5,3,4,0,2,5,3,0,4,5,3,0,3,4,5] }, // 16-chord Nordic anthem
+  { name:"Karpe Diem",             genre:"Nordic Pop", degrees:[0,5,6,3,0,6,5,3]          }, // Norwegian hip-pop
+  { name:"Highasakite Journey",    genre:"Nordic Pop", degrees:[0,2,5,3,0,4,2,5,3,0]     }, // 10-chord dreamy Nordic
+
+  // ── Radiohead (Extended) ───────────────────────────────────────────────
+  { name:"Paranoid Full",          genre:"Radiohead", degrees:[0,6,5,4,0,1,5,6,0,6,3,4]  }, // 12-chord Andalusian epic
+  { name:"OK Computer Suite",      genre:"Radiohead", degrees:[0,1,5,6,0,2,5,4,0,6,3,1]  }, // 12-chord dissonant journey
+  { name:"In Rainbows Full",       genre:"Radiohead", degrees:[0,2,5,3,0,4,2,5,3,0,4,5]  }, // 12-chord warm complexity
+  { name:"A Moon Shaped Pool",     genre:"Radiohead", degrees:[0,5,3,6,0,1,5,0]           }, // 8-chord haunting
+  { name:"Hail to the Thief",      genre:"Radiohead", degrees:[0,6,5,4,3,6,0,1,5,6,3,4,0,6,5,1] }, // 16-chord paranoid suite
+  { name:"The Bends Arc",          genre:"Radiohead", degrees:[0,4,5,3,0,2,3,4]           }, // 8-chord melodic Radiohead
+  { name:"Amnesiac Extended",      genre:"Radiohead", degrees:[0,1,0,6,0,3,1,6,0,5,1,0]  }, // 12-chord uneasy
+
+  // ── Soul (Extended) ────────────────────────────────────────────────────
+  { name:"Motown Full",            genre:"Soul",    degrees:[0,3,1,4,0,5,1,4,0,3,5,4]    }, // 12-chord Motown
+  { name:"Stevie Suite",           genre:"Soul",    degrees:[0,3,5,4,1,4,0,5,3,1,4,0]    }, // 12-chord Stevie Wonder
+  { name:"Al Green",               genre:"Soul",    degrees:[0,3,0,4,5,3,0,4]             }, // 8-chord classic
+  { name:"Soul Revue",             genre:"Soul",    degrees:[0,5,1,4,3,0,5,1,4,3,0,5,1,4,3,4] }, // 16-chord soul showcase
+  { name:"Aretha Full",            genre:"Soul",    degrees:[0,3,0,4,0,5,3,4,0,3,1,4]    }, // 12-chord gospel-soul
+  { name:"Curtis Mayfield",        genre:"Soul",    degrees:[0,2,5,3,0,4,5,2]             }, // 8-chord conscious soul
+
+  // ── Dark (Extended) ────────────────────────────────────────────────────
+  { name:"Dark Descent",           genre:"Dark",    degrees:[0,6,5,4,3,1,0,6]             }, // 8-chord falling
+  { name:"Nightmare Suite",        genre:"Dark",    degrees:[0,1,6,5,0,3,1,6,5,0,1,0]    }, // 12-chord horror
+  { name:"Nordic Noir Full",       genre:"Dark",    degrees:[0,5,6,1,0,3,6,5,0,1,3,6]    }, // 12-chord Scandinavian noir
+  { name:"Dread Cycle",            genre:"Dark",    degrees:[0,1,0,6,0,5,0,1,0,6,0,5,0,1,0,6] }, // 16-chord obsessive loop
+  { name:"Existential",            genre:"Dark",    degrees:[0,6,5,1,0,3,6,1]             }, // 8-chord philosophical dark
+  { name:"Bergman Score",          genre:"Dark",    degrees:[0,5,1,6,3,0,1,5,6,3]        }, // 10-chord Nordic cinema
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════
