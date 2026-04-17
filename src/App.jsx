@@ -1455,21 +1455,22 @@ const FAMOUS_PROGRESSIONS = [
 // 14 tracks — focused on what matters for hip-hop / boom-bap / trap
 // Default MIDI notes match original pad positions on MPC (A1=36, A2=37, ...)
 // ghostKick uses A13 (note 48, formerly bell) to avoid shifting existing mappings
+// Default MIDI notes now use General MIDI drum map for MPC compatibility
 const DRUM_TRACKS = [
-  { id:"kick",      label:"Kick",       defaultPad:"A1",  defaultNote:36 },
-  { id:"ghostKick", label:"Ghost Kick", defaultPad:"A13", defaultNote:48 },
-  { id:"snare",     label:"Snare",      defaultPad:"A2",  defaultNote:37 },
-  { id:"ghost",     label:"Ghost Sn",   defaultPad:"A4",  defaultNote:39 },
-  { id:"clap",      label:"Clap",       defaultPad:"A5",  defaultNote:40 },
-  { id:"hatC",      label:"Hat (C)",    defaultPad:"A3",  defaultNote:38 },
-  { id:"hatO",      label:"Hat (O)",    defaultPad:"A9",  defaultNote:44 },
-  { id:"rim",       label:"Rim",        defaultPad:"A6",  defaultNote:41 },
-  { id:"tom",       label:"Tom",        defaultPad:"A7",  defaultNote:42 },
-  { id:"low808",    label:"808",        defaultPad:"A8",  defaultNote:43 },
-  { id:"shaker",    label:"Shaker",     defaultPad:"A11", defaultNote:46 },
-  { id:"perc",      label:"Perc",       defaultPad:"A12", defaultNote:47 },
-  { id:"ride",      label:"Ride",       defaultPad:"A10", defaultNote:45 },
-  { id:"crash",     label:"Crash",      defaultPad:"A16", defaultNote:51 },
+  { id:"kick",      label:"Kick",       defaultPad:"A1",  defaultNote:36 },  // GM Bass Drum 1
+  { id:"ghostKick", label:"Ghost Kick", defaultPad:"A1",  defaultNote:36 },  // same pad, softer vel
+  { id:"snare",     label:"Snare",      defaultPad:"A3",  defaultNote:38 },  // GM Acoustic Snare
+  { id:"ghost",     label:"Ghost Sn",   defaultPad:"A5",  defaultNote:40 },  // GM Electric Snare
+  { id:"clap",      label:"Clap",       defaultPad:"A4",  defaultNote:39 },  // GM Hand Clap
+  { id:"hatC",      label:"Hat (C)",    defaultPad:"A7",  defaultNote:42 },  // GM Closed Hi-Hat
+  { id:"hatO",      label:"Hat (O)",    defaultPad:"A11", defaultNote:46 },  // GM Open Hi-Hat
+  { id:"rim",       label:"Rim",        defaultPad:"A2",  defaultNote:37 },  // GM Side Stick
+  { id:"tom",       label:"Tom",        defaultPad:"A10", defaultNote:45 },  // GM Low Tom
+  { id:"low808",    label:"808",        defaultPad:"A1",  defaultNote:36 },  // layered with kick
+  { id:"shaker",    label:"Shaker",     defaultPad:"B11", defaultNote:70 },  // GM Maracas
+  { id:"perc",      label:"Perc",       defaultPad:"B16", defaultNote:67 },  // GM High Agogo
+  { id:"ride",      label:"Ride",       defaultPad:"A16", defaultNote:51 },  // GM Ride Cymbal 1
+  { id:"crash",     label:"Crash",      defaultPad:"A14", defaultNote:49 },  // GM Crash Cymbal 1
 ];
 
 const DRUM_STEPS = 64;       // 4 bars × 16 sixteenth-notes
@@ -1674,7 +1675,7 @@ function energyScale(energy) {
 
 // ── Pad Map Presets ──
 const PAD_MAP_PRESETS = [
-  { id:"default", label:"Fiskaturet Default", desc:"A1-A14 chromatic",
+  { id:"default", label:"Fiskaturet Default (GM)", desc:"General MIDI drum map",
     map: DRUM_TRACKS.reduce((a,t) => ({...a,[t.id]:{padId:t.defaultPad, midiNote:t.defaultNote}}),{}) },
   { id:"gm", label:"General MIDI", desc:"Standard GM drum map",
     map: { kick:{padId:"A1",midiNote:36}, ghostKick:{padId:"A1",midiNote:36}, snare:{padId:"A3",midiNote:38},
@@ -4306,9 +4307,7 @@ export default function App() {
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
   const [drumFavorites,  setDrumFavorites]  = useState([]);    // [{ id, genre, pattern, label }]
-  const [padMap, setPadMap] = useState(() =>
-    DRUM_TRACKS.reduce((acc, t) => ({ ...acc, [t.id]: { padId:t.defaultPad, midiNote:t.defaultNote }}), {})
-  );
+  const [padMap, setPadMap] = useState(() => ({ ...PAD_MAP_PRESETS.find(p => p.id === "gm").map }));
   const loopRef    = useRef(null);
   const rafRef     = useRef(null);
   const dragRef    = useRef(null);
