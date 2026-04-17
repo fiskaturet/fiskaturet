@@ -4534,27 +4534,69 @@ export default function App() {
     return true;
   }, [getMIDIOut, midiChannel]);
 
-  // ── MIDI Clock sync ──
-  // Sends MIDI Start (0xFA) + Clock ticks (0xF8) at 24 PPQ, and MIDI Stop (0xFC)
-  // Returns prerollMs (0 if clock disabled) — callers add this to all note timestamps
+  // ── MIDI Clock sync (hardware-timed) ──
+  // Uses Web MIDI timestamps for precise clock ticks instead of setInterval.
+  // Schedules ticks in batches ahead of time so the USB driver sends them at exact intervals.
+  // Preroll: 2 beats of clock before first note — gives MPC time to arm and start recording.
   const midiPrerollMs = useRef(0);
+  const midiClockState = useRef(null); // { out, bpm, startTimestamp, rafId, stopped }
+
   const startMidiClock = useCallback((bpmVal) => {
     const out = getMIDIOut();
     if (!out || !midiClockEnabled) { midiPrerollMs.current = 0; return; }
     // Stop any existing clock
+    if (midiClockState.current) {
+      midiClockState.current.stopped = true;
+      if (midiClockState.current.rafId) cancelAnimationFrame(midiClockState.current.rafId);
+    }
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
-    // Send MIDI Start
+
+    const tickMs = (60 / bpmVal / 24) * 1000; // ms per clock tick at 24 PPQ
+    const prerollBeats = 2;
+    const prerollMs = (60 / bpmVal) * prerollBeats * 1000;
+    midiPrerollMs.current = prerollMs;
+
+    // Send MIDI Start immediately
+    const now = performance.now();
     try { out.send([0xFA]); } catch(e) {}
-    // Send clock ticks at 24 PPQ
-    const tickIntervalMs = (60 / bpmVal / 24) * 1000;
-    midiClockRef.current = setInterval(() => {
-      try { out.send([0xF8]); } catch(e) {}
-    }, tickIntervalMs);
-    // Preroll: 1 beat of clock before notes start
-    midiPrerollMs.current = (60 / bpmVal) * 1000;
+
+    // State for the clock pump
+    const state = {
+      out, bpm: bpmVal, tickMs,
+      startTimestamp: now,
+      nextTickIndex: 0,
+      stopped: false,
+      rafId: null,
+    };
+    midiClockState.current = state;
+
+    // Pump function: schedules ticks ahead in batches (look-ahead ~100ms)
+    const LOOK_AHEAD_MS = 100;
+    const pump = () => {
+      if (state.stopped) return;
+      const now2 = performance.now();
+      const horizon = now2 + LOOK_AHEAD_MS;
+      while (true) {
+        const tickTime = state.startTimestamp + state.nextTickIndex * state.tickMs;
+        if (tickTime > horizon) break;
+        // Use hardware timestamp for precise delivery
+        const sendAt = Math.max(now2, tickTime);
+        try { state.out.send([0xF8], sendAt); } catch(e) {}
+        state.nextTickIndex++;
+      }
+      state.rafId = requestAnimationFrame(pump);
+    };
+    state.rafId = requestAnimationFrame(pump);
+    // Also keep midiClockRef non-null to indicate clock is running (for BPM update effect)
+    midiClockRef.current = true;
   }, [getMIDIOut, midiClockEnabled]);
 
   const stopMidiClock = useCallback(() => {
+    if (midiClockState.current) {
+      midiClockState.current.stopped = true;
+      if (midiClockState.current.rafId) cancelAnimationFrame(midiClockState.current.rafId);
+      midiClockState.current = null;
+    }
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
     const out = getMIDIOut();
     if (out && midiClockEnabled) {
@@ -4562,18 +4604,21 @@ export default function App() {
     }
   }, [getMIDIOut, midiClockEnabled]);
 
-  // Update MIDI Clock rate when BPM changes during playback (no Start/Stop, just adjust tick rate)
+  // Update MIDI Clock rate when BPM changes during playback — adjust tick interval without restart
   useEffect(() => {
-    if (!midiClockRef.current || !midiClockEnabled) return;
-    const out = getMIDIOut();
-    if (!out) return;
-    // Re-create the interval at the new BPM rate without sending Start/Stop
-    clearInterval(midiClockRef.current);
-    const tickIntervalMs = (60 / bpm / 24) * 1000;
-    midiClockRef.current = setInterval(() => {
-      try { out.send([0xF8]); } catch(e) {}
-    }, tickIntervalMs);
-  }, [bpm, midiClockEnabled, getMIDIOut]);
+    const state = midiClockState.current;
+    if (!state || state.stopped || !midiClockEnabled) return;
+    // Recalculate tick times from the current position
+    const newTickMs = (60 / bpm / 24) * 1000;
+    if (Math.abs(newTickMs - state.tickMs) > 0.01) {
+      // Anchor: keep the last scheduled tick's wall time, adjust future ticks from there
+      const now = performance.now();
+      const elapsedTicks = state.nextTickIndex;
+      state.startTimestamp = now - elapsedTicks * newTickMs;
+      state.tickMs = newTickMs;
+      state.bpm = bpm;
+    }
+  }, [bpm, midiClockEnabled]);
 
   // ── MIDI Clock Receive — derive BPM from incoming 0xF8 ticks ──
   const clockTickTimesRef = useRef([]);
@@ -5003,7 +5048,7 @@ export default function App() {
   }, []);
 
   const stopLoop = () => {
-    if (loopRef.current)  { clearInterval(loopRef.current);      loopRef.current = null; }
+    if (loopRef.current)  { clearTimeout(loopRef.current);       loopRef.current = null; }
     if (rafRef.current)   { cancelAnimationFrame(rafRef.current); rafRef.current  = null; }
     // Cancel all pending scheduled notes
     if (tlTimeoutsRef.current) {
@@ -5209,20 +5254,23 @@ export default function App() {
       tlTimeoutsRef.current.push(id);
       return id;
     };
-    // For MIDI: schedule send using Web MIDI timestamps (driver-level precision)
-    // Preroll is added so first notes don't arrive before MPC starts recording
-    // Mute is checked ~50ms before the note, giving time to react to live mute toggles
-    const MUTE_CHECK_LEAD = 50; // ms before note to check mute state
+    // For MIDI: schedule send using Web MIDI hardware timestamps for driver-level precision.
+    // wallStart is the wall-clock time when play was pressed.
+    // loopBaseMs tracks the wall-clock time when the current loop iteration started.
+    // On first iteration: loopBaseMs = wallStart + preroll (notes start after preroll).
+    // On subsequent iterations: loopBaseMs advances by totalMs each time.
+    // This keeps all notes and all instruments on the exact same time grid.
+    const wallStart = performance.now();
+    let loopBaseMs = wallStart + preroll; // first loop starts after preroll
+    const MUTE_CHECK_LEAD = 80; // ms before note to wake up and check mute state
     const scheduleMidi = (muteRef, out, msg, ms) => {
-      const actualMs = ms + preroll; // shift all notes by preroll amount
-      const checkMs = Math.max(0, actualMs - MUTE_CHECK_LEAD);
+      const targetWall = loopBaseMs + ms; // exact wall-clock time this note should play
+      const wakeUp = Math.max(0, targetWall - performance.now() - MUTE_CHECK_LEAD);
       const id = setTimeout(() => {
         tlTimeoutsRef.current = tlTimeoutsRef.current.filter(x => x !== id);
         if (muteRef.current) return; // muted — skip
-        const now = performance.now();
-        const sendAt = Math.max(now, now + (actualMs - checkMs - MUTE_CHECK_LEAD));
-        try { out.send(msg, sendAt); } catch(e) {}
-      }, checkMs);
+        try { out.send(msg, targetWall); } catch(e) {}
+      }, wakeUp);
       tlTimeoutsRef.current.push(id);
     };
     // Mute-aware schedulers — for browser audio, use setTimeout; for MIDI, use timestamp scheduling
@@ -5599,7 +5647,7 @@ export default function App() {
     densitySeedRef.current = densitySeedRef.current + 1;
     doSchedule();
     setLooping(true);
-    const wallStart = performance.now();
+    // wallStart already declared above (shared with MIDI scheduler for same time base)
     const totalMsWithPreroll = totalMs + preroll;
     const animate = () => {
       const elapsed = performance.now() - wallStart;
@@ -5622,8 +5670,14 @@ export default function App() {
       rafRef.current = requestAnimationFrame(animate);
     };
     rafRef.current = requestAnimationFrame(animate);
-    loopRef.current = setInterval(() => {
-      if (loopEnabledRef.current) {
+    // Use setTimeout-chain instead of setInterval for tighter loop timing.
+    // Each iteration advances loopBaseMs by exactly totalMs so MIDI timestamps stay locked.
+    const scheduleNextLoop = () => {
+      const nextLoopWall = loopBaseMs + totalMs;
+      const delay = Math.max(0, nextLoopWall - performance.now() - 50); // wake up 50ms early
+      loopRef.current = setTimeout(() => {
+        if (!loopEnabledRef.current) { stopLoop(); return; }
+        loopBaseMs = nextLoopWall; // advance time base for next iteration
         loopCountRef.current++;
         // Auto-fill: queue fill before scheduling
         const fm = fillModeRef.current;
@@ -5633,10 +5687,10 @@ export default function App() {
         densitySeedRef.current = densitySeedRef.current + 1;
         setDensitySeed(densitySeedRef.current);
         doSchedule();
-      } else {
-        stopLoop();
-      }
-    }, totalMs);
+        scheduleNextLoop(); // chain next
+      }, delay);
+    };
+    scheduleNextLoop();
   };
 
   // ── Play full arrangement (all sections chained) ─────────────────────────
