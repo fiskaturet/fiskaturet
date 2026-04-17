@@ -3958,6 +3958,10 @@ export default function App() {
   const [looping,      setLooping]      = useState(false);
   const [loopEnabled,  setLoopEnabled]  = useState(true);  // repeat vs one-shot
   const loopEnabledRef = useRef(true);
+  const [lastAutoSave, setLastAutoSave] = useState(null);
+  const fileInputRef = useRef(null);
+  const autoSaveTimerRef = useRef(null);
+  const initialLoadDoneRef = useRef(false);
   const [playheadPct,  setPlayheadPct]  = useState(0);
   const [arpOn,        setArpOn]        = useState(false);
   const [arpPattern,   setArpPattern]   = useState("up");
@@ -4067,6 +4071,137 @@ export default function App() {
   const soloTrackRef    = useRef(soloTrack);
   const mutedTracksRef  = useRef(mutedTracks);
   const tripletTracksRef = useRef(tripletTracks);
+
+  // ── Project Save/Load ──
+  const serializeProject = useCallback(() => ({
+    version: 1,
+    // Musical core
+    rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType,
+    // Patterns
+    drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
+    // Sections/arrangement
+    sections, arrangement,
+    // Sound settings
+    melodySound, bassSound, bassOctaveOffset, melodyOctaveOffset,
+    // Playback
+    playStyle, chordPlayPattern, chordRhythmMutes, arpOn, arpPattern, arpRate,
+    // Drums
+    lockedTracks, mutedTracks, soloTrack, tripletTracks, drumSwing, drumHalfTime, drumFavorites, padMap,
+    // Density
+    densityDrums, densityBass, densityMelody, densityChords,
+    // Mutes
+    muteChords, muteBass, muteMelody, muteDrums,
+    // MIDI config
+    midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
+    // Other
+    pianoRollEdits, humanize, loopEnabled,
+  }), [
+    rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType,
+    drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
+    sections, arrangement,
+    melodySound, bassSound, bassOctaveOffset, melodyOctaveOffset,
+    playStyle, chordPlayPattern, chordRhythmMutes, arpOn, arpPattern, arpRate,
+    lockedTracks, mutedTracks, soloTrack, tripletTracks, drumSwing, drumHalfTime, drumFavorites, padMap,
+    densityDrums, densityBass, densityMelody, densityChords,
+    muteChords, muteBass, muteMelody, muteDrums,
+    midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
+    pianoRollEdits, humanize, loopEnabled,
+  ]);
+
+  const loadProject = useCallback((data) => {
+    if (!data) return;
+    // Musical core
+    if (data.rootDisplay !== undefined) setRootDisplay(data.rootDisplay);
+    if (data.scaleKey !== undefined) setScaleKey(data.scaleKey);
+    if (data.chordType !== undefined) setChordType(data.chordType);
+    if (data.chordOctave !== undefined) setChordOctave(data.chordOctave);
+    if (data.bpm !== undefined) setBpm(data.bpm);
+    if (data.timelineItems !== undefined) setTimelineItems(data.timelineItems);
+    if (data.soundType !== undefined) setSoundType(data.soundType);
+    // Patterns
+    if (data.drumPattern !== undefined) setDrumPattern(data.drumPattern);
+    if (data.drumGenre !== undefined) setDrumGenre(data.drumGenre);
+    if (data.bassLine !== undefined) setBassLine(data.bassLine);
+    if (data.bassPattern !== undefined) setBassPattern(data.bassPattern);
+    if (data.melodyLine !== undefined) setMelodyLine(data.melodyLine);
+    if (data.melodyPattern !== undefined) setMelodyPattern(data.melodyPattern);
+    // Sections/arrangement
+    if (data.sections !== undefined) setSections(data.sections);
+    if (data.arrangement !== undefined) setArrangement(data.arrangement);
+    // Sound settings
+    if (data.melodySound !== undefined) setMelodySound(data.melodySound);
+    if (data.bassSound !== undefined) setBassSound(data.bassSound);
+    if (data.bassOctaveOffset !== undefined) setBassOctaveOffset(data.bassOctaveOffset);
+    if (data.melodyOctaveOffset !== undefined) setMelodyOctaveOffset(data.melodyOctaveOffset);
+    // Playback
+    if (data.playStyle !== undefined) setPlayStyle(data.playStyle);
+    if (data.chordPlayPattern !== undefined) setChordPlayPattern(data.chordPlayPattern);
+    if (data.chordRhythmMutes !== undefined) setChordRhythmMutes(data.chordRhythmMutes);
+    if (data.arpOn !== undefined) setArpOn(data.arpOn);
+    if (data.arpPattern !== undefined) setArpPattern(data.arpPattern);
+    if (data.arpRate !== undefined) setArpRate(data.arpRate);
+    // Drums
+    if (data.lockedTracks !== undefined) setLockedTracks(data.lockedTracks);
+    if (data.mutedTracks !== undefined) { setMutedTracks(data.mutedTracks); mutedTracksRef.current = data.mutedTracks; }
+    if (data.soloTrack !== undefined) { setSoloTrack(data.soloTrack); soloTrackRef.current = data.soloTrack; }
+    if (data.tripletTracks !== undefined) { setTripletTracks(data.tripletTracks); tripletTracksRef.current = data.tripletTracks; }
+    if (data.drumSwing !== undefined) { setDrumSwing(data.drumSwing); drumSwingRef.current = data.drumSwing; }
+    if (data.drumHalfTime !== undefined) { setDrumHalfTime(data.drumHalfTime); drumHalfTimeRef.current = data.drumHalfTime; }
+    if (data.drumFavorites !== undefined) setDrumFavorites(data.drumFavorites);
+    if (data.padMap !== undefined) setPadMap(data.padMap);
+    // Density
+    if (data.densityDrums !== undefined) { setDensityDrums(data.densityDrums); densityDrumsRef.current = data.densityDrums; }
+    if (data.densityBass !== undefined) { setDensityBass(data.densityBass); densityBassRef.current = data.densityBass; }
+    if (data.densityMelody !== undefined) { setDensityMelody(data.densityMelody); densityMelodyRef.current = data.densityMelody; }
+    if (data.densityChords !== undefined) { setDensityChords(data.densityChords); densityChordsRef.current = data.densityChords; }
+    setDensitySeed(1); densitySeedRef.current = 1;
+    // Mutes
+    if (data.muteChords !== undefined) setMuteChords(data.muteChords);
+    if (data.muteBass !== undefined) setMuteBass(data.muteBass);
+    if (data.muteMelody !== undefined) setMuteMelody(data.muteMelody);
+    if (data.muteDrums !== undefined) setMuteDrums(data.muteDrums);
+    // MIDI config
+    if (data.midiOutputId !== undefined) setMidiOutputId(data.midiOutputId);
+    if (data.midiChannel !== undefined) setMidiChannel(data.midiChannel);
+    if (data.bassChannel !== undefined) setBassChannel(data.bassChannel);
+    if (data.melodyChannel2 !== undefined) setMelodyChannel2(data.melodyChannel2);
+    if (data.drumChannel !== undefined) setDrumChannel(data.drumChannel);
+    if (data.midiSyncMode !== undefined) setMidiSyncMode(data.midiSyncMode);
+    // Other
+    if (data.pianoRollEdits !== undefined) setPianoRollEdits(data.pianoRollEdits);
+    if (data.humanize !== undefined) setHumanize(data.humanize);
+    if (data.loopEnabled !== undefined) { setLoopEnabled(data.loopEnabled); loopEnabledRef.current = data.loopEnabled; }
+  }, []);
+
+  // Auto-load from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fiskaturet_project");
+      if (saved) {
+        const data = JSON.parse(saved);
+        loadProject(data);
+      }
+    } catch (e) {
+      console.warn("Failed to load saved project:", e);
+    }
+    // Mark initial load as done after a short delay so auto-save doesn't fire immediately
+    setTimeout(() => { initialLoadDoneRef.current = true; }, 500);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-save to localStorage (debounced 2s)
+  useEffect(() => {
+    if (!initialLoadDoneRef.current) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem("fiskaturet_project", JSON.stringify(serializeProject()));
+        setLastAutoSave(Date.now());
+      } catch (e) {
+        console.warn("Auto-save failed:", e);
+      }
+    }, 2000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [serializeProject]);
 
   // ── MIDI init ──
   const [midiReady, setMidiReady] = useState(false);
@@ -6864,8 +6999,86 @@ export default function App() {
                   {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Unknown chord</span>}
                 </div>
 
-                {/* ── MPC Export / Tools ── */}
+                {/* ── Project Save/Load ── */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginTop:12, paddingTop:12, borderTop:`1px solid ${t.border}` }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", marginRight:4 }}>PROJECT</span>
+                  <button onClick={() => {
+                    if (!window.confirm("Start a new project? All unsaved changes will be lost.")) return;
+                    // Reset all state to defaults
+                    setRootDisplay("C"); setScaleKey("major"); setChordType("triad"); setChordOctave(4);
+                    setBpm(90); setTimelineItems([]); setSoundType("rhodes");
+                    setDrumPattern(null); setDrumGenre("boombap_classic"); setBassLine([]); setBassPattern("root");
+                    setMelodyLine([]); setMelodyPattern("chordTones");
+                    setSections([]); setArrangement([]);
+                    setMelodySound("bell"); setBassSound("808"); setBassOctaveOffset(0); setMelodyOctaveOffset(0);
+                    setPlayStyle("normal"); setChordPlayPattern("sustained"); setChordRhythmMutes({});
+                    setArpOn(false); setArpPattern("up"); setArpRate(0.5);
+                    setLockedTracks({}); setMutedTracks({}); mutedTracksRef.current = {};
+                    setSoloTrack(null); soloTrackRef.current = null;
+                    setTripletTracks({}); tripletTracksRef.current = {};
+                    setDrumSwing(0); drumSwingRef.current = 0;
+                    setDrumHalfTime(false); drumHalfTimeRef.current = false;
+                    setDrumFavorites([]);
+                    setPadMap(DRUM_TRACKS.reduce((acc, tr) => ({ ...acc, [tr.id]: { padId:tr.defaultPad, midiNote:tr.defaultNote }}), {}));
+                    setDensityDrums(100); densityDrumsRef.current = 100;
+                    setDensityBass(100); densityBassRef.current = 100;
+                    setDensityMelody(100); densityMelodyRef.current = 100;
+                    setDensityChords(100); densityChordsRef.current = 100;
+                    setDensitySeed(1); densitySeedRef.current = 1;
+                    setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
+                    setPianoRollEdits({}); setHumanize(0); setLoopEnabled(true); loopEnabledRef.current = true;
+                    localStorage.removeItem("fiskaturet_project");
+                  }}
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                      border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                    New
+                  </button>
+                  <button onClick={() => {
+                    const json = JSON.stringify(serializeProject(), null, 2);
+                    const blob = new Blob([json], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+                    a.download = `fiskaturet-${rootDisplay}-${scaleKey}-${bpm}bpm.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                      border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer",
+                      transition:"all 0.12s" }}>
+                    Save .json
+                  </button>
+                  <button onClick={() => fileInputRef.current && fileInputRef.current.click()}
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                      border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                    Load .json
+                  </button>
+                  <input ref={fileInputRef} type="file" accept=".json" style={{ display:"none" }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = ev => {
+                        try {
+                          const data = JSON.parse(ev.target.result);
+                          loadProject(data);
+                        } catch (err) {
+                          alert("Failed to load project file: " + err.message);
+                        }
+                      };
+                      reader.readAsText(file);
+                      e.target.value = "";
+                    }}
+                  />
+                  {lastAutoSave && (
+                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF, marginLeft:4 }}>
+                      auto-saved ✓
+                    </span>
+                  )}
+                </div>
+
+                {/* ── MPC Export / Tools ── */}
+                <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginTop:8, paddingTop:8, borderTop:`1px solid ${t.border}` }}>
                   <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", marginRight:4 }}>MPC</span>
                   <button onClick={downloadMidi}
                     disabled={timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0}
