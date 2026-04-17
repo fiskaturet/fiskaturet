@@ -1,7 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import * as Tone from "tone";
 import JSZip from "jszip";
-import DrumMachine from "./DrumMachine.jsx";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // ─── MIDI FILE WRITER (Standard MIDI File Type 1) ────────────────────────
@@ -1571,24 +1570,20 @@ function variationHash(seed, id, step) {
 function varDrumVelocity(seed, trackId, step, originalVel, amount) {
   if (amount <= 0 || originalVel <= 0) return originalVel;
   const r = variationHash(seed, trackId, step);
-  const range = (amount / 100) * 0.18; // up to ±18% at max — subtle, not extreme
+  const range = (amount / 100) * 0.35; // up to ±35% at max
   const delta = (r - 0.5) * 2 * range;
   return Math.max(1, Math.min(127, Math.round(originalVel * (1 + delta))));
 }
 
 // Drum ghost note: occasionally add a quiet hit where there was none
 // Returns velocity (0 = don't add) — only triggers when variation is high enough
-// Only these tracks can receive ghost notes from variation — never add ghosts on snare/kick/clap
-const GHOST_ELIGIBLE = new Set(["ghost", "ghostKick", "hatC", "hatO", "shaker", "perc", "rim"]);
-
 function varDrumGhost(seed, trackId, step, amount) {
-  if (amount < 40) return 0; // need at least 40% variation for ghosts
-  if (!GHOST_ELIGIBLE.has(trackId)) return 0; // only subtle percussion gets ghosts
+  if (amount < 20) return 0; // need at least 20% variation for ghosts
   const r = variationHash(seed, trackId + "_ghost", step);
-  const threshold = 1 - ((amount - 40) / 60) * 0.06; // max 6% chance at full variation
+  const threshold = 1 - ((amount - 20) / 80) * 0.12; // max 12% chance at full variation
   if (r > threshold) return 0;
-  // Ghost velocity: very quiet 10-25
-  return Math.round(10 + variationHash(seed, trackId + "_gv", step) * 15);
+  // Ghost velocity: 15-35
+  return Math.round(15 + variationHash(seed, trackId + "_gv", step) * 20);
 }
 
 // Drum rest: occasionally skip a note (replace with silence)
@@ -5721,39 +5716,27 @@ export default function App() {
         .bpm-lcd{font-family:'Share Tech Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
-      <div style={{ minHeight:"100vh", background: mode === "drums" ? "#0A0A0B" : t.pageBg, padding:"2.5rem 1rem", fontFamily: mode === "drums" ? "'DM Sans',system-ui,sans-serif" : SF, transition:"background 0.3s ease" }}>
-        <div style={{ maxWidth: mode === "drums" ? 1100 : 860, margin:"0 auto", transition:"max-width 0.3s ease" }}>
+      <div style={{ minHeight:"100vh", background:t.pageBg, padding:"2.5rem 1rem", fontFamily:SF, transition:"background 0.2s ease" }}>
+        <div style={{ maxWidth:860, margin:"0 auto" }}>
 
           {/* ── Header ── */}
           <div style={{
-            background: mode === "drums"
-              ? "linear-gradient(180deg, #18181B 0%, #111113 100%)"
-              : "linear-gradient(180deg,#8A6CC0 0%,#6B4C9B 100%)",
+            background:"linear-gradient(180deg,#8A6CC0 0%,#6B4C9B 100%)",
             borderRadius:14, padding:"18px 28px", marginBottom:16,
-            boxShadow: mode === "drums"
-              ? "0 1px 0 rgba(255,255,255,0.03), 0 4px 16px rgba(0,0,0,0.4)"
-              : "0 2px 0 rgba(107,76,155,0.15),0 8px 24px rgba(107,76,155,0.25),inset 0 1px 0 rgba(255,255,255,0.15)",
-            border: mode === "drums"
-              ? "1px solid rgba(255,255,255,0.06)"
-              : "1px solid rgba(107,76,155,0.3)",
+            boxShadow:"0 2px 0 rgba(107,76,155,0.15),0 8px 24px rgba(107,76,155,0.25),inset 0 1px 0 rgba(255,255,255,0.15)",
+            border:"1px solid rgba(107,76,155,0.3)",
             display:"flex", justifyContent:"space-between", alignItems:"center",
-            transition:"all 0.3s ease",
           }}>
             <div>
               <h1 style={{
-                fontSize: mode === "drums" ? 22 : 28, fontWeight:700,
-                letterSpacing: mode === "drums" ? "0.12em" : "0.18em",
+                fontSize:28, fontWeight:700, letterSpacing:"0.18em",
                 textTransform:"uppercase", color:"#FFFFFF", margin:0,
-                fontFamily: mode === "drums" ? "'Space Grotesk',system-ui,sans-serif" : SF,
-                textShadow:"0 1px 2px rgba(0,0,0,0.15)",
+                fontFamily:SF, textShadow:"0 1px 2px rgba(0,0,0,0.15)",
               }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:11,
-                color: mode === "drums" ? "rgba(255,255,255,0.45)" : "rgba(255,255,255,0.82)",
-                margin:"5px 0 0", fontWeight: mode === "drums" ? 500 : 600,
-                letterSpacing:"0.2em", textTransform:"uppercase",
-                fontFamily: mode === "drums" ? "'DM Sans',system-ui,sans-serif" : SF }}>
+              <p style={{ fontSize:11, color:"rgba(255,255,255,0.82)", margin:"5px 0 0", fontWeight:600,
+                letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
                   : mode==="hum" ? "Hum to Chords · Microphone"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
@@ -5762,15 +5745,10 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%",
-                background: mode === "drums" ? "#C48A5A" : "#FFFFFF",
-                boxShadow: mode === "drums"
-                  ? "0 0 6px #C48A5A,0 0 12px rgba(196,138,90,0.4)"
-                  : "0 0 6px #FFFFFF,0 0 12px rgba(255,255,255,0.6)",
+              <div style={{ width:8, height:8, borderRadius:"50%", background:"#FFFFFF",
+                boxShadow:"0 0 6px #FFFFFF,0 0 12px rgba(255,255,255,0.6)",
                 animation:"led-glow 2s ease-in-out infinite" }} />
-              <span style={{ fontSize:10,
-                color: mode === "drums" ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.75)",
-                fontWeight:600,
+              <span style={{ fontSize:10, color:"rgba(255,255,255,0.75)", fontWeight:600,
                 letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
                 PWR
               </span>
@@ -5786,30 +5764,19 @@ export default function App() {
               { key:"detect",  label:"Key Detector" },
               { key:"sheet",   label:"Sheet Music" },
               { key:"hum",     label:"Hum" },
-            ].map(({ key: m, label }) => {
-              const isDark = mode === "drums";
-              const isActive = mode === m;
-              return (
-                <button key={m} onClick={() => setMode(m)} style={{
-                  fontFamily: isDark ? "'DM Sans',system-ui,sans-serif" : SF,
-                  fontSize:14, fontWeight: isActive ? 600 : 400,
-                  padding:"8px 20px", borderRadius:12,
-                  background: isActive
-                    ? (isDark ? "rgba(255,255,255,0.08)" : t.modeBtnActiveBg)
-                    : (isDark ? "transparent" : t.modeBtnBg),
-                  border: isActive
-                    ? `1px solid ${isDark ? "rgba(255,255,255,0.12)" : t.modeBtnActiveBorder}`
-                    : `1px solid ${isDark ? "transparent" : t.modeBtnBorder}`,
-                  color: isActive
-                    ? (isDark ? "#ECEAE7" : t.modeBtnActiveColor)
-                    : (isDark ? "rgba(255,255,255,0.35)" : t.modeBtnColor),
-                  cursor:"pointer", transition:"all 0.15s ease",
-                  boxShadow: isActive && !isDark ? t.cardShadow : "none",
-                }}>
-                  {label}
-                </button>
-              );
-            })}
+            ].map(({ key: m, label }) => (
+              <button key={m} onClick={() => setMode(m)} style={{
+                fontFamily:SF, fontSize:14, fontWeight: mode===m ? 600 : 400,
+                padding:"8px 20px", borderRadius:12,
+                background: mode===m ? t.modeBtnActiveBg : t.modeBtnBg,
+                border: mode===m ? `1px solid ${t.modeBtnActiveBorder}` : `1px solid ${t.modeBtnBorder}`,
+                color: mode===m ? t.modeBtnActiveColor : t.modeBtnColor,
+                cursor:"pointer", transition:"all 0.12s ease",
+                boxShadow: mode===m ? t.cardShadow : "none",
+              }}>
+                {label}
+              </button>
+            ))}
           </div>
 
           {/* ── Controls (hidden in detect mode) ── */}
@@ -6102,32 +6069,299 @@ export default function App() {
 
           {/* ════════════════ DRUMS MODE ════════════════ */}
           {mode === "drums" && (
-            <DrumMachine
-              drumPattern={drumPattern} drumGenre={drumGenre}
-              DRUM_GENRES={DRUM_GENRES} DRUM_TRACKS={DRUM_TRACKS}
-              DRUM_STEPS={DRUM_STEPS} DRUM_BAR_STEPS={DRUM_BAR_STEPS}
-              lockedTracks={lockedTracks} mutedTracks={mutedTracks}
-              soloTrack={soloTrack} tripletTracks={tripletTracks}
-              drumSwing={drumSwing} drumHalfTime={drumHalfTime}
-              drumFavorites={drumFavorites} padMap={padMap} drumStep={drumStep}
-              densityDrums={densityDrums} densitySeed={densitySeed}
-              looping={looping} loopEnabled={loopEnabled}
-              timelineItems={timelineItems} bassLine={bassLine}
-              densityPass={densityPass} drumImportance={drumImportance}
-              setDrumGenre={setDrumGenre} setDrumPattern={setDrumPattern}
-              setLockedTracks={setLockedTracks} setMutedTracks={setMutedTracks}
-              setSoloTrack={setSoloTrack} setTripletTracks={setTripletTracks}
-              setDrumSwing={setDrumSwing} setDrumHalfTime={setDrumHalfTime}
-              setDrumFavorites={setDrumFavorites} setDensityDrums={setDensityDrums}
-              setLoopEnabled={setLoopEnabled}
-              generateDrumPattern={generateDrumPattern} toggleDrumStep={toggleDrumStep}
-              playTimeline={playTimeline} stopLoop={stopLoop}
-              setPadMapperOpen={setPadMapperOpen}
-              PAD_MAP_PRESETS={PAD_MAP_PRESETS} MPC_PADS={MPC_PADS}
-              padMapperOpen={padMapperOpen}
-              midiToPadLabel={midiToPadLabel} padLabelToMidi={padLabelToMidi}
-              setPadMap={setPadMap}
-            />
+            <>
+              {/* Genre + controls */}
+              <div style={card}>
+                <div style={{ display:"flex", gap:10, flexWrap:"wrap", alignItems:"center" }}>
+                  <div>
+                    <label style={labelStyle}>Sjanger</label>
+                    <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)} style={{ ...selectStyle, minWidth:200 }}>
+                      {Object.entries(DRUM_GENRES).map(([k,g]) => (
+                        <option key={k} value={k}>{g.label} ({g.bpm} BPM)</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div style={{ display:"flex", gap:8, alignItems:"flex-end", paddingTop:18 }}>
+                    <button onClick={generateDrumPattern}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10,
+                        border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                      Generate
+                    </button>
+                    <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { const fresh = genre.generate(); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); }); setDrumPattern(fresh); }}}}
+                      disabled={!drumPattern}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:drumPattern?"pointer":"not-allowed", opacity:drumPattern?1:0.4 }}>
+                      Variation
+                    </button>
+                    <button onClick={playTimeline} disabled={!drumPattern && timelineItems.length===0 && bassLine.length===0}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
+                        background: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
+                        color: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? t.playDisabledClr : "#FFFFFF",
+                        cursor: (!drumPattern && timelineItems.length===0 && bassLine.length===0) ? "not-allowed" : "pointer" }}>
+                      {looping ? "⬛ Stop" : "▶  Play"}
+                    </button>
+                    <button onClick={() => setPadMapperOpen(true)}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      Pad Map
+                    </button>
+                    <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      Clear
+                    </button>
+                    <div style={{ width:1, height:24, background:t.border }} />
+                    <button onClick={() => setLoopEnabled(e => !e)}
+                      style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                        border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                        background: loopEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
+                        color: loopEnabled ? "#30D158" : t.textTertiary,
+                        cursor:"pointer", transition:"all 0.12s", display:"flex", alignItems:"center", gap:5 }}>
+                      <span style={{ fontSize:13 }}>🔁</span>
+                      {loopEnabled ? "Loop" : "1×"}
+                    </button>
+                  </div>
+                </div>
+                {/* Swing + Half-tempo + Favorites row */}
+                <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"center", marginTop:10 }}>
+                  {/* Drum Density */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Density</span>
+                    <input type="range" min={0} max={100} value={densityDrums}
+                      onChange={e => setDensityDrums(Number(e.target.value))}
+                      style={{ width:100, accentColor: densityDrums < 100 ? "#FF9F0A" : t.accent }} />
+                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color: densityDrums < 100 ? "#FF9F0A" : t.textTertiary, minWidth:30 }}>{densityDrums}%</span>
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Swing */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:11, fontWeight:600, color:t.textSecondary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Swing</span>
+                    <input type="range" min={0} max={100} value={drumSwing}
+                      onChange={e => setDrumSwing(Number(e.target.value))}
+                      style={{ width:100, accentColor:t.accent }} />
+                    <span style={{ fontSize:11, fontFamily:"'Share Tech Mono',monospace", color:t.textTertiary, minWidth:30 }}>{drumSwing}%</span>
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Half-tempo */}
+                  <button onClick={() => setDrumHalfTime(h => !h)}
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                      border:`1px solid ${drumHalfTime?t.accentBorder:t.btnBorder}`,
+                      background:drumHalfTime?t.accentBg:t.btnBg,
+                      color:drumHalfTime?t.accent:t.btnColor, cursor:"pointer" }}>
+                    ½ Half-time
+                  </button>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Favorite */}
+                  {drumPattern && (
+                    <button onClick={() => {
+                      const id = Date.now();
+                      const label = `${DRUM_GENRES[drumGenre]?.label || drumGenre} #${drumFavorites.length+1}`;
+                      setDrumFavorites(f => [...f, { id, genre:drumGenre, pattern:JSON.parse(JSON.stringify(drumPattern)), label }]);
+                    }}
+                      style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                        border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                      ★ Lagre
+                    </button>
+                  )}
+                  {drumFavorites.length > 0 && (
+                    <select
+                      value=""
+                      onChange={e => {
+                        const fav = drumFavorites.find(f => String(f.id) === e.target.value);
+                        if (fav) { stopLoop(); setDrumPattern(JSON.parse(JSON.stringify(fav.pattern))); setDrumGenre(fav.genre); }
+                      }}
+                      style={{ ...selectStyle, minWidth:160 }}>
+                      <option value="" disabled>Favoritter ({drumFavorites.length})</option>
+                      {drumFavorites.map(f => (
+                        <option key={f.id} value={f.id}>{f.label}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* Step grid */}
+              {drumPattern && (
+                <div style={{ ...card, padding:0, overflow:"hidden" }}>
+                  {/* Bar labels */}
+                  <div style={{ display:"grid", gridTemplateColumns:`170px 1fr`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                    <div style={{ padding:"4px 10px" }}>
+                      <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Track</span>
+                    </div>
+                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
+                      {Array.from({length:4},(_,i) => (
+                        <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
+                          <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Track rows */}
+                  {DRUM_TRACKS.map(track => {
+                    const hasHits = drumPattern[track.id]?.some(v => v > 0);
+                    const isMuted = !!mutedTracks[track.id];
+                    const isLocked = !!lockedTracks[track.id];
+                    const isSolo = soloTrack === track.id;
+                    const isTriplet = !!tripletTracks[track.id];
+                    const dimmed = soloTrack && !isSolo;
+                    return (
+                      <div key={track.id} style={{ display:"grid", gridTemplateColumns:"170px 1fr",
+                        borderBottom:`1px solid ${t.border}`, opacity: dimmed ? 0.25 : isMuted ? 0.35 : 1, transition:"opacity 0.15s" }}>
+                        {/* Label + controls */}
+                        <div style={{ display:"flex", alignItems:"center", gap:2, padding:"3px 4px", background:t.cardBg, borderRight:`1px solid ${t.border}` }}>
+                          <button onClick={() => setLockedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                            title={isLocked ? "Unlock" : "Lock"}
+                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isLocked?1:0.3 }}>
+                            {isLocked ? "🔒" : "🔓"}
+                          </button>
+                          <button onClick={() => setMutedTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                            title={isMuted ? "Unmute" : "Mute"}
+                            style={{ fontSize:10, padding:"2px 3px", border:"none", background:"none", cursor:"pointer", opacity:isMuted?1:0.3 }}>
+                            {isMuted ? "🔇" : "🔊"}
+                          </button>
+                          <button onClick={() => setSoloTrack(s => s === track.id ? null : track.id)}
+                            title={isSolo ? "Unsolo" : "Solo"}
+                            style={{ fontSize:9, fontWeight:700, padding:"2px 4px", borderRadius:3,
+                              border:`1px solid ${isSolo?t.accent:"transparent"}`, background:isSolo?t.accentBg:"none",
+                              color:isSolo?t.accent:t.textTertiary, cursor:"pointer", fontFamily:SF, letterSpacing:"0.05em" }}>
+                            S
+                          </button>
+                          {(track.id==="hatC"||track.id==="hatO"||track.id==="ride"||track.id==="shaker") && (
+                            <button onClick={() => setTripletTracks(p => ({ ...p, [track.id]: !p[track.id] }))}
+                              title={isTriplet ? "16th grid" : "Triplet grid"}
+                              style={{ fontSize:8, fontWeight:700, padding:"2px 3px", borderRadius:3,
+                                border:`1px solid ${isTriplet?"#FF9F0A":"transparent"}`, background:isTriplet?"rgba(255,159,10,0.12)":"none",
+                                color:isTriplet?"#FF9F0A":t.textTertiary, cursor:"pointer", fontFamily:SF }}>
+                              3
+                            </button>
+                          )}
+                          <span style={{ fontSize:10, fontWeight:hasHits?600:400, color:hasHits?t.textPrimary:t.textTertiary, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", flex:1 }}>
+                            {track.label}
+                          </span>
+                        </div>
+                        {/* Steps */}
+                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0, background:t.cardBg }}>
+                          {drumPattern[track.id].map((vel, step) => {
+                            const isPlayhead = drumStep === step;
+                            const isBeatLine = step > 0 && step % 4 === 0;
+                            const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
+                            const isOddStep = step % 2 === 1;
+                            const swingPx = isOddStep && drumSwing > 0 ? Math.round(drumSwing / 100 * 6) : 0;
+                            // Density visual: is this hit removed?
+                            const densityRemoved = vel > 0 && densityDrums < 100 &&
+                              !densityPass(densitySeed, track.id, step, densityDrums, drumImportance(track.id, step));
+                            return (
+                              <div key={step}
+                                onClick={() => toggleDrumStep(track.id, step)}
+                                style={{
+                                  height:22, position:"relative",
+                                  borderLeft: isBarLine ? `1.5px solid ${t.border}` : isBeatLine ? `0.5px solid rgba(28,24,32,0.06)` : "none",
+                                  background: isPlayhead && looping
+                                    ? "rgba(122,91,175,0.25)"
+                                    : vel > 0 ? "transparent"
+                                    : step % 2 === 0 ? "transparent" : "rgba(28,24,32,0.015)",
+                                  cursor:"pointer",
+                                  transition:"background 0.08s",
+                                }}>
+                                {vel > 0 && (
+                                  <div style={{
+                                    position:"absolute", top:1, bottom:1, borderRadius:2,
+                                    left: swingPx, right: Math.max(0, -swingPx + 1),
+                                    background: densityRemoved
+                                      ? `rgba(122,91,175,0.12)`
+                                      : `rgba(122,91,175,${Math.min(1, vel/127 * 0.85 + 0.15)})`,
+                                    transition:"left 0.15s ease, right 0.15s ease, background 0.2s ease",
+                                    ...(densityRemoved ? { border:"1px dashed rgba(122,91,175,0.25)" } : {}),
+                                  }} />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Empty state */}
+              {!drumPattern && (
+                <div style={{ ...card, textAlign:"center", padding:"48px 20px" }}>
+                  <p style={{ fontSize:15, color:t.textTertiary, fontFamily:SF, margin:0 }}>
+                    Select a genre and press <strong>Generate</strong> to create a drum pattern
+                  </p>
+                </div>
+              )}
+
+              {/* ── Pad Mapper Modal ── */}
+              {padMapperOpen && (
+                <>
+                  <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.45)", zIndex:100 }} />
+                  <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
+                    width:440, maxHeight:"90vh", overflow:"auto",
+                    background:t.cardBg, borderRadius:16, padding:24, border:`1px solid ${t.border}`,
+                    boxShadow:"0 16px 48px rgba(28,24,32,0.2)" }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                      <h3 style={{ margin:0, fontSize:17, fontWeight:700, color:t.textPrimary, fontFamily:SF }}>Pad Map</h3>
+                      <button onClick={() => setPadMapperOpen(false)} style={{ border:"none", background:"none", fontSize:20, cursor:"pointer", color:t.textSecondary }}>✕</button>
+                    </div>
+
+                    {/* Preset selector */}
+                    <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:14 }}>
+                      {PAD_MAP_PRESETS.map(preset => {
+                        const isActive = DRUM_TRACKS.every(tr => padMap[tr.id]?.midiNote === preset.map[tr.id]?.midiNote);
+                        return (
+                          <button key={preset.id} onClick={() => setPadMap({...preset.map})}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                              background: isActive ? "rgba(48,209,88,0.12)" : t.btnBg,
+                              color: isActive ? "#30D158" : t.btnColor, cursor:"pointer", transition:"all 0.12s" }}>
+                            {preset.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Simple list: Sound → Pad dropdown */}
+                    <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                      {DRUM_TRACKS.map(track => {
+                        const mapping = padMap[track.id];
+                        const currentPadLabel = midiToPadLabel(mapping.midiNote);
+                        return (
+                          <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 8px",
+                            background:t.elevatedBg, borderRadius:8, border:`1px solid ${t.border}` }}>
+                            <span style={{ fontSize:12, fontWeight:600, color:t.accent, fontFamily:SF, width:75, flexShrink:0 }}>{track.label}</span>
+                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>→</span>
+                            <select value={currentPadLabel}
+                              onChange={e => {
+                                const midi = padLabelToMidi(e.target.value);
+                                setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
+                              }}
+                              style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:13, fontWeight:700,
+                                padding:"4px 6px", borderRadius:6, border:`1px solid ${t.inputBorder}`,
+                                background:t.inputBg, color:t.inputColor, cursor:"pointer", width:70 }}>
+                              {MPC_PADS.map(pad => (
+                                <option key={pad.label} value={pad.label}>{pad.label}</option>
+                              ))}
+                            </select>
+                            <span style={{ fontSize:10, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.6 }}>({mapping.midiNote})</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}>
+                      <button onClick={() => setPadMapperOpen(false)}
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                          border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                        Ferdig
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </>
           )}
 
           {/* ════════════════ CHORDS MODE ════════════════ */}
