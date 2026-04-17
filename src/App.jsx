@@ -348,11 +348,14 @@ const BASS_PATTERNS = {
   glitch808: { label: "Glitch 808", desc: "Stuttering sub hits with rests — dark trap / experimental" },
 };
 
-function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS, bassOctaveOffset = 0) {
+function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, patternType = "root", TIMELINE_SLOTS, bassOctaveOffset = 0, seed = 1) {
   const bassOctave = Math.max(1, chordOctave - 1 + bassOctaveOffset);
   const notes = [];
   const scaleIntervals = SCALES[scaleKey]?.intervals || SCALES.major.intervals;
   const scaleNotes = scaleIntervals.map(iv => (rootIdx + iv) % 12);
+  // Seeded random for variation
+  let _rngState = seed;
+  const rng = () => { _rngState = (_rngState * 1664525 + 1013904223) & 0x7fffffff; return _rngState / 0x7fffffff; };
 
   // Find nearest scale tone below a given note index
   const nearestScaleBelow = (ni) => {
@@ -381,39 +384,41 @@ function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, pattern
       notes.push({ midi: rootMidi, startSlot: start, lengthSlots: half || len, velocity: 95 });
       if (half > 0) notes.push({ midi: fifthMidi, startSlot: start + half, lengthSlots: len - half, velocity: 80 });
     } else if (patternType === "walking") {
-      // Quarter note walking: root, passing tone, third, fifth (or approach note)
-      const beatLen = 4; // 16th notes per quarter
+      // Quarter note walking with seeded variation
+      const beatLen = 4;
       const beats = Math.floor(len / beatLen);
-      const walkNotes = [rootMidi, thirdMidi, fifthMidi];
-      // Add chromatic approach to next chord's root
+      const walkPool = [rootMidi, thirdMidi, fifthMidi, rootMidi + 12, fifthMidi - 12];
       for (let b = 0; b < beats; b++) {
         let midi;
         if (b === 0) midi = rootMidi;
         else if (b === beats - 1) {
-          // Approach note: half step below next root
           const nextItem = timelineItems.find(it => it.startSlot === start + len);
           if (nextItem) {
-            midi = nextItem.chord.noteIdx + (bassOctave + 1) * 12 - 1;
+            midi = nextItem.chord.noteIdx + (bassOctave + 1) * 12 + (rng() < 0.3 ? 0 : -1);
           } else {
-            midi = fifthMidi;
+            midi = rng() < 0.5 ? fifthMidi : rootMidi;
           }
         } else {
-          midi = walkNotes[b % walkNotes.length];
+          midi = walkPool[Math.floor(rng() * walkPool.length)];
         }
-        notes.push({ midi, startSlot: start + b * beatLen, lengthSlots: beatLen, velocity: b === 0 ? 95 : 75 });
+        const vel = b === 0 ? 95 : 65 + Math.floor(rng() * 20);
+        notes.push({ midi, startSlot: start + b * beatLen, lengthSlots: beatLen, velocity: vel });
       }
     } else if (patternType === "octave") {
       const half = Math.floor(len / 2);
       notes.push({ midi: rootMidi, startSlot: start, lengthSlots: half || len, velocity: 95 });
       if (half > 0) notes.push({ midi: rootMidi + 12, startSlot: start + half, lengthSlots: len - half, velocity: 80 });
     } else if (patternType === "syncopated") {
-      // Syncopated: hit on 1, skip 2, hit on "and" of 2, hit on 4
+      // Syncopated with seeded variation in note choices and timing offsets
       const beatLen = 4;
       const beats = Math.floor(len / beatLen);
+      const notePool = [rootMidi, fifthMidi, thirdMidi, rootMidi + 12];
+      const pickNote = (preferred) => rng() < 0.7 ? preferred : notePool[Math.floor(rng() * notePool.length)];
+      const offset = rng() < 0.5 ? 2 : 3; // vary the syncopation placement
       if (beats >= 1) notes.push({ midi: rootMidi, startSlot: start, lengthSlots: beatLen, velocity: 100 });
-      if (beats >= 2) notes.push({ midi: fifthMidi, startSlot: start + beatLen + 2, lengthSlots: 2, velocity: 75 });
-      if (beats >= 3) notes.push({ midi: thirdMidi, startSlot: start + beatLen * 2 + 2, lengthSlots: 2, velocity: 70 });
-      if (beats >= 4) notes.push({ midi: rootMidi, startSlot: start + beatLen * 3, lengthSlots: beatLen, velocity: 90 });
+      if (beats >= 2) notes.push({ midi: pickNote(fifthMidi), startSlot: start + beatLen + offset, lengthSlots: beatLen - offset, velocity: 70 + Math.floor(rng() * 15) });
+      if (beats >= 3) notes.push({ midi: pickNote(thirdMidi), startSlot: start + beatLen * 2 + offset, lengthSlots: beatLen - offset, velocity: 65 + Math.floor(rng() * 15) });
+      if (beats >= 4) notes.push({ midi: pickNote(rootMidi), startSlot: start + beatLen * 3, lengthSlots: beatLen, velocity: 85 + Math.floor(rng() * 10) });
 
     } else if (patternType === "sub808") {
       // 808 Sub: long sustained root with occasional slides — hip-hop / trap
@@ -421,7 +426,7 @@ function generateBassLine(timelineItems, scaleKey, rootIdx, chordOctave, pattern
       notes.push({ midi: rootMidi, startSlot: start, lengthSlots: Math.min(len, 8), velocity: 110 });
       if (len > 8) {
         // Re-trigger or slide to fifth on beat 3
-        const slideTo = Math.random() < 0.4 ? fifthMidi : rootMidi;
+        const slideTo = rng() < 0.4 ? fifthMidi : rootMidi;
         notes.push({ midi: slideTo, startSlot: start + 8, lengthSlots: len - 8, velocity: 95 });
       }
 
@@ -4240,6 +4245,7 @@ export default function App() {
   // ── Bass line ──
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
   const [bassPattern, setBassPattern] = useState("root");
+  const [bassSeed, setBassSeed] = useState(1);
   const [bassVisible, setBassVisible] = useState(false);
   // ── Topline / melody ──
   const [melodyLine, setMelodyLine] = useState([]);
@@ -4733,12 +4739,12 @@ export default function App() {
   }, [pianoRollNotes, chordOctave]);
 
   // ── Bass line regeneration ──────────────────────────────────────────────────
-  const regenerateBass = useCallback((pattern, items) => {
+  const regenerateBass = useCallback((pattern, items, seed) => {
     const tl = items || timelineItems;
     if (tl.length === 0) { setBassLine([]); return; }
-    const bl = generateBassLine(tl, scaleKey, rootIdx, chordOctave, pattern || bassPattern, TIMELINE_SLOTS, bassOctaveOffset);
+    const bl = generateBassLine(tl, scaleKey, rootIdx, chordOctave, pattern || bassPattern, TIMELINE_SLOTS, bassOctaveOffset, seed ?? bassSeed);
     setBassLine(bl);
-  }, [timelineItems, scaleKey, rootIdx, chordOctave, bassPattern, bassOctaveOffset]);
+  }, [timelineItems, scaleKey, rootIdx, chordOctave, bassPattern, bassOctaveOffset, bassSeed]);
 
   // ── Melody regeneration ───────────────────────────────────────────────────
   const regenerateMelody = useCallback((pattern, items) => {
@@ -7138,7 +7144,7 @@ export default function App() {
                           ))}
                         </select>
                         {timelineItems.length > 0 && (
-                          <button onClick={() => regenerateBass()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                          <button onClick={() => { const ns = bassSeed + 1; setBassSeed(ns); regenerateBass(null, null, ns); }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                             Regen
                           </button>
                         )}
