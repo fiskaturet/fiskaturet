@@ -207,6 +207,157 @@ function exportMpcDrumProgram(padMap, DRUM_TRACKS) {
   return xml;
 }
 
+// ─── Producer Presets (Full Auto) ────────────────────────────────────────────
+// Each preset configures: bpm, scale, drum genre, bass/melody/chord patterns,
+// play style, chord rhythm, energy, humanize, preferred progressions, etc.
+
+const PRODUCER_PRESETS = {
+  conductor: {
+    label: "The Conductor",
+    desc: "Griselda — dark, minimal, claustrophobic",
+    bpm: [82, 88], scale: "minor", chordType: "triad",
+    drumGenre: "griselda", bassPattern: "root", melodyPattern: "minorDescent",
+    playStyle: "normal", chordRhythm: "sustained", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 60,
+    humanize: 25, drumFeel: 10, barCount: 4,
+    chordCount: [1, 2], embellishChance: 0.1,
+    preferredProgressions: ["Descent","Void","Obsidian","Paranoia","Trap Loop","Dark Trap"],
+    rootPool: ["C","D","G","Bb","Eb"],
+  },
+  hitboy: {
+    label: "Hit-Boy",
+    desc: "Polished, hard-hitting, stadium rap",
+    bpm: [95, 105], scale: "minor", chordType: "seventh",
+    drumGenre: "boombap_classic", bassPattern: "sub808", melodyPattern: "chordTones",
+    playStyle: "normal", chordRhythm: "sustained", soundType: "rhodes",
+    bassSound: "808", melodySound: "bell", energy: 80,
+    humanize: 20, drumFeel: 15, barCount: 4,
+    chordCount: [4, 4], embellishChance: 0.55,
+    preferredProgressions: ["Night Drive","Trap Anthem","Drake Vibes","Dark Trap","Minor Cadence"],
+    rootPool: ["F","C","Ab","G","Eb"],
+  },
+  mustard: {
+    label: "DJ Mustard",
+    desc: "Minimalist West Coast — ratchet bounce, space",
+    bpm: [98, 103], scale: "minor", chordType: "triad",
+    drumGenre: "trap_modern", bassPattern: "sub808", melodyPattern: "pentatonic",
+    playStyle: "staccato", chordRhythm: "staccato", soundType: "rhodes",
+    bassSound: "808", melodySound: "bell", energy: 70,
+    humanize: 10, drumFeel: 5, barCount: 4,
+    chordCount: [1, 2], embellishChance: 0.05,
+    preferredProgressions: ["Trap Loop","Minimal Trap","Moody Vamp","Dark Trap"],
+    rootPool: ["G","C","F","Bb"],
+  },
+  premier: {
+    label: "DJ Premier",
+    desc: "Klassisk NY boom bap — gritty, chopped, hard swing",
+    bpm: [88, 96], scale: "minor", chordType: "seventh",
+    drumGenre: "boombap_classic", bassPattern: "rootFifth", melodyPattern: "pentatonic",
+    playStyle: "normal", chordRhythm: "griselda", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 75,
+    humanize: 40, drumFeel: 35, barCount: 4,
+    chordCount: [2, 4], embellishChance: 0.4,
+    preferredProgressions: ["Boom Bap","ii–V–I","Jazz Turnaround","Rhythm Changes","Street Loop"],
+    rootPool: ["A","D","C","E","Bb"],
+  },
+  alchemist: {
+    label: "The Alchemist",
+    desc: "Cinematic, melancholsk, dusty soul loops",
+    bpm: [80, 90], scale: "minor", chordType: "seventh",
+    drumGenre: "lofi", bassPattern: "root", melodyPattern: "stepwise",
+    playStyle: "sart", chordRhythm: "sustained", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 55,
+    humanize: 35, drumFeel: 20, barCount: 4,
+    chordCount: [2, 4], embellishChance: 0.45,
+    preferredProgressions: ["Lo-Fi Loop","Chill Study","Rainy Day","Laid-Back Soul","Smooth R&B"],
+    rootPool: ["C","F","G","Eb","Bb"],
+  },
+  tommytee: {
+    label: "Tommy Tee",
+    desc: "Norsk boom bap — clean, jazzy, warm",
+    bpm: [88, 98], scale: "minor", chordType: "seventh",
+    drumGenre: "boombap_classic", bassPattern: "walking", melodyPattern: "chordTones",
+    playStyle: "normal", chordRhythm: "rnbPulse", soundType: "rhodes",
+    bassSound: "piano", melodySound: "bell", energy: 70,
+    humanize: 30, drumFeel: 25, barCount: 4,
+    chordCount: [4, 4], embellishChance: 0.6,
+    preferredProgressions: ["ii–V–I","Neo-Soul","Rhythm Changes","Motown","Classic Soul","Jazz Turnaround"],
+    rootPool: ["D","A","C","G","F"],
+  },
+  metro: {
+    label: "Metro Boomin",
+    desc: "Dark trap — cinematisk, massiv 808, hi-hat rolls",
+    bpm: [140, 150], scale: "minor", chordType: "triad",
+    drumGenre: "trap_modern", bassPattern: "sub808", melodyPattern: "darkArp",
+    playStyle: "normal", chordRhythm: "sparse", soundType: "rhodes",
+    bassSound: "808", melodySound: "bell", energy: 85,
+    humanize: 15, drumFeel: 8, barCount: 4,
+    chordCount: [2, 4], embellishChance: 0.15,
+    preferredProgressions: ["Dark Trap","Sad Trap","Night Drive","Sinister","Descent","Void"],
+    rootPool: ["C","D","F","A"],
+  },
+  pierrebourne: {
+    label: "Pi'erre Bourne",
+    desc: "Playful trap — lys, bouncy, videospill-vibes",
+    bpm: [145, 158], scale: "major", chordType: "triad",
+    drumGenre: "trap_modern", bassPattern: "sub808", melodyPattern: "pentatonic",
+    playStyle: "normal", chordRhythm: "staccato", soundType: "rhodes",
+    bassSound: "808", melodySound: "pluck", energy: 75,
+    humanize: 15, drumFeel: 10, barCount: 4,
+    chordCount: [2, 4], embellishChance: 0.3,
+    preferredProgressions: ["Axis of Awesome","Optimistic","Summer Anthem","Pop Ballad","Building Chorus"],
+    rootPool: ["F","C","Ab","G"],
+  },
+  madlib: {
+    label: "Madlib",
+    desc: "Dusty, psykedelisk, uforutsigbar — crate-digger fever dream",
+    bpm: [78, 92], scale: "minor", chordType: "seventh",
+    drumGenre: "experimental", bassPattern: "syncopated", melodyPattern: "callResponse",
+    playStyle: "normal", chordRhythm: "lofi", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 60,
+    humanize: 50, drumFeel: 45, barCount: 4,
+    chordCount: [2, 6], embellishChance: 0.5,
+    preferredProgressions: ["Lo-Fi Loop","Rainy Day","Dorian Groove","Aeolian Loop","Natural Minor"],
+    rootPool: ["Bb","Eb","Ab","D","G","C"],
+  },
+  earlsweatshirt: {
+    label: "Earl Sweatshirt",
+    desc: "Abstrakt lo-fi — dekonstruert, saktegående, claustrofobisk",
+    bpm: [70, 82], scale: "minor", chordType: "seventh",
+    drumGenre: "minimal", bassPattern: "darkDrone", melodyPattern: "chromCreep",
+    playStyle: "sart", chordRhythm: "sparse", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 40,
+    humanize: 60, drumFeel: 35, barCount: 4,
+    chordCount: [1, 2], embellishChance: 0.3,
+    preferredProgressions: ["Void","Sleep Paralysis","Hollow","Endless Tunnel","Phrygian Riff"],
+    rootPool: ["C","Eb","F","Ab"],
+  },
+  bronson: {
+    label: "Action Bronson",
+    desc: "Soulful boom bap — varm, funky, rooftop BBQ",
+    bpm: [88, 96], scale: "major", chordType: "seventh",
+    drumGenre: "boombap_classic", bassPattern: "soulGroove", melodyPattern: "soulMelisma",
+    playStyle: "normal", chordRhythm: "soulStab", soundType: "rhodes",
+    bassSound: "piano", melodySound: "piano", energy: 72,
+    humanize: 35, drumFeel: 30, barCount: 4,
+    chordCount: [4, 8], embellishChance: 0.65,
+    preferredProgressions: ["Motown","Soul Groove","Classic Soul","Stevie Wonder","Neo-Soul","Deep Soul","Aretha Feel"],
+    rootPool: ["Bb","Eb","Ab","F","C"],
+  },
+  pharrell: {
+    label: "Pharrell / Neptunes",
+    desc: "Sparse, punchy, rhythmisk — minimal men groovy",
+    bpm: [100, 115], scale: "minor", chordType: "seventh",
+    drumGenre: "brokenbeat", bassPattern: "syncopated", melodyPattern: "pentatonic",
+    playStyle: "staccato", chordRhythm: "syncopated", soundType: "rhodes",
+    bassSound: "808", melodySound: "pluck", energy: 78,
+    humanize: 20, drumFeel: 15, barCount: 4,
+    chordCount: [4, 4], embellishChance: 0.5,
+    preferredProgressions: ["Dorian Groove","Pop Ballad","Uptown Pop","Singer-Songwriter","Funk"],
+    rootPool: ["A","F","C","G","D"],
+  },
+};
+
 // ─── Chord rhythm patterns ──────────────────────────────────────────────────
 // Each pattern returns an array of { offset, duration, velMult } per slot
 // offset/duration are in fractions of the chord's total length (0..1)
@@ -5395,6 +5546,7 @@ export default function App() {
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
   const [drumFavorites,  setDrumFavorites]  = useState([]);    // [{ id, genre, pattern, label }]
+  const [selectedProducer, setSelectedProducer] = useState(""); // key into PRODUCER_PRESETS
   const [padMap, setPadMap] = useState(() => ({ ...PAD_MAP_PRESETS.find(p => p.id === "gm").map }));
   const loopRef    = useRef(null);
   const rafRef     = useRef(null);
@@ -6200,6 +6352,143 @@ export default function App() {
     DRUM_TRACKS.forEach(t => { if (!fresh[t.id]) fresh[t.id] = new Array(DRUM_STEPS_LIVE).fill(0); });
     setDrumPattern(fresh);
   }, [drumGenre, drumPattern, lockedTracks, DRUM_STEPS_LIVE]);
+
+  // ── Full Auto — producer preset one-click generation ──────────────────────
+  const runFullAuto = useCallback((presetKey) => {
+    const p = PRODUCER_PRESETS[presetKey];
+    if (!p) return;
+
+    // Stop playback
+    if (looping) stopLoop();
+
+    // ── BPM: random within range ──
+    const newBpm = p.bpm[0] + Math.floor(Math.random() * (p.bpm[1] - p.bpm[0] + 1));
+    setBpm(newBpm);
+
+    // ── Root: random from pool ──
+    const rootName = p.rootPool[Math.floor(Math.random() * p.rootPool.length)];
+    // Map display names with flats to NOTE_DISPLAY index
+    const rootMap = { "C":0,"C#":1,"Db":1,"D":2,"D#":3,"Eb":3,"E":4,"F":5,"F#":6,"Gb":6,"G":7,"G#":8,"Ab":8,"A":9,"A#":10,"Bb":10,"B":11,"N":2 };
+    const newRootIdx = rootMap[rootName] ?? 0;
+    const newRootDisplay = NOTE_DISPLAY[newRootIdx];
+    setRootDisplay(newRootDisplay);
+
+    // ── Scale & chord type ──
+    const newScale = p.scale || "minor";
+    setScaleKey(newScale);
+    const newChordType = p.chordType || "triad";
+    setChordType(newChordType);
+
+    // ── Bar count ──
+    const newBarCount = p.barCount || 4;
+    setBarCount(newBarCount);
+    const newSlots = newBarCount * SLOTS_PER_BAR;
+
+    // ── Sounds ──
+    setSoundType(p.soundType || "rhodes");
+    setBassSound(p.bassSound || "808");
+    setMelodySound(p.melodySound || "bell");
+
+    // ── Feel / energy ──
+    const newEnergy = p.energy ?? 75;
+    setEnergy(newEnergy); energyRef.current = newEnergy;
+    const newHumanize = p.humanize ?? 0;
+    setHumanize(newHumanize); humanizeRef.current = newHumanize;
+    const newDrumFeel = p.drumFeel ?? 0;
+    setDrumFeel(newDrumFeel); drumFeelRef.current = newDrumFeel;
+
+    // ── Play style & chord rhythm ──
+    setPlayStyle(p.playStyle || "normal");
+    setChordPlayPattern(p.chordRhythm || "sustained");
+    setChordRhythmMutes({});
+
+    // ── Chord generation ──
+    const scaleObj = SCALES[newScale];
+    const seventhList = newScale === "major" ? SEVENTHS_MAJOR : newScale === "minor" ? SEVENTHS_MINOR : SEVENTHS_OTHER;
+    const ninthList   = newScale === "major" ? NINTHS_MAJOR   : newScale === "minor" ? NINTHS_MINOR   : NINTHS_OTHER;
+    const suffixOf = q =>
+      q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
+      q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
+      q==="m7b5"?"m7b5": q==="maj9"?"maj9":
+      q==="m9"?"m9": q==="9"?"9":
+      q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
+
+    // Pick a progression from preferred list, with fallback
+    const chordCountMin = p.chordCount[0];
+    const chordCountMax = p.chordCount[1];
+    const lenFilter = (pr) => pr.degrees.length >= chordCountMin && pr.degrees.length <= chordCountMax;
+
+    // Try to find progressions matching preferred names
+    const preferredProgs = FAMOUS_PROGRESSIONS.filter(pr =>
+      p.preferredProgressions.some(name => pr.name === name) && lenFilter(pr)
+    );
+    // Fallback: any matching length
+    const anyMatching = FAMOUS_PROGRESSIONS.filter(lenFilter);
+    const pool = preferredProgs.length > 0 ? preferredProgs : anyMatching.length > 0 ? anyMatching : FAMOUS_PROGRESSIONS;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+
+    // Build chord items with embellishment
+    const embellishChance = p.embellishChance ?? 0.3;
+    const cs = pick.degrees.map((d) => {
+      const i = d % 7;
+      const noteIdx = (newRootIdx + scaleObj.intervals[i]) % 12;
+      const baseQ   = scaleObj.qualities[i];
+      let quality = baseQ;
+      if (baseQ !== "dim" && Math.random() < embellishChance) {
+        const roll = Math.random();
+        if (roll < 0.45)      quality = seventhList[i];
+        else if (roll < 0.70) quality = ninthList[i];
+        else if (roll < 0.80) quality = "sus4";
+        else if (roll < 0.88) quality = "sus2";
+        else if (roll < 0.94) quality = "5";
+        else                  quality = baseQ === "min" ? "m7" : "maj7";
+      }
+      return { noteIdx, quality, degree: scaleObj.degrees[i], display: NOTES[noteIdx] + suffixOf(quality) };
+    });
+
+    const slotsPer = Math.floor(newSlots / cs.length);
+    const newItems = cs.map((chord, i) => ({
+      id: Date.now() + Math.random() + i,
+      chord,
+      startSlot: i * slotsPer,
+      lengthSlots: i < cs.length - 1 ? slotsPer : newSlots - i * slotsPer,
+    }));
+    setTimelineItems(newItems);
+    setActiveChord(cs[0]);
+
+    // ── Drums — generate directly (bypass stale closure) ──
+    const newDrumGenre = p.drumGenre || "boombap_classic";
+    setDrumGenre(newDrumGenre);
+    const drumSteps = newBarCount * SLOTS_PER_BAR;
+    const genre = DRUM_GENRES[newDrumGenre];
+    if (genre) {
+      let fresh = genre.generate();
+      fresh = resizeDrumPattern(fresh, drumSteps);
+      DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = new Array(drumSteps).fill(0); });
+      setDrumPattern(fresh);
+    }
+
+    // ── Bass — generate directly ──
+    const newBassPattern = p.bassPattern || "root";
+    setBassPattern(newBassPattern);
+    const newSeed = Math.floor(Math.random() * 10000);
+    setBassSeed(newSeed);
+    const bl = generateBassLine(newItems, newScale, newRootIdx, chordOctave, newBassPattern, newSlots, bassOctaveOffset, newSeed);
+    setBassLine(bl);
+
+    // ── Melody — generate directly ──
+    const newMelodyPattern = p.melodyPattern || "chordTones";
+    setMelodyPattern(newMelodyPattern);
+    const ml = generateMelody(newItems, newScale, newRootIdx, chordOctave, newMelodyPattern, newSlots, melodyOctaveOffset);
+    setMelodyLine(ml);
+
+    // Make sure both bass and melody are visible
+    setBassVisible(true);
+    setMelodyVisible(true);
+
+    // Switch to Instruments mode
+    setMode("chords");
+  }, [looping, stopLoop, chordOctave, bassOctaveOffset, melodyOctaveOffset, SLOTS_PER_BAR, resizeDrumPattern]);
 
   // Velocity cycle: click cycles 127→90→60→35→0 for natural dynamics
   const DRUM_VEL_CYCLE = [127, 90, 60, 35, 0];
@@ -7326,6 +7615,51 @@ export default function App() {
                 {looping ? "LIVE" : "IDLE"}
               </span>
             </div>
+          </div>
+
+          {/* ── Full Auto producer presets ── */}
+          <div style={{
+            background:"linear-gradient(90deg, #1a1a1a 0%, #2a2a2a 100%)",
+            padding:"6px 16px",
+            display:"flex", alignItems:"center", gap:10,
+            borderBottom:"1px solid rgba(255,255,255,0.08)",
+          }}>
+            <span style={{ fontSize:9, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase",
+              color:"rgba(255,255,255,0.45)", fontFamily:MONO, whiteSpace:"nowrap" }}>
+              Full Auto
+            </span>
+            <select
+              value={selectedProducer}
+              onChange={e => setSelectedProducer(e.target.value)}
+              style={{
+                fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 8px", borderRadius:3,
+                border:"1px solid rgba(255,255,255,0.15)", background:"rgba(255,255,255,0.08)",
+                color:"#fff", cursor:"pointer", minWidth:160,
+              }}>
+              <option value="" style={{ color:"#333" }}>Velg produsent...</option>
+              {Object.entries(PRODUCER_PRESETS).map(([key, cfg]) => (
+                <option key={key} value={key} style={{ color:"#333" }}>{cfg.label} — {cfg.desc}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => { if (selectedProducer) runFullAuto(selectedProducer); }}
+              disabled={!selectedProducer}
+              style={{
+                fontFamily:MONO, fontSize:11, fontWeight:700, padding:"4px 14px", borderRadius:3,
+                border:"none",
+                background: selectedProducer ? "linear-gradient(135deg, #5C7C8A 0%, #4A6A78 100%)" : "rgba(255,255,255,0.06)",
+                color: selectedProducer ? "#fff" : "rgba(255,255,255,0.25)",
+                cursor: selectedProducer ? "pointer" : "default",
+                letterSpacing:"0.06em", textTransform:"uppercase",
+                transition:"all 0.15s",
+              }}>
+              Generate
+            </button>
+            {selectedProducer && PRODUCER_PRESETS[selectedProducer] && (
+              <span style={{ fontSize:10, color:"rgba(255,255,255,0.35)", fontFamily:SF, fontStyle:"italic" }}>
+                {PRODUCER_PRESETS[selectedProducer].bpm[0]}–{PRODUCER_PRESETS[selectedProducer].bpm[1]} bpm · {PRODUCER_PRESETS[selectedProducer].scale} · {PRODUCER_PRESETS[selectedProducer].drumGenre}
+              </span>
+            )}
           </div>
 
           {/* ── Mode switcher ── */}
