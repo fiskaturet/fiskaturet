@@ -4183,6 +4183,7 @@ export default function App() {
   const [scaleKey,     setScaleKey]     = useState("major");
   const [chordType,    setChordType]    = useState("triad");
   const [timelineItems, setTimelineItems] = useState([]); // { id, chord, startSlot, lengthSlots }
+  const timelineItemsRef = useRef([]);
   const [hoveredChord, setHoveredChord] = useState(null);
   const [activeChord,  setActiveChord]  = useState(null);
   const [bpm,          setBpm]          = useState(90);
@@ -4214,6 +4215,7 @@ export default function App() {
   // ── Drum state ──
   const [drumGenre,      setDrumGenre]      = useState("boombap_classic");
   const [drumPattern,    setDrumPattern]    = useState(null); // { kick:[64], snare:[64], ... }
+  const drumPatternRef = useRef(null);
   const [drumChannel,    setDrumChannel]    = useState(10);
   const [lockedTracks,   setLockedTracks]   = useState({});
   const [mutedTracks,    setMutedTracks]    = useState({});
@@ -4233,6 +4235,7 @@ export default function App() {
   // ── Piano Roll state ──
   const [pianoRollOpen,  setPianoRollOpen]   = useState(false);
   const [pianoRollEdits, setPianoRollEdits]  = useState({}); // key: "noteNum-startSlot" → { velocity, lengthSlots, muted }
+  const pianoRollEditsRef = useRef({});
   const pianoRollRef = useRef(null);
   // ── Arrangement / Song mode ──
   const [sections, setSections] = useState([]); // [{ id, name, timelineItems, drumPattern, bassLine }]
@@ -4244,11 +4247,13 @@ export default function App() {
   const [chordRhythmMutes, setChordRhythmMutes] = useState({}); // { [itemId]: { [hitIndex]: true } }
   // ── Bass line ──
   const [bassLine, setBassLine] = useState([]); // [{ midi, startSlot, lengthSlots, velocity, muted }]
+  const bassLineRef = useRef([]);
   const [bassPattern, setBassPattern] = useState("root");
   const [bassSeed, setBassSeed] = useState(1);
   const [bassVisible, setBassVisible] = useState(false);
   // ── Topline / melody ──
   const [melodyLine, setMelodyLine] = useState([]);
+  const melodyLineRef = useRef([]);
   const [melodyPattern, setMelodyPattern] = useState("chordTones");
   const [melodyVisible, setMelodyVisible] = useState(false);
   const [melodySound, setMelodySound] = useState("bell"); // "piano" | "bell" | "pluck"
@@ -4489,6 +4494,12 @@ export default function App() {
   useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
   useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
   useEffect(() => { tripletTracksRef.current = tripletTracks; }, [tripletTracks]);
+  // Live data refs — doSchedule reads these so edits take effect next loop
+  useEffect(() => { timelineItemsRef.current = timelineItems; }, [timelineItems]);
+  useEffect(() => { drumPatternRef.current = drumPattern; }, [drumPattern]);
+  useEffect(() => { bassLineRef.current = bassLine; }, [bassLine]);
+  useEffect(() => { melodyLineRef.current = melodyLine; }, [melodyLine]);
+  useEffect(() => { pianoRollEditsRef.current = pianoRollEdits; }, [pianoRollEdits]);
 
   const getMIDIOut = useCallback(() => {
     if (midiOutputId === "off" || !midiAccess.current) return null;
@@ -4915,11 +4926,21 @@ export default function App() {
     setDrumPattern(fresh);
   }, [drumGenre, drumPattern, lockedTracks]);
 
+  // Velocity cycle: click cycles 127→90→60→35→0 for natural dynamics
+  const DRUM_VEL_CYCLE = [127, 90, 60, 35, 0];
   const toggleDrumStep = useCallback((trackId, step) => {
     setDrumPattern(prev => {
       if (!prev) return prev;
       const track = [...prev[trackId]];
-      track[step] = track[step] > 0 ? 0 : D_VEL(100);
+      const cur = track[step] || 0;
+      // Find next velocity in cycle: if current matches a level, go to next; otherwise start at 127
+      if (cur === 0) {
+        track[step] = DRUM_VEL_CYCLE[0]; // 127
+      } else {
+        const idx = DRUM_VEL_CYCLE.findIndex(v => cur >= v);
+        const next = idx >= 0 ? DRUM_VEL_CYCLE[Math.min(idx + 1, DRUM_VEL_CYCLE.length - 1)] : 0;
+        track[step] = next;
+      }
       return { ...prev, [trackId]: track };
     });
   }, []);
@@ -5067,23 +5088,26 @@ export default function App() {
       } catch(e) {}
     }
 
-    // Pre-compute piano roll edits lookup for this scheduling pass
-    const prEdits = pianoRollEdits;
     const getNoteVelScale = (noteName, startSlot) => {
-      // Convert note name to MIDI num for lookup
+      const prEdits = pianoRollEditsRef.current;
       const midi = nameToMidi(noteName);
       const key = `${midi}-${startSlot}`;
       const edit = prEdits[key];
-      if (edit?.muted) return 0; // muted
+      if (edit?.muted) return 0;
       if (edit?.velocity != null) return edit.velocity / 100;
-      return 1; // default
+      return 1;
     };
 
     const doSchedule = () => {
       const { velMult: energyVel, densityOffset: energyDensOff } = energyScale(energyRef.current);
+      // Read live data from refs so edits during playback take effect
+      const curTimeline = timelineItemsRef.current;
+      const curDrumPattern = drumPatternRef.current;
+      const curBassLine = bassLineRef.current;
+      const curMelodyLine = melodyLineRef.current;
 
       // Chords — always schedule, check mute ref at fire time
-      timelineItems.forEach(item => {
+      curTimeline.forEach(item => {
         const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
         // Filter out muted notes from piano roll
         let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
@@ -5225,7 +5249,8 @@ export default function App() {
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
       // Works with MIDI out OR built-in drum synths (no MPC needed)
-      if (hasDrums) {
+      const liveHasDrums = curDrumPattern && DRUM_TRACKS.some(t => curDrumPattern[t.id]?.some(v => v > 0));
+      if (liveHasDrums) {
         if (!midiOut) initDrumSynths();
         const drumCh = drumChannel - 1;
         const curSwing     = drumSwingRef.current;
@@ -5238,7 +5263,7 @@ export default function App() {
         const isFillLoop = fillNextRef.current;
         const addCrashOn1 = fillJustPlayedRef.current;
         let fillOverlay = null;
-        if (isFillLoop && hasDrums) {
+        if (isFillLoop && liveHasDrums) {
           fillOverlay = generateFill(drumGenre);
           fillNextRef.current = false;
           fillJustPlayedRef.current = true;
@@ -5249,7 +5274,7 @@ export default function App() {
           DRUM_TRACKS.forEach(track => {
             if (curSolo && curSolo !== track.id) return;
             if (!curSolo && curMuted[track.id]) return;
-            const vel = drumPattern[track.id]?.[step] || 0;
+            const vel = curDrumPattern?.[track.id]?.[step] || 0;
             // Fill overlay: replace velocity in last bar (steps 48-63)
             let effectiveVel = vel;
             if (fillOverlay && step >= 48) {
@@ -5294,7 +5319,7 @@ export default function App() {
           const prevHit = {}; // track whether previous step had a hit (original or ghost)
           for (let step = 0; step < DRUM_STEPS; step++) {
             DRUM_TRACKS.forEach(track => {
-              const existingVel = drumPattern[track.id]?.[step] || 0;
+              const existingVel = curDrumPattern?.[track.id]?.[step] || 0;
               if (existingVel > 0) { prevHit[track.id] = true; return; }
               if (curSolo && curSolo !== track.id) return;
               if (!curSolo && curMuted[track.id]) return;
@@ -5318,9 +5343,9 @@ export default function App() {
       }
 
       // ── Bass line scheduling ──
-      if (bassLine.length > 0) {
+      if (curBassLine.length > 0) {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
-        bassLine.forEach((note, nIdx) => {
+        curBassLine.forEach((note, nIdx) => {
           if (note.muted) return;
           // Density: skip bass notes — deterministic (matches visual)
           const density = Math.max(0, Math.min(100, densityBassRef.current + energyDensOff));
@@ -5356,10 +5381,10 @@ export default function App() {
       }
 
       // ── Melody / topline scheduling ──
-      if (melodyLine.length > 0) {
+      if (curMelodyLine.length > 0) {
         const melInst = midiOut ? null : getMelodyInstrument(melodySound);
         const cpatMelVel = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
-        melodyLine.forEach(note => {
+        curMelodyLine.forEach(note => {
           if (note.muted) return;
           // Density: skip melody notes — deterministic (matches visual)
           const density = Math.max(0, Math.min(100, densityMelodyRef.current + energyDensOff));
