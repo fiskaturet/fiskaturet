@@ -5315,11 +5315,24 @@ export default function App() {
     };
   }, [chordPadMode, scaleKey, rootIdx, chordOctave, soundType]);
 
+  // Redistribute chords evenly across the timeline
+  const redistributeChords = (items) => {
+    if (items.length === 0) return items;
+    const count = items.length;
+    const slotsPer = Math.floor(TIMELINE_SLOTS / count);
+    return items.map((it, i) => ({
+      ...it,
+      startSlot: i * slotsPer,
+      lengthSlots: i < count - 1 ? slotsPer : TIMELINE_SLOTS - i * slotsPer,
+    }));
+  };
+
   const addChord = (chord) => {
     setActiveChord(chord);
     const noteNames = getChordNoteNames(chord.noteIdx, chord.quality, chordOctave);
-    // Find first free slot for a one-bar (8-slot) block
     setTimelineItems(prev => {
+      if (prev.length >= 16) return prev; // max 16 chords
+      // Try to find free space first
       let start = 0;
       while (start < TIMELINE_SLOTS) {
         const len = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - start);
@@ -5328,7 +5341,9 @@ export default function App() {
         }
         start++;
       }
-      return prev; // timeline full
+      // Timeline full — redistribute to make room
+      const newItem = { id: Date.now() + Math.random(), chord, startSlot: 0, lengthSlots: 0 };
+      return redistributeChords([...prev, newItem]);
     });
     // Preview the chord
     if (arpOn) {
@@ -7794,17 +7809,24 @@ export default function App() {
                     Clear
                   </button>
                   <button onClick={() => {
+                    if (timelineItems.length === 0 || timelineItems.length > 8) return;
+                    const doubled = [...timelineItems, ...timelineItems.map(it => ({ ...it, id: Date.now()+Math.random(), chord: { ...it.chord } }))];
+                    setTimelineItems(redistributeChords(doubled));
+                  }}
+                    title="Double the progression (each chord gets half the time)"
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)",
+                      background:"transparent", color: timelineItems.length > 0 && timelineItems.length <= 8 ? "rgba(0,0,0,0.50)" : "rgba(0,0,0,0.20)", cursor: timelineItems.length > 0 && timelineItems.length <= 8 ? "pointer" : "default" }}>
+                    x2
+                  </button>
+                  <button onClick={() => {
                     stopLoop();
                     const len = [3,4,4,4][Math.floor(Math.random()*4)];
                     const cs = Array.from({length:len}, () => chords[Math.floor(Math.random()*7)]);
-                    let slot = 0;
-                    const items = [];
-                    cs.forEach(chord => {
-                      if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
-                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
-                      slot += len2;
-                    });
+                    const slotsPer = Math.floor(TIMELINE_SLOTS / cs.length);
+                    const items = cs.map((chord, i) => ({
+                      id: Date.now()+Math.random(), chord, startSlot: i*slotsPer,
+                      lengthSlots: i < cs.length-1 ? slotsPer : TIMELINE_SLOTS - i*slotsPer,
+                    }));
                     setTimelineItems(items); setActiveChord(cs[0]);
                   }} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
                     Random
@@ -7841,14 +7863,11 @@ export default function App() {
                       }
                       return { noteIdx, quality, degree:scaleObj.degrees[i], display:NOTES[noteIdx]+suffixOf(quality) };
                     });
-                    let slot = 0;
-                    const items = [];
-                    cs.forEach(chord => {
-                      if (slot >= TIMELINE_SLOTS) return;
-                      const len2 = Math.min(DEFAULT_CHORD_LEN, TIMELINE_SLOTS - slot);
-                      items.push({ id: Date.now()+Math.random(), chord, startSlot:slot, lengthSlots:len2 });
-                      slot += len2;
-                    });
+                    const slotsPer2 = Math.floor(TIMELINE_SLOTS / cs.length);
+                    const items = cs.map((chord, i) => ({
+                      id: Date.now()+Math.random(), chord, startSlot: i*slotsPer2,
+                      lengthSlots: i < cs.length-1 ? slotsPer2 : TIMELINE_SLOTS - i*slotsPer2,
+                    }));
                     setTimelineItems(items); setActiveChord(cs[0]);
                   }} style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                     Suggest
