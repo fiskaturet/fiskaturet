@@ -4221,6 +4221,14 @@ export default function App() {
   const [lockedTracks,   setLockedTracks]   = useState({});
   const [mutedTracks,    setMutedTracks]    = useState({});
   const [padMapperOpen,  setPadMapperOpen]  = useState(false);
+  const [padMapMode,     setPadMapMode]     = useState("wizard"); // "wizard" | "grid" | "tap"
+  const [wizardStep,     setWizardStep]     = useState(0);        // index into DRUM_TRACKS
+  const [lastMidiNote,   setLastMidiNote]   = useState(null);     // for visual pad flash
+  const [wizardDone,     setWizardDone]     = useState(false);
+  const [wizardMap,      setWizardMap]      = useState(null);     // working copy during wizard
+  const [selectedGridPad, setSelectedGridPad] = useState(null);   // midi note of selected pad in grid mode
+  const [tapSelectedTrack, setTapSelectedTrack] = useState(0);    // index into DRUM_TRACKS for tap mode
+  const [gridBank,       setGridBank]       = useState("A");      // current bank in grid view
   // ── Fill state ──
   const [fillMode, setFillMode] = useState("off"); // "off" | "manual" | "auto4" | "auto8"
   const fillNextRef = useRef(false); // true = next loop iteration should have a fill
@@ -4918,6 +4926,41 @@ export default function App() {
     a.click();
     URL.revokeObjectURL(url);
   }, [padMap]);
+
+  // ── Pad Mapper MIDI input listener ──────────────────────────────────────
+  useEffect(() => {
+    const listening = padMapperOpen && (padMapMode === "wizard" || padMapMode === "tap");
+    if (!listening || !midiAccess.current) return;
+    const handler = (e) => {
+      if (!e.data || e.data.length < 3) return;
+      const [status, note, velocity] = e.data;
+      if ((status & 0xF0) !== 0x90 || velocity === 0) return; // only note-on
+      setLastMidiNote(note);
+      setTimeout(() => setLastMidiNote(null), 300); // flash duration
+      if (padMapMode === "wizard" && !wizardDone) {
+        const track = DRUM_TRACKS[wizardStep];
+        if (track) {
+          const padLabel = midiToPadLabel(note);
+          setWizardMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
+          // Auto-advance to next step
+          if (wizardStep < DRUM_TRACKS.length - 1) {
+            setWizardStep(s => s + 1);
+          } else {
+            setWizardDone(true);
+          }
+        }
+      } else if (padMapMode === "tap") {
+        const track = DRUM_TRACKS[tapSelectedTrack];
+        if (track) {
+          const padLabel = midiToPadLabel(note);
+          setPadMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
+        }
+      }
+    };
+    const inputs = [...midiAccess.current.inputs.values()];
+    inputs.forEach(input => input.addEventListener("midimessage", handler));
+    return () => inputs.forEach(input => input.removeEventListener("midimessage", handler));
+  }, [padMapperOpen, padMapMode, wizardStep, wizardDone, tapSelectedTrack]);
 
   // ── Pad-to-chord MIDI input listener ──────────────────────────────────────
   useEffect(() => {
@@ -6419,7 +6462,7 @@ export default function App() {
 
                 <div style={{ width:1, height:18, background:"rgba(0,0,0,0.08)" }} />
 
-                <button onClick={() => setPadMapperOpen(true)} style={dawToolBtn(false)}>Pad Map</button>
+                <button onClick={() => { setWizardMap({...padMap}); setWizardStep(0); setWizardDone(false); setPadMapMode("wizard"); setPadMapperOpen(true); }} style={dawToolBtn(false)}>Pad Map</button>
                 <button onClick={() => { stopLoop(); setDrumPattern(null); setLockedTracks({}); setMutedTracks({}); setSoloTrack(null); }}
                   style={dawToolBtn(false)}>Clear</button>
 
@@ -6604,72 +6647,393 @@ export default function App() {
               )}
 
               {/* ── Pad Mapper Modal ── */}
-              {padMapperOpen && (
+              {padMapperOpen && (() => {
+                const PAD_GRID = [
+                  [{ label:"A13", midi:48 }, { label:"A14", midi:49 }, { label:"A15", midi:50 }, { label:"A16", midi:51 }],
+                  [{ label:"A9", midi:44 },  { label:"A10", midi:45 }, { label:"A11", midi:46 }, { label:"A12", midi:47 }],
+                  [{ label:"A5", midi:40 },  { label:"A6", midi:41 },  { label:"A7", midi:42 },  { label:"A8", midi:43 }],
+                  [{ label:"A1", midi:36 },  { label:"A2", midi:37 },  { label:"A3", midi:38 },  { label:"A4", midi:39 }],
+                ];
+                const BANK_GRIDS = { A: PAD_GRID };
+                ["B","C","D"].forEach((bank, bi) => {
+                  const offset = (bi + 1) * 16;
+                  BANK_GRIDS[bank] = [
+                    [{ label:`${bank}13`, midi:48+offset }, { label:`${bank}14`, midi:49+offset }, { label:`${bank}15`, midi:50+offset }, { label:`${bank}16`, midi:51+offset }],
+                    [{ label:`${bank}9`, midi:44+offset },  { label:`${bank}10`, midi:45+offset }, { label:`${bank}11`, midi:46+offset }, { label:`${bank}12`, midi:47+offset }],
+                    [{ label:`${bank}5`, midi:40+offset },  { label:`${bank}6`, midi:41+offset },  { label:`${bank}7`, midi:42+offset },  { label:`${bank}8`, midi:43+offset }],
+                    [{ label:`${bank}1`, midi:36+offset },  { label:`${bank}2`, midi:37+offset },  { label:`${bank}3`, midi:38+offset },  { label:`${bank}4`, midi:39+offset }],
+                  ];
+                });
+                // Build reverse map: midiNote -> trackId for current padMap or wizardMap
+                const activeMap = padMapMode === "wizard" ? (wizardMap || padMap) : padMap;
+                const midiToTrack = {};
+                DRUM_TRACKS.forEach(tr => {
+                  const m = activeMap[tr.id];
+                  if (m && m.midiNote != null && m.midiNote >= 0) midiToTrack[m.midiNote] = tr;
+                });
+
+                const openWizard = () => {
+                  setWizardMap({ ...padMap });
+                  setWizardStep(0);
+                  setWizardDone(false);
+                  setPadMapMode("wizard");
+                };
+                const closeModal = () => {
+                  setPadMapperOpen(false);
+                  setPadMapMode("wizard");
+                  setWizardDone(false);
+                  setWizardStep(0);
+                  setWizardMap(null);
+                  setSelectedGridPad(null);
+                };
+
+                // Shared pad grid renderer
+                const renderPadGrid = (bank, opts = {}) => {
+                  const grid = BANK_GRIDS[bank] || PAD_GRID;
+                  const { onPadClick, highlightMidi, small } = opts;
+                  const padSize = small ? 52 : 64;
+                  return (
+                    <div style={{ background:"#1a1a1a", borderRadius:6, padding: small ? 8 : 12, display:"inline-block" }}>
+                      {grid.map((row, ri) => (
+                        <div key={ri} style={{ display:"flex", gap: small ? 4 : 6, marginBottom: ri < 3 ? (small ? 4 : 6) : 0 }}>
+                          {row.map(pad => {
+                            const mapped = midiToTrack[pad.midi];
+                            const isFlash = lastMidiNote === pad.midi;
+                            const isHighlight = highlightMidi === pad.midi;
+                            const isSelected = selectedGridPad === pad.midi;
+                            let bg = "rgba(255,255,255,0.06)";
+                            let border = "1px solid rgba(255,255,255,0.08)";
+                            let textColor = "rgba(255,255,255,0.3)";
+                            if (isFlash) { bg = t.accent; border = `1px solid ${t.accent}`; textColor = "#fff"; }
+                            else if (isHighlight || isSelected) { bg = "rgba(92,124,138,0.35)"; border = `1px solid ${t.accent}`; textColor = "#fff"; }
+                            else if (mapped) { bg = "rgba(92,124,138,0.18)"; border = "1px solid rgba(92,124,138,0.3)"; textColor = "rgba(255,255,255,0.85)"; }
+                            return (
+                              <div key={pad.label}
+                                onClick={() => onPadClick && onPadClick(pad)}
+                                style={{
+                                  width: padSize, height: padSize, borderRadius: 4, background: bg, border,
+                                  display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                                  cursor: onPadClick ? "pointer" : "default",
+                                  transition:"all 0.15s", userSelect:"none",
+                                  boxShadow: isFlash ? `0 0 12px ${t.accent}` : "0 1px 3px rgba(0,0,0,0.3)",
+                                }}>
+                                <span style={{ fontSize: small ? 8 : 9, fontFamily:MONO, color:"rgba(255,255,255,0.35)", fontWeight:600, lineHeight:1 }}>{pad.label}</span>
+                                {mapped && <span style={{ fontSize: small ? 7 : 8, fontFamily:SF, color: textColor, fontWeight:600, marginTop:2, lineHeight:1, textAlign:"center", maxWidth: padSize - 8, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{mapped.label}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                };
+
+                // Mode tab button style
+                const modeTab = (mode) => ({
+                  fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 10px", borderRadius:2,
+                  border: padMapMode === mode ? `1px solid ${t.accent}` : "1px solid rgba(0,0,0,0.12)",
+                  background: padMapMode === mode ? t.accentBg : "transparent",
+                  color: padMapMode === mode ? t.accent : t.textSecondary,
+                  cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.03em",
+                });
+
+                return (
                 <>
-                  <div onClick={() => setPadMapperOpen(false)} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.3)", zIndex:100 }} />
+                  <div onClick={closeModal} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.35)", zIndex:100, backdropFilter:"blur(2px)" }} />
                   <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
-                    width:400, maxHeight:"90vh", overflow:"auto",
-                    background:"#fff", border:"1px solid rgba(0,0,0,0.12)", padding:"16px 18px",
+                    width:560, maxHeight:"90vh", overflow:"auto",
+                    background:"#fff", border:"1px solid rgba(0,0,0,0.10)", padding:"20px 24px",
+                    borderRadius:4, boxShadow:"0 8px 40px rgba(0,0,0,0.15)",
                     }}>
-                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
+
+                    {/* Header */}
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
                       <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Pad Map</span>
-                      <button onClick={() => setPadMapperOpen(false)}
-                        style={{ border:"none", background:"none", fontSize:14, cursor:"pointer", color:"rgba(0,0,0,0.50)", fontFamily:SF }}>×</button>
+                      <button onClick={closeModal}
+                        style={{ border:"none", background:"none", fontSize:16, cursor:"pointer", color:"rgba(0,0,0,0.40)", fontFamily:SF, padding:"2px 6px" }}>×</button>
                     </div>
 
-                    {/* Preset selector */}
-                    <div style={{ display:"flex", gap:4, flexWrap:"wrap", marginBottom:12 }}>
+                    {/* Mode tabs */}
+                    <div style={{ display:"flex", gap:4, marginBottom:14, alignItems:"center" }}>
+                      <button onClick={openWizard} style={modeTab("wizard")}>Wizard</button>
+                      <button onClick={() => setPadMapMode("grid")} style={modeTab("grid")}>Grid</button>
+                      <button onClick={() => setPadMapMode("tap")} style={modeTab("tap")}>Tap-tilordne</button>
+                      <div style={{ flex:1 }} />
+                      {/* Preset buttons */}
                       {PAD_MAP_PRESETS.map(preset => {
                         const isActive = DRUM_TRACKS.every(tr => padMap[tr.id]?.midiNote === preset.map[tr.id]?.midiNote);
                         return (
-                          <button key={preset.id} onClick={() => setPadMap({...preset.map})}
-                            style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"3px 8px", borderRadius:2,
-                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.15)"}`,
-                              background: isActive ? "rgba(48,209,88,0.08)" : "transparent",
-                              color: isActive ? "#2B9A3E" : t.textSecondary, cursor:"pointer", transition:"all 0.08s" }}>
+                          <button key={preset.id} onClick={() => { setPadMap({...preset.map}); if (padMapMode === "wizard") setWizardMap({...preset.map}); }}
+                            style={{ fontFamily:SF, fontSize:9, fontWeight:600, padding:"3px 7px", borderRadius:2,
+                              border:`1px solid ${isActive ? "rgba(48,209,88,0.5)" : "rgba(0,0,0,0.12)"}`,
+                              background: isActive ? "rgba(48,209,88,0.06)" : "transparent",
+                              color: isActive ? "#2B9A3E" : t.textTertiary, cursor:"pointer", transition:"all 0.08s" }}>
                             {preset.label}
                           </button>
                         );
                       })}
                     </div>
 
-                    {/* Sound → Pad list */}
-                    <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
-                      {DRUM_TRACKS.map((track, i) => {
-                        const mapping = padMap[track.id];
-                        const currentPadLabel = midiToPadLabel(mapping.midiNote);
-                        return (
-                          <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"3px 6px",
-                            background: i % 2 === 0 ? "rgba(0,0,0,0.02)" : "transparent" }}>
-                            <span style={{ fontSize:11, fontWeight:600, color:t.accent, fontFamily:SF, width:70, flexShrink:0 }}>{track.label}</span>
-                            <span style={{ fontSize:9, color:"rgba(0,0,0,0.20)", fontFamily:MONO }}>→</span>
-                            <select value={currentPadLabel}
-                              onChange={e => {
-                                const midi = padLabelToMidi(e.target.value);
-                                setPadMap(p => ({...p, [track.id]: { padId: e.target.value, midiNote: midi }}));
-                              }}
-                              style={{ fontFamily:MONO, fontSize:12, fontWeight:700,
-                                padding:"2px 4px", borderRadius:2, border:"1px solid rgba(0,0,0,0.15)",
-                                background:"#fff", color:t.textPrimary, cursor:"pointer", width:60 }}>
-                              {MPC_PADS.map(pad => (
-                                <option key={pad.label} value={pad.label}>{pad.label}</option>
-                              ))}
-                            </select>
-                            <span style={{ fontSize:9, color:"rgba(0,0,0,0.20)", fontFamily:MONO }}>{mapping.midiNote}</span>
+                    {/* ── WIZARD MODE ── */}
+                    {padMapMode === "wizard" && !wizardDone && (() => {
+                      const currentTrack = DRUM_TRACKS[wizardStep];
+                      const currentMapping = wizardMap ? wizardMap[currentTrack.id] : padMap[currentTrack.id];
+                      const progress = ((wizardStep) / DRUM_TRACKS.length) * 100;
+                      return (
+                        <div>
+                          {/* Progress bar */}
+                          <div style={{ height:3, background:"rgba(0,0,0,0.06)", borderRadius:2, marginBottom:16, overflow:"hidden" }}>
+                            <div style={{ height:"100%", width:`${progress}%`, background:t.accent, borderRadius:2, transition:"width 0.3s ease" }} />
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div style={{ fontSize:10, fontFamily:SF, color:t.textTertiary, marginBottom:12, letterSpacing:"0.03em" }}>
+                            {wizardStep + 1} / {DRUM_TRACKS.length}
+                          </div>
 
-                    <div style={{ marginTop:12, display:"flex", justifyContent:"flex-end" }}>
-                      <button onClick={() => setPadMapperOpen(false)}
-                        style={{ ...dawToolBtn(true), fontSize:11, padding:"4px 12px" }}>
-                        Done
-                      </button>
-                    </div>
+                          <div style={{ display:"flex", gap:20, alignItems:"flex-start" }}>
+                            {/* Pad grid */}
+                            <div style={{ flexShrink:0 }}>
+                              {renderPadGrid("A", { highlightMidi: currentMapping?.midiNote })}
+                            </div>
+
+                            {/* Right side: sound info + instructions */}
+                            <div style={{ flex:1, display:"flex", flexDirection:"column", justifyContent:"center", minHeight:240 }}>
+                              <div style={{ fontSize:28, fontWeight:800, fontFamily:SF, color:t.textPrimary, letterSpacing:"-0.02em", marginBottom:4, textTransform:"uppercase" }}>
+                                {currentTrack.label}
+                              </div>
+                              <div style={{ fontSize:12, fontFamily:SF, color:t.textSecondary, marginBottom:20, lineHeight:1.5 }}>
+                                Trykk på paden for <strong style={{ color:t.textPrimary }}>{currentTrack.label}</strong> på MPC-en din
+                              </div>
+
+                              {currentMapping && currentMapping.midiNote != null && currentMapping.midiNote >= 0 && (
+                                <div style={{ fontSize:11, fontFamily:MONO, color:t.accent, marginBottom:16, padding:"6px 10px", background:t.accentBg, borderRadius:3, display:"inline-block", alignSelf:"flex-start" }}>
+                                  {midiToPadLabel(currentMapping.midiNote)} (note {currentMapping.midiNote})
+                                </div>
+                              )}
+
+                              {/* Action buttons */}
+                              <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginTop:8 }}>
+                                <button onClick={() => {
+                                  // Skip: keep default mapping
+                                  if (wizardStep < DRUM_TRACKS.length - 1) setWizardStep(s => s + 1);
+                                  else setWizardDone(true);
+                                }}
+                                  style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 12px", borderRadius:2,
+                                    border:"1px solid rgba(0,0,0,0.12)", background:"transparent", color:t.textSecondary, cursor:"pointer" }}>
+                                  Skip
+                                </button>
+                                <button onClick={() => {
+                                  // Disable this sound
+                                  setWizardMap(prev => ({ ...prev, [currentTrack.id]: { padId:"off", midiNote:-1 } }));
+                                  if (wizardStep < DRUM_TRACKS.length - 1) setWizardStep(s => s + 1);
+                                  else setWizardDone(true);
+                                }}
+                                  style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 12px", borderRadius:2,
+                                    border:"1px solid rgba(0,0,0,0.12)", background:"transparent", color:"rgba(180,60,60,0.7)", cursor:"pointer" }}>
+                                  Av
+                                </button>
+                                {wizardStep > 0 && (
+                                  <button onClick={() => setWizardStep(s => s - 1)}
+                                    style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 12px", borderRadius:2,
+                                      border:"1px solid rgba(0,0,0,0.12)", background:"transparent", color:t.textSecondary, cursor:"pointer" }}>
+                                    ← Tilbake
+                                  </button>
+                                )}
+                                <button onClick={() => {
+                                  if (wizardStep < DRUM_TRACKS.length - 1) setWizardStep(s => s + 1);
+                                  else setWizardDone(true);
+                                }}
+                                  style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 12px", borderRadius:2,
+                                    border:`1px solid ${t.accent}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
+                                  Neste →
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ── WIZARD DONE (summary) ── */}
+                    {padMapMode === "wizard" && wizardDone && (
+                      <div>
+                        <div style={{ fontSize:14, fontWeight:700, fontFamily:SF, color:t.textPrimary, marginBottom:12 }}>Mapping klar</div>
+                        <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+                          <div style={{ flexShrink:0 }}>{renderPadGrid("A", { small: true })}</div>
+                          <div style={{ flex:1 }}>
+                            <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                              {DRUM_TRACKS.map((track, i) => {
+                                const mapping = wizardMap ? wizardMap[track.id] : padMap[track.id];
+                                const disabled = !mapping || mapping.midiNote == null || mapping.midiNote < 0;
+                                return (
+                                  <div key={track.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"2px 6px",
+                                    background: i % 2 === 0 ? "rgba(0,0,0,0.02)" : "transparent" }}>
+                                    <span style={{ fontSize:10, fontWeight:600, color: disabled ? "rgba(0,0,0,0.25)" : t.accent, fontFamily:SF, width:65, flexShrink:0 }}>{track.label}</span>
+                                    <span style={{ fontSize:8, color:"rgba(0,0,0,0.15)", fontFamily:MONO }}>→</span>
+                                    <span style={{ fontSize:10, fontWeight:700, fontFamily:MONO, color: disabled ? "rgba(0,0,0,0.20)" : t.textPrimary }}>
+                                      {disabled ? "av" : `${midiToPadLabel(mapping.midiNote)} (${mapping.midiNote})`}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ marginTop:14, display:"flex", gap:6, justifyContent:"flex-end" }}>
+                          <button onClick={openWizard}
+                            style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 14px", borderRadius:2,
+                              border:"1px solid rgba(0,0,0,0.12)", background:"transparent", color:t.textSecondary, cursor:"pointer" }}>
+                            Start på nytt
+                          </button>
+                          <button onClick={() => { if (wizardMap) setPadMap({ ...wizardMap }); closeModal(); }}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 16px", borderRadius:2,
+                              border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
+                            Ferdig
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── GRID MODE ── */}
+                    {padMapMode === "grid" && (
+                      <div>
+                        {/* Bank tabs */}
+                        <div style={{ display:"flex", gap:3, marginBottom:12 }}>
+                          {["A","B","C","D"].map(bank => (
+                            <button key={bank} onClick={() => { setGridBank(bank); setSelectedGridPad(null); }}
+                              style={{ fontFamily:MONO, fontSize:11, fontWeight:700, padding:"4px 12px", borderRadius:2,
+                                border: gridBank === bank ? `1px solid ${t.accent}` : "1px solid rgba(0,0,0,0.10)",
+                                background: gridBank === bank ? t.accentBg : "transparent",
+                                color: gridBank === bank ? t.accent : t.textTertiary, cursor:"pointer" }}>
+                              {bank}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+                          {/* Grid */}
+                          <div style={{ flexShrink:0 }}>
+                            {renderPadGrid(gridBank, {
+                              onPadClick: (pad) => setSelectedGridPad(selectedGridPad === pad.midi ? null : pad.midi),
+                            })}
+                          </div>
+
+                          {/* Assignment panel */}
+                          <div style={{ flex:1, minWidth:0 }}>
+                            {selectedGridPad != null ? (
+                              <div>
+                                <div style={{ fontSize:11, fontWeight:700, fontFamily:SF, color:t.textPrimary, marginBottom:8, textTransform:"uppercase", letterSpacing:"0.04em" }}>
+                                  {midiToPadLabel(selectedGridPad)} <span style={{ fontWeight:400, color:t.textTertiary, textTransform:"none" }}>(note {selectedGridPad})</span>
+                                </div>
+                                <div style={{ fontSize:10, fontFamily:SF, color:t.textSecondary, marginBottom:8 }}>Tilordne lyd:</div>
+                                <div style={{ display:"flex", flexDirection:"column", gap:2 }}>
+                                  {/* "None" option */}
+                                  <button onClick={() => {
+                                    // Remove any track mapped to this pad
+                                    const trackId = Object.keys(padMap).find(k => padMap[k].midiNote === selectedGridPad);
+                                    if (trackId) setPadMap(p => ({ ...p, [trackId]: { padId: midiToPadLabel(selectedGridPad), midiNote: -1 } }));
+                                    setSelectedGridPad(null);
+                                  }}
+                                    style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"4px 8px", borderRadius:2, textAlign:"left",
+                                      border:"1px solid rgba(0,0,0,0.06)", background:"transparent", color:t.textTertiary, cursor:"pointer" }}>
+                                    (ingen)
+                                  </button>
+                                  {DRUM_TRACKS.map(track => {
+                                    const isCurrent = padMap[track.id]?.midiNote === selectedGridPad;
+                                    return (
+                                      <button key={track.id} onClick={() => {
+                                        const padLabel = midiToPadLabel(selectedGridPad);
+                                        setPadMap(p => ({ ...p, [track.id]: { padId: padLabel, midiNote: selectedGridPad } }));
+                                        setSelectedGridPad(null);
+                                      }}
+                                        style={{ fontFamily:SF, fontSize:10, fontWeight: isCurrent ? 700 : 500, padding:"4px 8px", borderRadius:2, textAlign:"left",
+                                          border: isCurrent ? `1px solid ${t.accent}` : "1px solid rgba(0,0,0,0.06)",
+                                          background: isCurrent ? t.accentBg : "transparent",
+                                          color: isCurrent ? t.accent : t.textSecondary, cursor:"pointer" }}>
+                                        {track.label}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ fontSize:11, fontFamily:SF, color:t.textTertiary, lineHeight:1.6 }}>
+                                Klikk en pad for å tilordne en lyd
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}>
+                          <button onClick={closeModal}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 16px", borderRadius:2,
+                              border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
+                            Ferdig
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── TAP-TO-ASSIGN MODE ── */}
+                    {padMapMode === "tap" && (
+                      <div>
+                        <div style={{ display:"flex", gap:16, alignItems:"flex-start" }}>
+                          {/* Sound list */}
+                          <div style={{ width:140, flexShrink:0 }}>
+                            <div style={{ fontSize:10, fontWeight:600, fontFamily:SF, color:t.textTertiary, marginBottom:6, textTransform:"uppercase", letterSpacing:"0.04em" }}>Lyder</div>
+                            <div style={{ display:"flex", flexDirection:"column", gap:1 }}>
+                              {DRUM_TRACKS.map((track, i) => {
+                                const isActive = tapSelectedTrack === i;
+                                const mapping = padMap[track.id];
+                                const hasPad = mapping && mapping.midiNote != null && mapping.midiNote >= 0;
+                                return (
+                                  <button key={track.id} onClick={() => setTapSelectedTrack(i)}
+                                    style={{ fontFamily:SF, fontSize:10, fontWeight: isActive ? 700 : 500, padding:"5px 8px", borderRadius:2, textAlign:"left",
+                                      border: isActive ? `1px solid ${t.accent}` : "1px solid transparent",
+                                      background: isActive ? t.accentBg : "transparent",
+                                      color: isActive ? t.accent : t.textSecondary, cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+                                    <span>{track.label}</span>
+                                    {hasPad && <span style={{ fontSize:8, fontFamily:MONO, color:t.textTertiary }}>{midiToPadLabel(mapping.midiNote)}</span>}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Right side: grid + instruction */}
+                          <div style={{ flex:1 }}>
+                            <div style={{ fontSize:18, fontWeight:800, fontFamily:SF, color:t.textPrimary, marginBottom:4, textTransform:"uppercase" }}>
+                              {DRUM_TRACKS[tapSelectedTrack]?.label}
+                            </div>
+                            <div style={{ fontSize:11, fontFamily:SF, color:t.textSecondary, marginBottom:12, lineHeight:1.5 }}>
+                              Trykk på paden for <strong style={{ color:t.textPrimary }}>{DRUM_TRACKS[tapSelectedTrack]?.label}</strong> på MPC-en din
+                            </div>
+                            {renderPadGrid("A")}
+                            {(() => {
+                              const mapping = padMap[DRUM_TRACKS[tapSelectedTrack]?.id];
+                              const hasPad = mapping && mapping.midiNote != null && mapping.midiNote >= 0;
+                              return hasPad ? (
+                                <div style={{ fontSize:10, fontFamily:MONO, color:t.accent, marginTop:8, padding:"4px 8px", background:t.accentBg, borderRadius:3, display:"inline-block" }}>
+                                  {midiToPadLabel(mapping.midiNote)} (note {mapping.midiNote})
+                                </div>
+                              ) : null;
+                            })()}
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop:14, display:"flex", justifyContent:"flex-end" }}>
+                          <button onClick={closeModal}
+                            style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 16px", borderRadius:2,
+                              border:"none", background:t.accent, color:"#fff", cursor:"pointer" }}>
+                            Ferdig
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                   </div>
                 </>
-              )}
+                );
+              })()}
             </>
           );})()}
 
