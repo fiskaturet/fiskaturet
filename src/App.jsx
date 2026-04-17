@@ -7810,22 +7810,22 @@ export default function App() {
 
                   {/* Arp */}
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
                       border:`1px solid ${arpOn?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpOn?"rgba(92,124,138,0.08)":"transparent",
-                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
-                    ARP
+                      color:arpOn?t.accent:"rgba(0,0,0,0.50)", cursor:"pointer" }}>
+                    Arp
                   </button>
                   {arpOn && <>
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                        style={{ fontFamily:MONO, fontSize:11, fontWeight:700, padding:"3px 6px", borderRadius:2,
                           border:`1px solid ${arpPattern===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpPattern===v?"rgba(92,124,138,0.08)":"transparent",
                           color:arpPattern===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
                     <div style={{ width:1, height:14, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 5px", borderRadius:1,
+                        style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 6px", borderRadius:2,
                           border:`1px solid ${arpRate===v?t.accentBorder:"rgba(0,0,0,0.15)"}`, background:arpRate===v?"rgba(92,124,138,0.08)":"transparent",
                           color:arpRate===v?t.accent:"rgba(0,0,0,0.45)", cursor:"pointer" }}>{l}</button>
                     ))}
@@ -7833,7 +7833,24 @@ export default function App() {
 
                   <div style={{ width:1, height:18, background:t.border }} />
 
-                  {/* Bridge */}
+                  {/* Fill + Bridge */}
+                  <button onClick={() => { fillNextRef.current = true; }}
+                    disabled={!drumPattern || !looping}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
+                      border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
+                      background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
+                      color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
+                      cursor: (!drumPattern || !looping) ? "default" : "pointer",
+                      opacity: (!drumPattern || !looping) ? 0.35 : 1 }}>
+                    Fill
+                  </button>
+                  <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
+                    style={{ fontFamily:SF, fontSize:11, padding:"4px 6px", borderRadius:2,
+                      border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
+                    <option value="off">Fill Off</option>
+                    <option value="auto4">Every 4</option>
+                    <option value="auto8">Every 8</option>
+                  </select>
                   <button onClick={activateBridge}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
                       border:`1px solid ${bridgeActive ? "#E5484D" : "rgba(0,0,0,0.12)"}`,
@@ -7847,16 +7864,13 @@ export default function App() {
 
                   {/* Loop toggle */}
                   <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
+                    style={{ fontFamily:MONO, fontSize:11, fontWeight:700, padding:"4px 10px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
                       background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
                       color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                      cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
+                      cursor:"pointer", transition:"all 0.08s" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
-                  {!loopEnabled && (
-                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>Stops after one pass</span>
-                  )}
                 </div>
               </div>
 
@@ -8056,30 +8070,6 @@ export default function App() {
                       onChange={e => setHumanize(Number(e.target.value))}
                       style={{ width:100, accentColor: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.20)", cursor:"pointer" }} />
                     <span style={{ fontSize:10, fontFamily:MONO, color: humanize > 0 ? "#6B6B6B" : "rgba(0,0,0,0.40)", minWidth:22, textAlign:"right" }}>{humanize}</span>
-                  </div>
-
-                  <div style={{ width:1, height:18, background:t.border }} />
-
-                  {/* Fill — green accent */}
-                  <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:SF }}>Fill</span>
-                    <button onClick={() => { fillNextRef.current = true; }}
-                      disabled={!drumPattern || !looping}
-                      style={{ fontFamily:MONO, fontSize:9, fontWeight:700, padding:"2px 6px", borderRadius:1,
-                        border:`1px solid ${fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.15)"}`,
-                        background: fillNextRef.current ? "rgba(43,154,62,0.08)" : "transparent",
-                        color: fillNextRef.current ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                        cursor: (!drumPattern || !looping) ? "default" : "pointer",
-                        opacity: (!drumPattern || !looping) ? 0.35 : 1, letterSpacing:"0.04em" }}>
-                      NEXT
-                    </button>
-                    <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
-                      style={{ fontFamily:SF, fontSize:10, padding:"2px 4px", borderRadius:2,
-                        border:"1px solid rgba(0,0,0,0.15)", background:"transparent", color:"rgba(0,0,0,0.50)" }}>
-                      <option value="off">Off</option>
-                      <option value="auto4">4 loops</option>
-                      <option value="auto8">8 loops</option>
-                    </select>
                   </div>
 
                 </div>
