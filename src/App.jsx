@@ -1200,37 +1200,37 @@ function triggerDrumSynth(trackId, velocity, duration) {
 // ─── Theme ───────────────────────────────────────────────────────────────────
 
 const THEME = {
-  pageBg:"#EDEAF0", cardBg:"#FFFFFF", elevatedBg:"#F8F6FA",
+  pageBg:"#F0EEF2", cardBg:"#FFFFFF", elevatedBg:"#F6F5F8",
   textPrimary:"#1C1820", textSecondary:"#6B6674", textTertiary:"#9A93A8",
   labelColor:"#7A5BAF", border:"rgba(28,24,32,0.08)",
   inputBorder:"rgba(28,24,32,0.12)", inputBg:"#FFFFFF", inputColor:"#1C1820", colorScheme:"light",
-  cardShadow:"0 1px 2px rgba(28,24,32,0.04),0 4px 16px rgba(28,24,32,0.06)",
+  cardShadow:"none",
   accent:"#7A5BAF", accentBg:"rgba(122,91,175,0.10)", accentBgHover:"rgba(122,91,175,0.16)",
   accentBorder:"rgba(122,91,175,0.45)", accentCardBg:"rgba(122,91,175,0.06)", accentCardHover:"rgba(122,91,175,0.12)",
   degreeColor:"#9A93A8", chordNameColor:"#1C1820", chordCardBg:"#FFFFFF",
-  chordHoverShadow:"0 6px 20px rgba(122,91,175,0.20)",
-  segBg:"#EDEAF0", segActiveBg:"#FFFFFF", segActiveColor:"#1C1820",
-  segInactiveColor:"#9A93A8", segShadow:"inset 0 1px 2px rgba(28,24,32,0.05)",
-  pianoRailBg:"#DDD7E5", pianoRailShadow:"inset 0 2px 6px rgba(28,24,32,0.10)", pianoKeysBg:"#EDEAF0",
+  chordHoverShadow:"none",
+  segBg:"#F0EEF2", segActiveBg:"#FFFFFF", segActiveColor:"#1C1820",
+  segInactiveColor:"#9A93A8", segShadow:"none",
+  pianoRailBg:"#E8E4ED", pianoRailShadow:"none", pianoKeysBg:"#F0EEF2",
   whiteKeyBg:"#FFFFFF", whiteKeyScaleBg:"rgba(122,91,175,0.14)",
-  whiteKeyHlBg:"linear-gradient(180deg,#B89CDA 0%,#7A5BAF 100%)",
-  whiteKeyAllScaleBg:"linear-gradient(180deg,#B89CDA 0%,#7A5BAF 100%)",
-  whiteKeyBorder:"rgba(28,24,32,0.15)", whiteKeyLabel:"rgba(28,24,32,0.30)", whiteKeyLabelHl:"#FFFFFF",
+  whiteKeyHlBg:"#7A5BAF",
+  whiteKeyAllScaleBg:"#7A5BAF",
+  whiteKeyBorder:"rgba(28,24,32,0.12)", whiteKeyLabel:"rgba(28,24,32,0.30)", whiteKeyLabelHl:"#FFFFFF",
   blackKeyBg:"#2A2530", blackKeyScaleBg:"#7A5BAF",
   blackKeyHlBg:"#5B3F8A", blackKeyAllScaleBg:"#5B3F8A",
-  legendChord:"linear-gradient(180deg,#B89CDA,#7A5BAF)", legendScale:"rgba(122,91,175,0.15)", legendScaleBdr:"rgba(122,91,175,0.35)",
-  slotBg:"#F1EEF4", slotBorder:"rgba(28,24,32,0.06)",
+  legendChord:"#7A5BAF", legendScale:"rgba(122,91,175,0.15)", legendScaleBdr:"rgba(122,91,175,0.35)",
+  slotBg:"#F4F2F6", slotBorder:"rgba(28,24,32,0.06)",
   tokenBg:"#FFFFFF", tokenBgHover:"rgba(122,91,175,0.10)", tokenBorder:"rgba(122,91,175,0.40)", tokenColor:"#7A5BAF",
-  playActiveBg:"#7A5BAF", playDisabledBg:"#EDEAF0", playDisabledClr:"#BDB5C7",
-  btnBg:"#FFFFFF", btnColor:"#1C1820", btnBorder:"rgba(28,24,32,0.10)",
+  playActiveBg:"#7A5BAF", playDisabledBg:"rgba(28,24,32,0.06)", playDisabledClr:"rgba(28,24,32,0.25)",
+  btnBg:"transparent", btnColor:"#1C1820", btnBorder:"rgba(28,24,32,0.10)",
   presetBg:"#FFFFFF", presetColor:"#1C1820",
   toggleBg:"#FFFFFF", toggleColor:"#1C1820", toggleBorder:"rgba(28,24,32,0.10)",
-  stepBg:"#F8F6FA", stepColor:"#9A93A8",
+  stepBg:"#F6F5F8", stepColor:"#9A93A8",
   stepWholeBg:"rgba(122,91,175,0.13)", stepWholeColor:"#7A5BAF", stepWholeBorder:"rgba(122,91,175,0.3)",
   stepHalfBg:"#FFFFFF", stepHalfColor:"#9A93A8", stepHalfBorder:"rgba(28,24,32,0.08)",
-  infoBg:"#F8F6FA", infoBorder:"rgba(28,24,32,0.06)",
-  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(28,24,32,0.10)", modeBtnActiveColor:"#1C1820",
-  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(28,24,32,0.40)",
+  infoBg:"#F6F5F8", infoBorder:"rgba(28,24,32,0.06)",
+  modeBtnActiveBg:"#FFFFFF", modeBtnActiveBorder:"rgba(28,24,32,0.12)", modeBtnActiveColor:"#1C1820",
+  modeBtnBg:"transparent", modeBtnBorder:"transparent", modeBtnColor:"rgba(28,24,32,0.35)",
 };
 
 // ─── Data ────────────────────────────────────────────────────────────────────
@@ -2306,27 +2306,22 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
               position:"absolute", left:`calc(${k.pos*wkw}% + 1px)`, width:`calc(${wkw}% - 2px)`,
               height:"100%",
               background: hl
-                ? "linear-gradient(180deg, #C4AADF 0%, #9B7CC8 60%, #7A5BAF 100%)"
+                ? "#7A5BAF"
                 : sc
-                  ? "linear-gradient(180deg, #F5F0FA 0%, rgba(122,91,175,0.18) 100%)"
+                  ? "rgba(122,91,175,0.12)"
                   : hovered
-                    ? "linear-gradient(180deg, #FEFEFF 0%, #F5F3F8 100%)"
-                    : "linear-gradient(180deg, #FFFFFF 0%, #F8F6FA 60%, #F0EDF4 100%)",
+                    ? "#F8F7FA"
+                    : "#FFFFFF",
               border: hl
                 ? "1px solid rgba(122,91,175,0.5)"
                 : sc
-                  ? "1px solid rgba(122,91,175,0.3)"
+                  ? "1px solid rgba(122,91,175,0.25)"
                   : `1px solid ${t.whiteKeyBorder}`,
               borderTop:"none",
-              borderRadius:"0 0 10px 10px", cursor:"pointer",
-              transition:"all 0.15s ease",
+              borderRadius:"0 0 1px 1px", cursor:"pointer",
+              transition:"all 0.08s",
               display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end",
               paddingBottom:10, boxSizing:"border-box",
-              boxShadow: hovered
-                ? "0 2px 8px rgba(122,91,175,0.15), inset 0 -4px 8px rgba(0,0,0,0.03)"
-                : "inset 0 -4px 8px rgba(0,0,0,0.02)",
-              transform: hovered ? "scaleY(0.98)" : "none",
-              transformOrigin: "top",
             }}>
             {/* Note dot for scale/highlighted */}
             {isActive && (
@@ -2335,7 +2330,7 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
                 background: hl ? "#fff" : t.accent,
                 opacity: hl ? 0.9 : 0.5,
                 marginBottom: 5,
-                boxShadow: hl ? "0 0 6px rgba(255,255,255,0.5)" : "none",
+                boxShadow: "none",
               }} />
             )}
             <span style={{
@@ -2363,19 +2358,14 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
             style={{
               position:"absolute", left:`${k.leftPct}%`, width:`${wkw*0.58}%`, height:"62%",
               background: hl
-                ? "linear-gradient(180deg, #9B7CC8 0%, #6B4B9A 50%, #5B3F8A 100%)"
+                ? "#5B3F8A"
                 : sc
-                  ? "linear-gradient(180deg, #8B6CB8 0%, #6B4B9A 100%)"
+                  ? "#6B4B9A"
                   : hovered
-                    ? "linear-gradient(180deg, #3A3340 0%, #2A2530 60%, #222025 100%)"
-                    : "linear-gradient(180deg, #353040 0%, #2A2530 55%, #1E1C22 100%)",
-              borderRadius:"0 0 6px 6px", zIndex:2, cursor:"pointer",
-              transition:"all 0.15s ease",
-              boxShadow: hl
-                ? "0 3px 8px rgba(90,60,140,0.5), inset 0 1px 0 rgba(255,255,255,0.12)"
-                : hovered
-                  ? "0 3px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)"
-                  : "0 4px 10px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -2px 4px rgba(0,0,0,0.2)",
+                    ? "#302A38"
+                    : "#2A2530",
+              borderRadius:"0 0 1px 1px", zIndex:2, cursor:"pointer",
+              transition:"all 0.08s",
               display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-end",
               paddingBottom:6,
               transform: hovered ? "scaleY(0.97)" : "none",
@@ -2387,7 +2377,7 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
                 background: "#fff",
                 opacity: hl ? 0.9 : 0.4,
                 marginBottom: 4,
-                boxShadow: hl ? "0 0 5px rgba(255,255,255,0.4)" : "none",
+                boxShadow: "none",
               }} />
             )}
             <span style={{
@@ -2411,16 +2401,16 @@ function Piano({ highlightedNotes=[], scaleNoteIndices=[], highlightAllOctaves=f
 
 function SegmentedControl({ value, options, onChange, t }) {
   return (
-    <div style={{ display:"inline-flex", background:t.segBg, borderRadius:9, padding:2, gap:2 }}>
+    <div style={{ display:"inline-flex", background:t.segBg, borderRadius:2, padding:2, gap:2 }}>
       {options.map(opt => (
         <button key={opt.value} onClick={() => onChange(opt.value)} style={{
-          padding:"5px 14px", borderRadius:7, border:"none",
+          padding:"5px 14px", borderRadius:2, border:"none",
           background: value===opt.value ? t.segActiveBg : "transparent",
           boxShadow:  value===opt.value ? t.segShadow : "none",
           fontFamily:"SF Pro Text,-apple-system,sans-serif", fontSize:13,
           fontWeight: value===opt.value ? 510 : 400,
           color: value===opt.value ? t.segActiveColor : t.segInactiveColor,
-          cursor:"pointer", transition:"all 0.12s ease", whiteSpace:"nowrap",
+          cursor:"pointer", transition:"all 0.08s", whiteSpace:"nowrap",
         }}>
           {opt.label}
         </button>
@@ -2692,7 +2682,7 @@ function KeyDetector({ t }) {
   }, []);
 
   const SF2   = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
-  const card2 = { background:t.cardBg, borderRadius:18, padding:"20px 24px", boxShadow:t.cardShadow, marginBottom:12 };
+  const card2 = { background:t.cardBg, border:`1px solid ${t.border}`, padding:"12px 14px", marginBottom:1 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
   const result     = detectMode === "file" ? fileResult  : micResult;
@@ -2708,11 +2698,11 @@ function KeyDetector({ t }) {
           {[{key:"mic", label:"🎤 Microphone"}, {key:"file", label:"⏺ Record & Analyse"}].map(({ key, label }) => (
             <button key={key} onClick={() => setDetectMode(key)} style={{
               fontFamily:SF2, fontSize:13, fontWeight: detectMode===key ? 600 : 400,
-              padding:"8px 20px", borderRadius:10,
+              padding:"8px 20px", borderRadius:2,
               background: detectMode===key ? t.accent    : t.elevatedBg,
               border:     `1px solid ${detectMode===key ? t.accent : t.border}`,
               color:      detectMode===key ? "#FFFFFF"   : t.textSecondary,
-              cursor:"pointer", transition:"all 0.12s ease",
+              cursor:"pointer", transition:"all 0.08s",
             }}>
               {label}
             </button>
@@ -2743,19 +2733,19 @@ function KeyDetector({ t }) {
             </div>
             <div style={{ display:"flex", gap:8 }}>
               <button onClick={listening ? stopListening : startListening} style={{
-                fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 22px", borderRadius:10, border:"none",
+                fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 22px", borderRadius:2, border:"none",
                 background: listening ? "#FF453A" : t.accent, color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
               }}>
                 {listening ? "⬛ Stop" : "🎤 Start"}
               </button>
               <button onClick={resetMic} style={{
-                fontFamily:SF2, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:10,
+                fontFamily:SF2, fontSize:13, fontWeight:500, padding:"8px 16px", borderRadius:2,
                 border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer",
               }}>Reset</button>
             </div>
           </div>
           {micError && (
-            <div style={{ marginTop:12, padding:"10px 14px", borderRadius:10,
+            <div style={{ marginTop:12, padding:"10px 14px", borderRadius:2,
               background:"rgba(255,69,58,0.12)", border:"1px solid rgba(255,69,58,0.3)",
               fontSize:13, color:"#FF453A", fontFamily:SF2 }}>
               {micError}
@@ -2788,7 +2778,7 @@ function KeyDetector({ t }) {
                   </div>
                   <button onClick={stopRecording} style={{
                     fontFamily:SF2, fontSize:15, fontWeight:700, padding:"13px 44px",
-                    borderRadius:14, border:"none", background:"#FF453A",
+                    borderRadius:2, border:"none", background:"#FF453A",
                     color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
                   }}>
                     ⬛ Stop
@@ -2803,7 +2793,7 @@ function KeyDetector({ t }) {
                   </div>
                   <button onClick={startRecording} style={{
                     fontFamily:SF2, fontSize:15, fontWeight:700, padding:"13px 44px",
-                    borderRadius:14, border:"none", background:t.accent,
+                    borderRadius:2, border:"none", background:t.accent,
                     color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
                   }}>
                     ⏺ Start recording
@@ -2822,13 +2812,13 @@ function KeyDetector({ t }) {
                 </span>
                 <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF2 }}>{fileProgress}%</span>
               </div>
-              <div style={{ height:6, borderRadius:3, background:t.elevatedBg, overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${fileProgress}%`, borderRadius:3,
-                  background:`linear-gradient(90deg, ${t.accent}, #5E9BFF)`, transition:"width 0.2s ease" }} />
+              <div style={{ height:6, borderRadius:1, background:t.elevatedBg, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${fileProgress}%`, borderRadius:1,
+                  background:t.accent, transition:"width 0.2s ease" }} />
               </div>
               <button onClick={() => { abortRef.current = true; setFileAnalyzing(false); }}
                 style={{ marginTop:12, fontFamily:SF2, fontSize:12, fontWeight:500, padding:"6px 14px",
-                  borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg,
+                  borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg,
                   color:t.btnColor, cursor:"pointer" }}>
                 Cancel
               </button>
@@ -2836,7 +2826,7 @@ function KeyDetector({ t }) {
           )}
 
           {fileError && !fileAnalyzing && !isRecording && (
-            <div style={{ marginTop:10, padding:"10px 14px", borderRadius:10,
+            <div style={{ marginTop:10, padding:"10px 14px", borderRadius:2,
               background:"rgba(255,69,58,0.10)", border:"1px solid rgba(255,69,58,0.28)",
               fontSize:13, color:"#FF453A", fontFamily:SF2 }}>
               {fileError}
@@ -2864,9 +2854,9 @@ function KeyDetector({ t }) {
                 <span style={{ fontSize:11, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em" }}>Confidence</span>
                 <span style={{ fontSize:11, color:t.accent, fontWeight:700 }}>{confidence}%</span>
               </div>
-              <div style={{ height:6, borderRadius:3, background:t.elevatedBg, overflow:"hidden" }}>
-                <div style={{ height:"100%", width:`${confidence}%`, borderRadius:3,
-                  background:`linear-gradient(90deg, ${t.accent}, #5E9BFF)`, transition:"width 0.3s ease" }} />
+              <div style={{ height:6, borderRadius:1, background:t.elevatedBg, overflow:"hidden" }}>
+                <div style={{ height:"100%", width:`${confidence}%`, borderRadius:1,
+                  background:t.accent, transition:"width 0.3s ease" }} />
               </div>
             </div>
             {/* Runner-up candidates — only in file mode */}
@@ -2879,7 +2869,7 @@ function KeyDetector({ t }) {
                 <div style={{ display:"flex", gap:8, justifyContent:"center", flexWrap:"wrap" }}>
                   {fileCandidates.slice(1).map((c, i) => (
                     <div key={i} style={{
-                      padding:"5px 14px", borderRadius:20,
+                      padding:"5px 14px", borderRadius:2,
                       background:t.elevatedBg, border:`1px solid ${t.border}`,
                       fontSize:13, fontWeight:600, color:t.textSecondary, fontFamily:SF2,
                     }}>
@@ -2913,7 +2903,7 @@ function KeyDetector({ t }) {
               <div key={i} style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", gap:4, height:"100%" }}>
                 <div style={{ flex:1, width:"100%", display:"flex", alignItems:"flex-end" }}>
                   <div style={{
-                    width:"100%", height:`${Math.max(pct*100,2)}%`, borderRadius:"4px 4px 0 0",
+                    width:"100%", height:`${Math.max(pct*100,2)}%`, borderRadius:"1px 1px 0 0",
                     background: isResult ? t.accent : pct > 0.4 ? t.accentBg : t.elevatedBg,
                     border: isResult ? `1px solid ${t.accent}` : `1px solid ${t.border}`,
                     transition:"height 0.15s ease, background 0.2s ease",
@@ -3063,7 +3053,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
   const totalDurRef   = useRef(0);
 
   const SF2 = "Rajdhani,'SF Pro Display',system-ui,sans-serif";
-  const card2 = { background:t.cardBg, borderRadius:18, padding:"20px 24px", boxShadow:t.cardShadow, marginBottom:12 };
+  const card2 = { background:t.cardBg, border:`1px solid ${t.border}`, padding:"12px 14px", marginBottom:1 };
   const lbl   = { fontSize:11, display:"block", marginBottom:6, color:t.labelColor, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 };
 
   const applyXmlText = useCallback((xmlText) => {
@@ -3314,9 +3304,9 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
           onClick={() => document.getElementById("xml-file-input").click()}
           style={{
             border:`2px dashed ${dragOver ? t.accent : t.inputBorder}`,
-            borderRadius:14, padding:"36px 24px", textAlign:"center", cursor:"pointer",
+            borderRadius:2, padding:"36px 24px", textAlign:"center", cursor:"pointer",
             background: dragOver ? t.accentBg : t.elevatedBg,
-            transition:"all 0.15s ease",
+            transition:"all 0.08s",
           }}
         >
           <div style={{ fontSize:36, marginBottom:10 }}>🎼</div>
@@ -3330,7 +3320,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
             onChange={e => { handleFile(e.target.files[0]); e.target.value = ""; }} />
         </div>
         {parseError && (
-          <div style={{ marginTop:10, padding:"10px 14px", borderRadius:10,
+          <div style={{ marginTop:10, padding:"10px 14px", borderRadius:2,
             background:"rgba(255,69,58,0.10)", border:"1px solid rgba(255,69,58,0.28)",
             fontSize:13, color:"#FF453A", fontFamily:SF2 }}>
             {parseError}
@@ -3363,7 +3353,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                   </div>
                   <div style={{ display:"flex", alignItems:"center", gap:6 }}>
                     <button onClick={() => setUserBpm(b => Math.max(20, b - 1))}
-                      style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
+                      style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
                     <input
                       type="text" inputMode="numeric"
@@ -3381,16 +3371,16 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                         if (e.key === "Enter") e.target.blur();
                       }}
                       style={{ fontFamily:SF2, fontSize:14, fontWeight:700, textAlign:"center",
-                        width:58, padding:"4px 6px", borderRadius:8,
+                        width:58, padding:"4px 6px", borderRadius:2,
                         border:`1px solid ${t.inputBorder}`, background:t.inputBg,
                         color:t.inputColor }}
                     />
                     <button onClick={() => setUserBpm(b => Math.min(300, b + 1))}
-                      style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8,
+                      style={{ fontFamily:SF2, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2,
                         border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
                     {parsedData.tempo !== userBpm && (
                       <button onClick={() => setUserBpm(parsedData.tempo)}
-                        style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:8,
+                        style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"4px 10px", borderRadius:2,
                           border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textSecondary, cursor:"pointer" }}>
                         Reset
                       </button>
@@ -3404,7 +3394,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               {STYLES && (
                 <div style={{ position:"relative" }}>
                   <button onClick={() => setStyleMenuOpen(o => !o)}
-                    style={{ fontFamily:SF2, fontSize:12, fontWeight:500, padding:"8px 12px", borderRadius:10,
+                    style={{ fontFamily:SF2, fontSize:12, fontWeight:500, padding:"8px 12px", borderRadius:2,
                       border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
                       background:playStyle!=="normal"?t.accentBg:t.btnBg,
                       color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:5 }}>
@@ -3416,12 +3406,12 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                     <>
                       <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
                       <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:51, minWidth:170,
-                          background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:12,
-                          boxShadow:`0 8px 24px rgba(28,24,32,0.12)`, padding:6, display:"flex", flexDirection:"column", gap:2 }}>
+                          background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:2,
+                          padding:4, display:"flex", flexDirection:"column", gap:1 }}>
                         {Object.entries(STYLES).map(([key, cfg]) => (
                           <button key={key} onClick={() => { setPlayStyle(key); setStyleMenuOpen(false); }}
                             style={{ fontFamily:SF2, fontSize:12, fontWeight:playStyle===key?700:500,
-                              padding:"7px 11px", borderRadius:8, border:"none", textAlign:"left",
+                              padding:"7px 11px", borderRadius:2, border:"none", textAlign:"left",
                               background:playStyle===key?t.accentBg:"transparent",
                               color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer" }}
                             onMouseEnter={e=>{ if(playStyle!==key) e.currentTarget.style.background=t.elevatedBg; }}
@@ -3436,7 +3426,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               )}
               <button onClick={playSheet} style={{
                 fontFamily:SF2, fontSize:14, fontWeight:600,
-                padding:"11px 30px", borderRadius:12, border:"none",
+                padding:"11px 30px", borderRadius:2, border:"none",
                 background: playing ? "#FF453A" : t.accent,
                 color:"#FFFFFF", cursor:"pointer", transition:"background 0.15s",
               }}>
@@ -3447,7 +3437,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
             {/* ── Drum Layer ── */}
             <div style={{ marginTop:12, display:"flex", gap:8, alignItems:"center", flexWrap:"wrap" }}>
               <button onClick={() => setDrumsEnabled(d => !d)}
-                style={{ fontFamily:SF2, fontSize:11, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                style={{ fontFamily:SF2, fontSize:11, fontWeight:600, padding:"6px 14px", borderRadius:2,
                   border:`1px solid ${drumsEnabled ? "rgba(255,149,0,0.5)" : t.btnBorder}`,
                   background: drumsEnabled ? "rgba(255,149,0,0.12)" : t.btnBg,
                   color: drumsEnabled ? "#FF9500" : t.btnColor, cursor:"pointer", transition:"all 0.12s" }}>
@@ -3456,7 +3446,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               {drumsEnabled && (
                 <>
                   <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)}
-                    style={{ fontFamily:SF2, fontSize:11, padding:"5px 10px", borderRadius:7,
+                    style={{ fontFamily:SF2, fontSize:11, padding:"5px 10px", borderRadius:2,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textPrimary, cursor:"pointer" }}>
                     {Object.entries(DRUM_GENRES).map(([k, g]) => (
                       <option key={k} value={k}>{g.label}</option>
@@ -3469,7 +3459,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
                       DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); });
                       setDrumPattern(fresh);
                     }
-                  }} style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7,
+                  }} style={{ fontFamily:SF2, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2,
                     border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Generate
                   </button>
@@ -3491,19 +3481,19 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
             <div style={{ marginTop:10, display:"flex", gap:8, alignItems:"center" }}>
               <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF2 }}>Octave</span>
               <button onClick={() => setSheetOctaveOffset(o => Math.max(-3, o - 1))}
-                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:7,
+                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:2,
                   border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer",
                   display:"flex", alignItems:"center", justifyContent:"center" }}>−</button>
               <span style={{ fontFamily:SF2, fontSize:13, fontWeight:600, color:t.textPrimary, minWidth:32, textAlign:"center" }}>
                 {sheetOctaveOffset === 0 ? "0" : (sheetOctaveOffset > 0 ? `+${sheetOctaveOffset}` : sheetOctaveOffset)}
               </span>
               <button onClick={() => setSheetOctaveOffset(o => Math.min(3, o + 1))}
-                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:7,
+                style={{ fontFamily:SF2, fontSize:13, fontWeight:700, width:28, height:28, borderRadius:2,
                   border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer",
                   display:"flex", alignItems:"center", justifyContent:"center" }}>+</button>
               {sheetOctaveOffset !== 0 && (
                 <button onClick={() => setSheetOctaveOffset(0)}
-                  style={{ fontFamily:SF2, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:6,
+                  style={{ fontFamily:SF2, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
                     border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
                   Reset
                 </button>
@@ -3520,7 +3510,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               {/* Now playing */}
               <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                 <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
-                  boxShadow:"0 0 0 2px rgba(48,209,88,0.3)", display:"inline-block",
+                  display:"inline-block",
                   animation:"pulse 1.2s ease-in-out infinite" }} />
                 <span style={{ fontSize:12, fontWeight:600, color:"#30D158", fontFamily:SF2, letterSpacing:"0.05em" }}>
                   PLAYING
@@ -3546,7 +3536,7 @@ function SheetMusicTab({ t, soundType, getMIDIOut, midiChannel, playStyle, setPl
               const isPast   = idx < activeEventIdx;
               return (
                 <div key={idx} style={{
-                  padding:"4px 8px", borderRadius:6, fontSize:11, fontWeight:isActive?700:500,
+                  padding:"4px 8px", borderRadius:2, fontSize:11, fontWeight:isActive?700:500,
                   fontFamily:"'Share Tech Mono',monospace",
                   background: isActive ? t.accent : isPast ? t.accentBg : t.elevatedBg,
                   color: isActive ? "#FFFFFF" : isPast ? t.accent : t.textSecondary,
@@ -3945,7 +3935,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
       {/* ── Settings card ── */}
-      <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
+      <div style={{ background:t.cardBg, borderRadius:0, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
         <div style={{ fontSize:18, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
           Hum to Chords
         </div>
@@ -3957,19 +3947,19 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
           {!freeLength && <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Bars</label>
             <select value={humBars} onChange={e => setHumBars(Number(e.target.value))}
-              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer" }}>
+              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:2, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer" }}>
               {[2,3,4,6,8].map(n => <option key={n} value={n}>{n} bars</option>)}
             </select>
           </div>}
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Tempo</label>
             <input type="number" min={40} max={200} value={humBpm} onChange={e => setHumBpm(Number(e.target.value))}
-              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:10, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, width:80 }} />
+              style={{ fontFamily:SF2, fontSize:14, padding:"8px 12px", borderRadius:2, border:`1.5px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, width:80 }} />
           </div>
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Mode</label>
             <button onClick={() => setFreeMode(f => !f)}
-              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:10,
+              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:2,
                 border:`1.5px solid ${freeMode ? "#FF9500" : t.accentBorder}`,
                 background: freeMode ? "rgba(255,149,0,0.10)" : t.accentBg,
                 color: freeMode ? "#FF9500" : t.accent, cursor:"pointer" }}>
@@ -3979,7 +3969,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
           <div>
             <label style={{ fontSize:11, fontWeight:700, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.08em", marginBottom:4, display:"block", fontFamily:SF2 }}>Length</label>
             <button onClick={() => setFreeLength(f => !f)}
-              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:10,
+              style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 16px", borderRadius:2,
                 border:`1.5px solid ${freeLength ? "#34C759" : t.inputBorder}`,
                 background: freeLength ? "rgba(52,199,89,0.08)" : t.elevatedBg,
                 color: freeLength ? "#34C759" : t.textSecondary, cursor:"pointer" }}>
@@ -3996,33 +3986,33 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         {/* ── Reference tone buttons ── */}
         <div style={{ display:"flex", gap:10, flexWrap:"wrap" }}>
           <button onClick={playRoot} disabled={recording}
-            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:2,
               border:`1.5px solid ${playingRef_ ? "#34C759" : t.inputBorder}`,
               background: playingRef_ ? "rgba(52,199,89,0.08)" : t.elevatedBg,
               color: playingRef_ ? "#34C759" : t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
-              opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
+              opacity: recording ? 0.4 : 1, transition:"all 0.08s" }}>
             {playingRef_ ? "Stop" : `Play root (${NOTES[rootIdx]})`}
           </button>
           <button onClick={playScale} disabled={recording}
-            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:2,
               border:`1.5px solid ${t.inputBorder}`, background:t.elevatedBg,
               color:t.textPrimary, cursor: recording ? "not-allowed" : "pointer",
-              opacity: recording ? 0.4 : 1, transition:"all 0.15s ease" }}>
+              opacity: recording ? 0.4 : 1, transition:"all 0.08s" }}>
             Play scale
           </button>
           <div style={{ width:1, height:24, background:t.border }} />
           <button onClick={() => setMetronome(m => !m)}
-            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+            style={{ fontFamily:SF2, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:2,
               border:`1.5px solid ${metronome ? "#34C759" : t.inputBorder}`,
               background: metronome ? "rgba(52,199,89,0.08)" : t.elevatedBg,
-              color: metronome ? "#34C759" : t.textTertiary, cursor:"pointer", transition:"all 0.15s ease" }}>
+              color: metronome ? "#34C759" : t.textTertiary, cursor:"pointer", transition:"all 0.08s" }}>
             Metronome {metronome ? "on" : "off"}
           </button>
         </div>
       </div>
 
       {/* ── Record card ── */}
-      <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}`, textAlign:"center" }}>
+      <div style={{ background:t.cardBg, borderRadius:0, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}`, textAlign:"center" }}>
         {/* Live recording display */}
         {recording && (
           <div style={{ marginBottom:14 }}>
@@ -4035,13 +4025,13 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
               <div style={{ display:"flex", justifyContent:"center", gap:8, marginBottom:12 }}>
                 {Array.from({ length: humBars }, (_, i) => (
                   <div key={i} style={{
-                    width:40, height:40, borderRadius:10, display:"flex", alignItems:"center", justifyContent:"center",
+                    width:40, height:40, borderRadius:2, display:"flex", alignItems:"center", justifyContent:"center",
                     fontSize:16, fontWeight:700, fontFamily:SF2,
                     background: currentBar === i + 1 ? t.accent : t.elevatedBg,
                     color: currentBar === i + 1 ? "#FFFFFF" : t.textTertiary,
                     border: `2px solid ${currentBar === i + 1 ? t.accent : t.border}`,
-                    transition:"all 0.15s ease",
-                    boxShadow: currentBar === i + 1 ? `0 0 16px rgba(122,91,175,0.4)` : "none",
+                    transition:"all 0.08s",
+                    boxShadow: "none",
                   }}>
                     {i + 1}
                   </div>
@@ -4075,8 +4065,8 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
             </div>
 
             {/* Level meter */}
-            <div style={{ height:6, borderRadius:3, background:t.elevatedBg, overflow:"hidden", maxWidth:300, margin:"0 auto", marginBottom:4 }}>
-              <div style={{ height:"100%", borderRadius:3, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
+            <div style={{ height:6, borderRadius:1, background:t.elevatedBg, overflow:"hidden", maxWidth:300, margin:"0 auto", marginBottom:4 }}>
+              <div style={{ height:"100%", borderRadius:1, background: level > 0.5 ? "#34C759" : level > 0.15 ? t.accent : t.textTertiary,
                 width:`${Math.min(100, level * 100)}%`, transition:"width 0.05s" }} />
             </div>
             <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF2 }}>{countdown}s remaining</div>
@@ -4084,11 +4074,11 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
         )}
 
         <button onClick={recording ? stopRecording : startRecording} disabled={analyzing}
-          style={{ fontFamily:SF2, fontSize:16, fontWeight:700, padding:"14px 36px", borderRadius:14, border:"none",
+          style={{ fontFamily:SF2, fontSize:16, fontWeight:700, padding:"14px 36px", borderRadius:2, border:"none",
             background: recording ? "#FF453A" : analyzing ? t.playDisabledBg : t.accent,
             color: recording || !analyzing ? "#FFFFFF" : t.playDisabledClr,
-            cursor: analyzing ? "not-allowed" : "pointer", transition:"all 0.15s ease",
-            boxShadow: recording ? "0 0 20px rgba(255,69,58,0.4)" : `0 4px 16px rgba(122,91,175,0.3)`,
+            cursor: analyzing ? "not-allowed" : "pointer", transition:"all 0.08s",
+            boxShadow: "none",
             letterSpacing:"0.05em" }}>
           {recording ? "Stop" : analyzing ? "Analyzing…" : "Start recording"}
         </button>
@@ -4102,7 +4092,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
 
       {/* ── Results card ── */}
       {detected && (
-        <div style={{ background:t.cardBg, borderRadius:16, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
+        <div style={{ background:t.cardBg, borderRadius:0, padding:20, boxShadow:t.cardShadow, border:`1px solid ${t.border}` }}>
           <div style={{ fontSize:16, fontWeight:700, color:t.textPrimary, marginBottom:14, fontFamily:SF2 }}>
             Results
           </div>
@@ -4115,7 +4105,7 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
             <>
               <div style={{ display:"flex", gap:12, flexWrap:"wrap", marginBottom:16 }}>
                 {detected.map((d, i) => (
-                  <div key={i} style={{ background:t.elevatedBg, borderRadius:14, padding:"14px 18px", minWidth:100,
+                  <div key={i} style={{ background:t.elevatedBg, borderRadius:2, padding:"14px 18px", minWidth:100,
                     border:`1px solid ${t.border}`, textAlign:"center" }}>
                     <div style={{ fontSize:11, fontWeight:600, color:t.textTertiary, textTransform:"uppercase",
                       letterSpacing:"0.1em", marginBottom:4, fontFamily:SF2 }}>
@@ -4148,13 +4138,13 @@ function HumToChordTab({ t, rootIdx, scaleKey, onChordsReady }) {
 
               <div style={{ display:"flex", gap:10 }}>
                 <button onClick={placeInTimeline}
-                  style={{ fontFamily:SF2, fontSize:14, fontWeight:700, padding:"10px 24px", borderRadius:12,
+                  style={{ fontFamily:SF2, fontSize:14, fontWeight:700, padding:"10px 24px", borderRadius:2,
                     border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer",
-                    boxShadow:`0 4px 12px rgba(122,91,175,0.25)` }}>
+                    boxShadow:"none" }}>
                   Place in timeline
                 </button>
                 <button onClick={() => startRecording()}
-                  style={{ fontFamily:SF2, fontSize:14, fontWeight:500, padding:"10px 24px", borderRadius:12,
+                  style={{ fontFamily:SF2, fontSize:14, fontWeight:500, padding:"10px 24px", borderRadius:2,
                     border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                   Try again
                 </button>
@@ -4629,16 +4619,16 @@ export default function App() {
   const t = THEME;
 
   const card = {
-    background:t.cardBg, borderRadius:18, padding:"20px 24px",
-    boxShadow:t.cardShadow, marginBottom:12,
+    background:t.cardBg, border:`1px solid ${t.border}`, padding:"12px 14px",
+    marginBottom:1,
   };
   const labelStyle = {
-    fontSize:11, display:"block", marginBottom:6, color:t.labelColor,
-    fontWeight:600, textTransform:"uppercase", letterSpacing:"0.07em", fontFamily:SF,
+    fontSize:9, display:"block", marginBottom:4, color:"rgba(28,24,32,0.40)",
+    fontWeight:700, textTransform:"uppercase", letterSpacing:"0.08em", fontFamily:SF,
   };
   const selectStyle = {
-    fontFamily:SF, padding:"7px 12px", borderRadius:10,
-    border:`1px solid ${t.inputBorder}`, fontSize:14, fontWeight:500,
+    fontFamily:SF, padding:"4px 8px", borderRadius:2,
+    border:`1px solid ${t.inputBorder}`, fontSize:12, fontWeight:500,
     color:t.inputColor, background:t.inputBg,
     cursor:"pointer", appearance:"auto", colorScheme:t.colorScheme,
   };
@@ -5703,40 +5693,38 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
         *{box-sizing:border-box}
-        html,body{margin:0;background:${t.pageBg};font-family:${SF};transition:background 0.2s ease}
+        html,body{margin:0;background:${t.pageBg};font-family:${SF}}
         select:focus,button:focus{outline:none}
         option{background:${t.inputBg};color:${t.inputColor}}
         @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}
-        @keyframes led-glow{0%,100%{box-shadow:0 0 4px #7A5BAF,0 0 8px rgba(122,91,175,0.5)}50%{box-shadow:0 0 8px #7A5BAF,0 0 16px rgba(122,91,175,0.7)}}
         input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
-        ::-webkit-scrollbar{width:6px;height:6px}
+        ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-track{background:${t.pageBg}}
-        ::-webkit-scrollbar-thumb{background:#3A3D44;border-radius:3px}
-        ::-webkit-scrollbar-thumb:hover{background:#4A4D54}
+        ::-webkit-scrollbar-thumb{background:rgba(28,24,32,0.15);border-radius:0}
+        ::-webkit-scrollbar-thumb:hover{background:rgba(28,24,32,0.25)}
         .bpm-lcd{font-family:'Share Tech Mono',monospace !important;letter-spacing:0.08em}
       `}</style>
 
-      <div style={{ minHeight:"100vh", background:t.pageBg, padding:"2.5rem 1rem", fontFamily:SF, transition:"background 0.2s ease" }}>
+      <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
 
           {/* ── Header ── */}
           <div style={{
-            background:"linear-gradient(180deg,#8A6CC0 0%,#6B4C9B 100%)",
-            borderRadius:14, padding:"18px 28px", marginBottom:16,
-            boxShadow:"0 2px 0 rgba(107,76,155,0.15),0 8px 24px rgba(107,76,155,0.25),inset 0 1px 0 rgba(255,255,255,0.15)",
-            border:"1px solid rgba(107,76,155,0.3)",
+            background:"#7A5BAF",
+            padding:"12px 16px", marginBottom:1,
+            border:"1px solid rgba(122,91,175,0.6)",
             display:"flex", justifyContent:"space-between", alignItems:"center",
           }}>
             <div>
               <h1 style={{
-                fontSize:28, fontWeight:700, letterSpacing:"0.18em",
+                fontSize:20, fontWeight:700, letterSpacing:"0.20em",
                 textTransform:"uppercase", color:"#FFFFFF", margin:0,
-                fontFamily:SF, textShadow:"0 1px 2px rgba(0,0,0,0.15)",
+                fontFamily:"'Share Tech Mono',monospace",
               }}>
                 Fiskaturet
               </h1>
-              <p style={{ fontSize:11, color:"rgba(255,255,255,0.82)", margin:"5px 0 0", fontWeight:600,
-                letterSpacing:"0.2em", textTransform:"uppercase", fontFamily:SF }}>
+              <p style={{ fontSize:10, color:"rgba(255,255,255,0.70)", margin:"3px 0 0", fontWeight:600,
+                letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:SF }}>
                 {mode==="detect" ? "Key Detector · Microphone"
                   : mode==="hum" ? "Hum to Chords · Microphone"
                   : mode==="sheet" ? "Sheet Music · MusicXML"
@@ -5744,19 +5732,18 @@ export default function App() {
                   : `${rootDisplay} ${scaleInfo.label} · ${mode==="scales" ? "Scale Explorer" : chordType==="9" ? "9th chords" : chordType==="7" ? "7th chords" : "Triads"}`}
               </p>
             </div>
-            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-              <div style={{ width:8, height:8, borderRadius:"50%", background:"#FFFFFF",
-                boxShadow:"0 0 6px #FFFFFF,0 0 12px rgba(255,255,255,0.6)",
-                animation:"led-glow 2s ease-in-out infinite" }} />
-              <span style={{ fontSize:10, color:"rgba(255,255,255,0.75)", fontWeight:600,
-                letterSpacing:"0.15em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
+            <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ width:6, height:6, borderRadius:"50%", background:"#FFFFFF",
+                opacity:0.8 }} />
+              <span style={{ fontSize:9, color:"rgba(255,255,255,0.60)", fontWeight:700,
+                letterSpacing:"0.12em", textTransform:"uppercase", fontFamily:"'Share Tech Mono',monospace" }}>
                 PWR
               </span>
             </div>
           </div>
 
           {/* ── Mode switcher ── */}
-          <div style={{ display:"flex", gap:6, marginBottom:12, flexWrap:"wrap" }}>
+          <div style={{ display:"flex", gap:0, marginBottom:1, flexWrap:"wrap" }}>
             {[
               { key:"chords",  label:"Chords" },
               { key:"drums",   label:"Drums" },
@@ -5766,17 +5753,19 @@ export default function App() {
               { key:"hum",     label:"Hum" },
             ].map(({ key: m, label }) => (
               <button key={m} onClick={() => setMode(m)} style={{
-                fontFamily:SF, fontSize:14, fontWeight: mode===m ? 600 : 400,
-                padding:"8px 20px", borderRadius:12,
-                background: mode===m ? t.modeBtnActiveBg : t.modeBtnBg,
-                border: mode===m ? `1px solid ${t.modeBtnActiveBorder}` : `1px solid ${t.modeBtnBorder}`,
-                color: mode===m ? t.modeBtnActiveColor : t.modeBtnColor,
-                cursor:"pointer", transition:"all 0.12s ease",
-                boxShadow: mode===m ? t.cardShadow : "none",
+                fontFamily:SF, fontSize:11, fontWeight: mode===m ? 700 : 500,
+                padding:"6px 14px",
+                background: mode===m ? "#fff" : "transparent",
+                border: mode===m ? `1px solid ${t.border}` : "1px solid transparent",
+                borderBottom: mode===m ? "1px solid #fff" : `1px solid ${t.border}`,
+                color: mode===m ? t.textPrimary : "rgba(28,24,32,0.35)",
+                cursor:"pointer", transition:"all 0.08s",
+                letterSpacing:"0.02em",
               }}>
                 {label}
               </button>
             ))}
+            <div style={{ flex:1, borderBottom:`1px solid ${t.border}` }} />
           </div>
 
           {/* ── Controls (hidden in detect mode) ── */}
@@ -5853,10 +5842,10 @@ export default function App() {
                       </select>
                       {midiOutputId !== "off" && (
                         <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"5px 8px", borderRadius:7,
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 6px", borderRadius:2,
                             border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                            background: midiSyncMode !== "off" ? "rgba(48,209,88,0.12)" : t.btnBg,
-                            color: midiSyncMode !== "off" ? "#30D158" : t.btnColor, cursor:"pointer",
+                            background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
+                            color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
                             whiteSpace:"nowrap" }}>
                           <option value="off">Sync Off</option>
                           <option value="send">Sync → MPC</option>
@@ -5989,11 +5978,11 @@ export default function App() {
                     }}
                     style={{
                       fontFamily:SF, fontSize:13, fontWeight:500,
-                      padding:"8px 20px", borderRadius:10, border:"none",
+                      padding:"8px 20px", borderRadius:2, border:"none",
                       background:t.accent, color:"#FFFFFF",
                       cursor:"pointer", whiteSpace:"nowrap", flexShrink:0,
                     }}>
-                    ▶  Play scale
+                    Play Scale
                   </button>
                 </div>
               </div>
@@ -6011,7 +6000,7 @@ export default function App() {
                       <span style={{
                         background:t.accentBg, color:t.accent,
                         border:`1px solid ${t.accentBorder}`,
-                        borderRadius:10, padding:"6px 14px",
+                        borderRadius:2, padding:"6px 14px",
                         fontSize:15, fontWeight:700, letterSpacing:"-0.01em", fontFamily:SF,
                         minWidth:44, textAlign:"center",
                       }}>
@@ -6025,8 +6014,8 @@ export default function App() {
                 </div>
 
                 {/* Piano */}
-                <div style={{ background:t.pianoRailBg, borderRadius:12, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
-                  <div style={{ background:t.pianoKeysBg, borderRadius:6, overflow:"hidden" }}>
+                <div style={{ background:t.pianoRailBg, borderRadius:2, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
+                  <div style={{ background:t.pianoKeysBg, borderRadius:2, overflow:"hidden" }}>
                     <Piano
                       highlightedNotes={scaleNoteIndices}
                       scaleNoteIndices={[]}
@@ -6047,7 +6036,7 @@ export default function App() {
                           background: step==="W" ? t.stepWholeBg : t.stepHalfBg,
                           color:       step==="W" ? t.stepWholeColor : t.stepHalfColor,
                           border:`1px solid ${step==="W" ? t.stepWholeBorder : t.stepHalfBorder}`,
-                          borderRadius:8, padding:"5px 14px",
+                          borderRadius:2, padding:"5px 14px",
                           fontSize:13, fontWeight:700, fontFamily:SF,
                           minWidth:36, textAlign:"center",
                         }}>
@@ -6311,7 +6300,7 @@ export default function App() {
                   <div style={{ position:"fixed", top:"50%", left:"50%", transform:"translate(-50%,-50%)", zIndex:101,
                     width:400, maxHeight:"90vh", overflow:"auto",
                     background:"#fff", border:"1px solid rgba(28,24,32,0.12)", padding:"16px 18px",
-                    boxShadow:"0 8px 32px rgba(28,24,32,0.12)" }}>
+                    }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12 }}>
                       <span style={{ fontSize:12, fontWeight:700, color:t.textPrimary, fontFamily:SF, textTransform:"uppercase", letterSpacing:"0.06em" }}>Pad Map</span>
                       <button onClick={() => setPadMapperOpen(false)}
@@ -6397,18 +6386,11 @@ export default function App() {
                         }}
                         onMouseLeave={() => setHoveredChord(null)}
                         style={{
-                          border: accent ? `1px solid rgba(122,91,175,0.55)` : `1px solid rgba(28,24,32,0.08)`,
-                          borderRadius:10, padding:"13px 6px 11px",
-                          background: isActive
-                            ? "linear-gradient(180deg,rgba(122,91,175,0.14) 0%,rgba(122,91,175,0.06) 100%)"
-                            : isHovered
-                            ? "linear-gradient(180deg,#FFFFFF 0%,#F4F1F8 100%)"
-                            : "linear-gradient(180deg,#FFFFFF 0%,#F8F6FA 100%)",
+                          border: accent ? `1px solid rgba(122,91,175,0.50)` : `1px solid rgba(28,24,32,0.08)`,
+                          borderRadius:2, padding:"10px 6px 8px",
+                          background: isActive ? "rgba(122,91,175,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
                           cursor:"pointer", textAlign:"center", userSelect:"none",
-                          transition:"all 0.1s ease",
-                          boxShadow: accent
-                            ? `0 0 12px rgba(122,91,175,0.18),0 1px 2px rgba(28,24,32,0.04)`
-                            : `0 1px 2px rgba(28,24,32,0.04),0 2px 6px rgba(28,24,32,0.05)`,
+                          transition:"all 0.08s",
                         }}>
                         <div style={{ fontSize:10, color:accent?t.accent:t.textTertiary, marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
                           {c.degree}
@@ -6438,7 +6420,7 @@ export default function App() {
                     ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality).map((ni, i) => (
                         <span key={i} style={{
                           background:t.accentBg, color:t.accent, border:`1px solid ${t.accentBorder}`,
-                          borderRadius:8, padding:"4px 12px", fontSize:13, fontWeight:600,
+                          borderRadius:2, padding:"4px 12px", fontSize:13, fontWeight:600,
                           letterSpacing:"-0.01em", fontFamily:SF,
                         }}>
                           {NOTES[ni]}
@@ -6448,19 +6430,19 @@ export default function App() {
                   }
                 </div>
 
-                <div style={{ background:t.pianoRailBg, borderRadius:12, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
-                  <div style={{ background:t.pianoKeysBg, borderRadius:6, overflow:"hidden" }}>
+                <div style={{ background:t.pianoRailBg, borderRadius:2, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
+                  <div style={{ background:t.pianoKeysBg, borderRadius:2, overflow:"hidden" }}>
                     <Piano highlightedNotes={highlightedNotes} scaleNoteIndices={scaleNoteIndices} t={t} onNoteClick={note => { if (!sendMIDISingleNote(note)) playSingleNote(note, soundType); }} />
                   </div>
                 </div>
 
                 <div style={{ display:"flex", gap:16, marginTop:12, fontSize:12, color:t.textSecondary }}>
                   <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ width:14, height:14, borderRadius:4, background:t.legendChord, display:"inline-block", flexShrink:0 }} />
+                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendChord, display:"inline-block", flexShrink:0 }} />
                     Chord tones
                   </span>
                   <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ width:14, height:14, borderRadius:4, background:t.legendScale, border:`1px solid ${t.legendScaleBdr}`, display:"inline-block", flexShrink:0 }} />
+                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendScale, border:`1px solid ${t.legendScaleBdr}`, display:"inline-block", flexShrink:0 }} />
                     Scale tones
                   </span>
                 </div>
@@ -6476,7 +6458,7 @@ export default function App() {
                       <span style={{ fontSize:11, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
                         display:"flex", alignItems:"center", gap:5 }}>
                         <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
-                          boxShadow:"0 0 0 2px rgba(48,209,88,0.3)", display:"inline-block",
+                          display:"inline-block",
                           animation:"pulse 1.2s ease-in-out infinite" }} />
                         LOOPING
                       </span>
@@ -6490,30 +6472,30 @@ export default function App() {
                     {clockDebug && midiSyncMode === "receive" && (
                       <span style={{ fontSize:8, color:t.textTertiary, fontFamily:"'Share Tech Mono',monospace", opacity:0.7 }}>{clockDebug}</span>
                     )}
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
                     <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
                       readOnly={!!externalBpm}
                       onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
                       onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
                       onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:8,
+                      style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
                         border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(122,91,175,0.35)"}`,
                         background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
                         color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
                         cursor: externalBpm ? "default" : "text" }}
                     />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
                     <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
                     {/* Octave */}
                     <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
                     <span style={{ fontSize:14, fontWeight:700, color:t.textPrimary, minWidth:16, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:8, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
                   </div>
                 </div>
 
                 {/* Timeline track */}
-                <div style={{ borderRadius:10, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
+                <div style={{ borderRadius:2, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
                   {/* Bar labels */}
                   <div style={{ display:"grid", gridTemplateColumns:`repeat(4,1fr)`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
                     {Array.from({length:4}, (_,i) => (
@@ -6563,11 +6545,11 @@ export default function App() {
                           left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
                           width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
                           top:6, height:"calc(100% - 12px)",
-                          background: isSustained ? `linear-gradient(180deg,${t.accentCardHover} 0%,${t.accentCardBg} 100%)` : "transparent",
+                          background: isSustained ? t.accentCardBg : "transparent",
                           border: isSustained ? `1px solid ${t.accentBorder}` : "none",
-                          borderRadius:6, cursor:"grab",
+                          borderRadius:2, cursor:"grab",
                           overflow:"hidden",
-                          boxShadow: isSustained ? `0 0 8px rgba(122,91,175,0.1)` : "none",
+                          boxShadow: "none",
                         }}>
                         {/* Sustained mode — original look */}
                         {isSustained && (
@@ -6621,10 +6603,10 @@ export default function App() {
                                     border: isMuted
                                       ? "1px dashed rgba(128,128,128,0.3)"
                                       : `1px solid rgba(122,91,175,${0.3 + hit.velMult * 0.3})`,
-                                    borderRadius:4,
+                                    borderRadius:2,
                                     cursor:"pointer",
                                     transition:"all 0.1s",
-                                    boxShadow: isMuted ? "none" : `0 0 4px rgba(122,91,175,${hit.velMult * 0.2})`,
+                                    boxShadow: "none",
                                   }}
                                 />
                               );
@@ -6644,7 +6626,7 @@ export default function App() {
 
                     {/* Playhead */}
                     {looping && (
-                      <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none", boxShadow:`0 0 6px ${t.accent}` }} />
+                      <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none" }} />
                     )}
                     {/* Empty state */}
                     {timelineItems.length===0 && (
@@ -6658,13 +6640,12 @@ export default function App() {
                 {/* Loop toggle — right below timeline */}
                 <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
                   <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 12px", borderRadius:7,
+                    style={{ fontFamily:"'Share Tech Mono',monospace", fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
                       border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                      background: loopEnabled ? "rgba(48,209,88,0.12)" : t.btnBg,
-                      color: loopEnabled ? "#30D158" : t.textTertiary,
-                      cursor:"pointer", transition:"all 0.12s", display:"flex", alignItems:"center", gap:5 }}>
-                    <span style={{ fontSize:13 }}>🔁</span>
-                    {loopEnabled ? "Loop ON" : "Loop OFF"}
+                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
+                      color: loopEnabled ? "#2B9A3E" : "rgba(28,24,32,0.35)",
+                      cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
+                    {loopEnabled ? "LOOP" : "1×"}
                   </button>
                   {!loopEnabled && (
                     <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>Stops after one pass</span>
@@ -6679,7 +6660,7 @@ export default function App() {
                     </span>
                     <select value={chordPlayPattern}
                       onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
-                      style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                      style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:2,
                         border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
                       {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
                         <option key={key} value={key}>{cfg.label} — {cfg.desc}</option>
@@ -6708,7 +6689,7 @@ export default function App() {
                     const midiToName = (midi) => NOTES[midi % 12] + Math.floor((midi - 12) / 12);
 
                     return (
-                      <div ref={pianoRollRef} style={{ display:"flex", borderRadius:8, overflow:"hidden", border:`1px solid ${t.border}`, marginTop:4 }}>
+                      <div ref={pianoRollRef} style={{ display:"flex", borderRadius:2, overflow:"hidden", border:`1px solid ${t.border}`, marginTop:4 }}>
                         {/* Note labels (left) */}
                         <div style={{ width:LABEL_W, flexShrink:0, background:t.elevatedBg, borderRight:`1px solid ${t.border}` }}>
                           {Array.from({length:noteCount}, (_,i) => {
@@ -6849,7 +6830,7 @@ export default function App() {
                       <div style={{ flex:1 }} />
                       {Object.keys(pianoRollEdits).length > 0 && (
                         <button onClick={() => setPianoRollEdits({})}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:2,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textSecondary, cursor:"pointer" }}>
                           Reset edits
                         </button>
@@ -6872,25 +6853,25 @@ export default function App() {
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                         <select value={bassPattern}
                           onChange={e => { setBassPattern(e.target.value); regenerateBass(e.target.value); }}
-                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:2,
                             border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
                           {Object.entries(BASS_PATTERNS).map(([key, cfg]) => (
                             <option key={key} value={key}>{cfg.label}</option>
                           ))}
                         </select>
                         {timelineItems.length > 0 && (
-                          <button onClick={() => regenerateBass()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                          <button onClick={() => regenerateBass()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                             Regen
                           </button>
                         )}
                         {bassLine.length > 0 && (
-                          <button onClick={() => setBassLine([])} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
+                          <button onClick={() => setBassLine([])} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
                             Clear
                           </button>
                         )}
                         <div style={{ width:1, height:18, background:t.border }} />
                         <select value={bassSound} onChange={e => setBassSound(e.target.value)}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:2,
                             border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
                           <option value="piano">Piano</option>
                           <option value="808">808 Bass</option>
@@ -6898,18 +6879,18 @@ export default function App() {
                         <div style={{ width:1, height:18, background:t.border }} />
                         <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setBassOctaveOffset(o => Math.max(-2, o - 1)); }}
-                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:2,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
                         <span style={{ fontFamily:SF, fontSize:11, fontWeight:700, color:t.textPrimary, minWidth:18, textAlign:"center" }}>
                           {bassOctaveOffset === 0 ? "0" : (bassOctaveOffset > 0 ? `+${bassOctaveOffset}` : bassOctaveOffset)}
                         </span>
                         <button onClick={() => { setBassOctaveOffset(o => Math.min(2, o + 1)); }}
-                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:2,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Mini bass visualization */}
                       {bassLine.length > 0 && (
-                        <div style={{ height:40, borderRadius:6, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
+                        <div style={{ height:40, borderRadius:2, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
                           {/* Slot lines */}
                           {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                             if (i === 0) return null;
@@ -6934,7 +6915,7 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 60 + 8}%`, height: 8,
-                                  background: densRemoved ? "rgba(52,199,89,0.12)" : "rgba(52,199,89,0.6)", borderRadius:3,
+                                  background: densRemoved ? "rgba(52,199,89,0.12)" : "rgba(52,199,89,0.6)", borderRadius:1,
                                   border: densRemoved ? "1px dashed rgba(52,199,89,0.3)" : "1px solid rgba(52,199,89,0.8)",
                                   cursor:"pointer", transition:"background 0.2s, border 0.2s",
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
@@ -6954,7 +6935,7 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 60 + 8}%`, height: 8,
-                                  background:"rgba(28,24,32,0.08)", borderRadius:3,
+                                  background:"rgba(28,24,32,0.08)", borderRadius:1,
                                   border:"1px dashed rgba(28,24,32,0.2)",
                                   cursor:"pointer", opacity:0.5,
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
@@ -6981,25 +6962,25 @@ export default function App() {
                       <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                         <select value={melodyPattern}
                           onChange={e => { setMelodyPattern(e.target.value); regenerateMelody(e.target.value); }}
-                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:7,
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:2,
                             border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
                           {Object.entries(MELODY_PATTERNS).map(([key, cfg]) => (
                             <option key={key} value={key}>{cfg.label}</option>
                           ))}
                         </select>
                         {timelineItems.length > 0 && (
-                          <button onClick={() => regenerateMelody()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                          <button onClick={() => regenerateMelody()} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                             Regen
                           </button>
                         )}
                         {melodyLine.length > 0 && (
-                          <button onClick={() => setMelodyLine([])} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:7, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
+                          <button onClick={() => setMelodyLine([])} style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"5px 12px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
                             Clear
                           </button>
                         )}
                         <div style={{ width:1, height:18, background:t.border }} />
                         <select value={melodySound} onChange={e => setMelodySound(e.target.value)}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 8px", borderRadius:2,
                             border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
                           <option value="piano">Piano</option>
                           <option value="bell">Bell</option>
@@ -7008,18 +6989,18 @@ export default function App() {
                         <div style={{ width:1, height:18, background:t.border }} />
                         <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Oct</span>
                         <button onClick={() => { setMelodyOctaveOffset(o => Math.max(-2, o - 1)); }}
-                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:2,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>−</button>
                         <span style={{ fontFamily:SF, fontSize:11, fontWeight:700, color:t.textPrimary, minWidth:18, textAlign:"center" }}>
                           {melodyOctaveOffset === 0 ? "0" : (melodyOctaveOffset > 0 ? `+${melodyOctaveOffset}` : melodyOctaveOffset)}
                         </span>
                         <button onClick={() => { setMelodyOctaveOffset(o => Math.min(2, o + 1)); }}
-                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:6,
+                          style={{ fontFamily:SF, fontSize:12, fontWeight:600, width:22, height:22, borderRadius:2,
                             border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1, padding:0 }}>+</button>
                       </div>
                       {/* Melody visualization */}
                       {melodyLine.length > 0 && (
-                        <div style={{ height:50, borderRadius:6, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
+                        <div style={{ height:50, borderRadius:2, border:`1px solid ${t.border}`, background:t.slotBg, position:"relative", overflow:"hidden" }}>
                           {/* Slot lines */}
                           {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
                             if (i === 0) return null;
@@ -7044,7 +7025,7 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 70 + 6}%`, height: 8,
-                                  background: densRemoved ? "rgba(255,159,10,0.12)" : "rgba(255,159,10,0.6)", borderRadius:3,
+                                  background: densRemoved ? "rgba(255,159,10,0.12)" : "rgba(255,159,10,0.6)", borderRadius:1,
                                   border: densRemoved ? "1px dashed rgba(255,159,10,0.3)" : "1px solid rgba(255,159,10,0.8)",
                                   cursor:"pointer", transition:"background 0.2s, border 0.2s",
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} vel:${note.velocity}${densRemoved?" (density removed)":""} — double-click to mute`} />
@@ -7064,7 +7045,7 @@ export default function App() {
                                   left:`${(note.startSlot / TIMELINE_SLOTS) * 100}%`,
                                   width:`calc(${(note.lengthSlots / TIMELINE_SLOTS) * 100}% - 2px)`,
                                   top: `${yPct * 70 + 6}%`, height: 8,
-                                  background:"rgba(28,24,32,0.08)", borderRadius:3,
+                                  background:"rgba(28,24,32,0.08)", borderRadius:1,
                                   border:"1px dashed rgba(28,24,32,0.2)",
                                   cursor:"pointer", opacity:0.5,
                                 }} title={`${NOTES[note.midi % 12]}${Math.floor((note.midi-12)/12)} (muted) — double-click to restore`} />
@@ -7093,13 +7074,13 @@ export default function App() {
                         <button onClick={() => {
                           const name = prompt("Section name:", `Section ${sections.length + 1}`);
                           if (name) saveSection(name);
-                        }} style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"7px 16px", borderRadius:8,
+                        }} style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"7px 16px", borderRadius:2,
                           border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                           + Save current as section
                         </button>
                         {editingSectionId && (
                           <button onClick={() => updateSection(editingSectionId)}
-                            style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"7px 16px", borderRadius:8,
+                            style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"7px 16px", borderRadius:2,
                               border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                             Update "{sections.find(s=>s.id===editingSectionId)?.name}"
                           </button>
@@ -7111,13 +7092,13 @@ export default function App() {
                         <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
                           <div style={{ fontSize:10, fontWeight:600, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.06em" }}>Saved sections</div>
                           {sections.map(sec => (
-                            <div key={sec.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", borderRadius:8,
+                            <div key={sec.id} style={{ display:"flex", alignItems:"center", gap:8, padding:"6px 10px", borderRadius:2,
                               background: editingSectionId === sec.id ? t.accentBg : t.elevatedBg,
                               border:`1px solid ${editingSectionId === sec.id ? t.accentBorder : t.border}` }}>
                               <span style={{ fontSize:12, fontWeight:600, color:t.textPrimary, fontFamily:SF, flex:1 }}>{sec.name}</span>
                               <span style={{ fontSize:10, color:t.textTertiary }}>{sec.timelineItems.length} chords · {sec.drumPattern ? "drums" : "no drums"} · {sec.bassLine?.length || 0} bass</span>
-                              <button onClick={() => loadSection(sec.id)} style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:5, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>Load</button>
-                              <button onClick={() => setArrangement(a => [...a, sec.id])} style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:5, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>+ Arr</button>
+                              <button onClick={() => loadSection(sec.id)} style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>Load</button>
+                              <button onClick={() => setArrangement(a => [...a, sec.id])} style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>+ Arr</button>
                               <button onClick={() => deleteSection(sec.id)} style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:13, padding:"0 3px" }}>×</button>
                             </div>
                           ))}
@@ -7135,7 +7116,7 @@ export default function App() {
                               return (
                                 <div key={idx} style={{ display:"flex", alignItems:"center", gap:2 }}>
                                   {idx > 0 && <span style={{ fontSize:10, color:t.textTertiary }}>→</span>}
-                                  <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:6,
+                                  <div style={{ display:"flex", alignItems:"center", gap:4, padding:"4px 10px", borderRadius:2,
                                     background:t.accentBg, border:`1px solid ${t.accentBorder}` }}>
                                     <span style={{ fontSize:11, fontWeight:600, color:t.accent, fontFamily:SF }}>{sec.name}</span>
                                     <button onClick={() => setArrangement(a => a.filter((_,i) => i !== idx))}
@@ -7147,18 +7128,18 @@ export default function App() {
                           </div>
                           <div style={{ display:"flex", gap:6, alignItems:"center", marginTop:4 }}>
                             <button onClick={playArrangement}
-                              style={{ fontFamily:SF, fontSize:13, fontWeight:700, padding:"8px 22px", borderRadius:10, border:"none",
+                              style={{ fontFamily:SF, fontSize:13, fontWeight:700, padding:"8px 22px", borderRadius:2, border:"none",
                                 background: arrangementPlaying ? "#FF453A" : "#34C759",
-                                color: "#FFFFFF", cursor:"pointer", transition:"all 0.15s ease",
-                                boxShadow: arrangementPlaying ? "0 0 12px rgba(255,69,58,0.3)" : "0 0 12px rgba(52,199,89,0.3)" }}>
-                              {arrangementPlaying ? "⬛ Stop" : "▶  Play Arrangement"}
+                                color: "#FFFFFF", cursor:"pointer", transition:"all 0.08s",
+                              }}>
+                              {arrangementPlaying ? "Stop" : "Play Arrangement"}
                             </button>
                             <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>
                               {arrangement.length} sections · {Math.round(arrangement.length * TIMELINE_SLOTS * (60/bpm) * 0.25)}s
                             </span>
                             <div style={{ flex:1 }} />
                             <button onClick={() => setArrangement([])}
-                              style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:5,
+                              style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 10px", borderRadius:2,
                                 border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.textTertiary, cursor:"pointer" }}>
                               Clear
                             </button>
@@ -7172,11 +7153,11 @@ export default function App() {
                 {/* Controls */}
                 <div style={{ display:"flex", gap:8, flexWrap:"wrap", alignItems:"center" }}>
                   <button onClick={playTimeline} disabled={timelineItems.length===0 && !drumPattern && bassLine.length===0}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:10, border:"none",
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 20px", borderRadius:2, border:"none",
                       background: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? t.playDisabledBg : looping ? "#FF453A" : t.playActiveBg,
                       color: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? t.playDisabledClr : "#FFFFFF",
-                      cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "not-allowed" : "pointer", transition:"all 0.15s ease" }}>
-                    {looping ? "⬛ Stop" : "▶  Play"}
+                      cursor: (timelineItems.length===0 && !drumPattern && bassLine.length===0) ? "not-allowed" : "pointer", transition:"all 0.08s" }}>
+                    {looping ? "Stop" : "Play"}
                   </button>
                   {/* Mute/Solo/Density per element */}
                   {[
@@ -7203,7 +7184,7 @@ export default function App() {
                     return (
                       <div key={key} style={{ display:"flex", alignItems:"center", gap:2 }}>
                         <button onClick={e => e.shiftKey ? soloThis() : setMute(m => !m)}
-                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 10px", borderRadius:"8px 0 0 8px",
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"6px 10px", borderRadius:"2px 0 0 2px",
                             border:`1px solid ${muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.border : t.btnBorder}`,
                             background: muted ? "rgba(255,69,58,0.1)" : isSolod ? "rgba(255,214,10,0.1)" : t.btnBg,
                             color: muted ? "#FF453A" : isSolod ? "#FFD60A" : disabled ? t.textTertiary : t.btnColor,
@@ -7213,7 +7194,7 @@ export default function App() {
                           {label}
                         </button>
                         <button onClick={soloThis} title={`Solo ${label}`}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:700, padding:"6px 5px", borderRadius:"0 8px 8px 0",
+                          style={{ fontFamily:SF, fontSize:10, fontWeight:700, padding:"6px 5px", borderRadius:"0 2px 2px 0",
                             border:`1px solid ${isSolod ? "#FFD60A" : t.btnBorder}`,
                             background: isSolod ? "rgba(255,214,10,0.15)" : t.btnBg,
                             color: isSolod ? "#FFD60A" : t.textTertiary,
@@ -7263,30 +7244,30 @@ export default function App() {
                   </div>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:2,
                       border:`1px solid ${arpOn?t.accentBorder:t.btnBorder}`, background:arpOn?t.accentBg:t.btnBg,
-                      color:arpOn?t.accent:t.btnColor, cursor:"pointer", transition:"all 0.15s ease" }}>
+                      color:arpOn?t.accent:t.btnColor, cursor:"pointer", transition:"all 0.08s" }}>
                     ⤴ Arp
                   </button>
                   {arpOn && <>
                     <div style={{ width:1, height:20, background:t.border }} />
                     {[{v:"up",l:"↑"},{v:"down",l:"↓"},{v:"updown",l:"↑↓"},{v:"random",l:"?"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpPattern(v); }}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpPattern===v?700:500, padding:"5px 11px", borderRadius:8,
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpPattern===v?700:500, padding:"5px 11px", borderRadius:2,
                           border:`1px solid ${arpPattern===v?t.accentBorder:t.btnBorder}`, background:arpPattern===v?t.accentBg:t.btnBg,
                           color:arpPattern===v?t.accent:t.btnColor, cursor:"pointer" }}>{l}</button>
                     ))}
                     <div style={{ width:1, height:20, background:t.border }} />
                     {[{v:0.25,l:"16th"},{v:0.5,l:"8th"},{v:1,l:"¼"}].map(({v,l}) => (
                       <button key={v} onClick={() => { if(looping) stopLoop(); setArpRate(v); }}
-                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpRate===v?700:500, padding:"5px 11px", borderRadius:8,
+                        style={{ fontFamily:SF, fontSize:12, fontWeight:arpRate===v?700:500, padding:"5px 11px", borderRadius:2,
                           border:`1px solid ${arpRate===v?t.accentBorder:t.btnBorder}`, background:arpRate===v?t.accentBg:t.btnBg,
                           color:arpRate===v?t.accent:t.btnColor, cursor:"pointer" }}>{l}</button>
                     ))}
                   </>}
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { stopLoop(); setTimelineItems([]); setActiveChord(null); }}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Clear
                   </button>
                   <button onClick={() => {
@@ -7302,7 +7283,7 @@ export default function App() {
                       slot += len2;
                     });
                     setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
+                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 18px", borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Random
                   </button>
                   <button onClick={() => {
@@ -7351,13 +7332,13 @@ export default function App() {
                       slot += len2;
                     });
                     setTimelineItems(items); setActiveChord(cs[0]);
-                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
+                  }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:2, border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                     ✦ Suggest
                   </button>
                   {/* Style dropdown */}
                   <div style={{ position:"relative" }}>
                     <button onClick={() => setStyleMenuOpen(o => !o)}
-                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 14px", borderRadius:10,
+                      style={{ fontFamily:SF, fontSize:13, fontWeight:500, padding:"8px 14px", borderRadius:2,
                         border:`1px solid ${playStyle!=="normal"?t.accentBorder:t.btnBorder}`,
                         background:playStyle!=="normal"?t.accentBg:t.btnBg,
                         color:playStyle!=="normal"?t.accent:t.btnColor, cursor:"pointer", display:"flex", alignItems:"center", gap:6 }}>
@@ -7369,13 +7350,12 @@ export default function App() {
                       <>
                         <div onClick={() => setStyleMenuOpen(false)} style={{ position:"fixed", inset:0, zIndex:50 }} />
                         <div style={{ position:"absolute", top:"calc(100% + 6px)", left:0, zIndex:51, minWidth:180,
-                            background:t.cardBg, border:`1px solid ${t.border}`, borderRadius:12,
-                            boxShadow:`0 8px 24px rgba(28,24,32,0.12), 0 2px 6px rgba(28,24,32,0.06)`,
-                            padding:6, display:"flex", flexDirection:"column", gap:2 }}>
+                            background:"#fff", border:`1px solid rgba(28,24,32,0.12)`,
+                            padding:4, display:"flex", flexDirection:"column", gap:1 }}>
                           {Object.entries(STYLES).map(([key, cfg]) => (
                             <button key={key} onClick={() => { if(looping) stopLoop(); setPlayStyle(key); setStyleMenuOpen(false); }}
                               style={{ fontFamily:SF, fontSize:13, fontWeight:playStyle===key?700:500,
-                                padding:"8px 12px", borderRadius:8, border:"none", textAlign:"left",
+                                padding:"8px 12px", borderRadius:2, border:"none", textAlign:"left",
                                 background:playStyle===key?t.accentBg:"transparent",
                                 color:playStyle===key?t.accent:t.textPrimary, cursor:"pointer",
                                 display:"flex", justifyContent:"space-between", alignItems:"center", gap:10 }}
@@ -7394,10 +7374,10 @@ export default function App() {
                   <input value={chordInput} onChange={e=>{setChordInput(e.target.value);setChordInputErr(false);}}
                     onKeyDown={e=>{ if(e.key!=="Enter") return; const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
                     placeholder="Type chord, e.g. Fmaj7…"
-                    style={{ fontFamily:SF, fontSize:13, padding:"7px 12px", borderRadius:10, border:`1.5px solid ${chordInputErr?"#FF453A":t.inputBorder}`, background:t.inputBg, color:t.inputColor, outline:"none", width:180 }}
+                    style={{ fontFamily:SF, fontSize:13, padding:"7px 12px", borderRadius:2, border:`1.5px solid ${chordInputErr?"#FF453A":t.inputBorder}`, background:t.inputBg, color:t.inputColor, outline:"none", width:180 }}
                   />
                   <button onClick={() => { const c=parseChordText(chordInput); if(!c){setChordInputErr(true);return;} addChord(c); setChordInput(""); }}
-                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"7px 16px", borderRadius:10, border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
+                    style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"7px 16px", borderRadius:2, border:"none", background:t.accent, color:"#FFFFFF", cursor:"pointer" }}>
                     Add
                   </button>
                   {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Unknown chord</span>}
@@ -7407,7 +7387,7 @@ export default function App() {
                   <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", width:70 }}>Fill</span>
                   <button onClick={() => { fillNextRef.current = true; }}
                     disabled={!drumPattern || !looping}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 12px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 12px", borderRadius:2,
                       border:`1px solid ${fillNextRef.current ? "#FF9F0A" : t.btnBorder}`,
                       background: fillNextRef.current ? "rgba(255,159,10,0.12)" : t.btnBg,
                       color: fillNextRef.current ? "#FF9F0A" : t.btnColor,
@@ -7416,7 +7396,7 @@ export default function App() {
                     Next Loop
                   </button>
                   <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
-                    style={{ fontFamily:SF, fontSize:11, padding:"5px 8px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:11, padding:"5px 8px", borderRadius:2,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor }}>
                     <option value="off">Auto: Off</option>
                     <option value="auto4">Auto: Every 4 loops</option>
@@ -7457,7 +7437,7 @@ export default function App() {
                     setPianoRollEdits({}); setHumanize(0); setLoopEnabled(true); loopEnabledRef.current = true;
                     localStorage.removeItem("fiskaturet_project");
                   }}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     New
                   </button>
@@ -7471,13 +7451,13 @@ export default function App() {
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer",
                       transition:"all 0.12s" }}>
                     Save .json
                   </button>
                   <button onClick={() => fileInputRef.current && fileInputRef.current.click()}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     Load .json
                   </button>
@@ -7510,7 +7490,7 @@ export default function App() {
                   <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", marginRight:4 }}>MPC</span>
                   <button onClick={downloadMidi}
                     disabled={timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent,
                       cursor: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0) ? "not-allowed" : "pointer",
                       opacity: (timelineItems.length === 0 && !drumPattern && bassLine.length === 0 && melodyLine.length === 0) ? 0.4 : 1,
@@ -7518,13 +7498,13 @@ export default function App() {
                     ↓ Export MIDI
                   </button>
                   <button onClick={downloadDrumProgram}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight:500, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer" }}>
                     ↓ Drum Program (.xpm)
                   </button>
                   <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => setChordPadMode(m => !m)}
-                    style={{ fontFamily:SF, fontSize:12, fontWeight: chordPadMode ? 700 : 500, padding:"6px 14px", borderRadius:8,
+                    style={{ fontFamily:SF, fontSize:12, fontWeight: chordPadMode ? 700 : 500, padding:"6px 14px", borderRadius:2,
                       border:`1px solid ${chordPadMode ? "#34C759" : t.btnBorder}`,
                       background: chordPadMode ? "rgba(52,199,89,0.12)" : t.btnBg,
                       color: chordPadMode ? "#34C759" : t.btnColor, cursor:"pointer",
@@ -7553,7 +7533,7 @@ export default function App() {
                         a.download = "fiskaturet-arrangement.mid";
                         a.click();
                         URL.revokeObjectURL(url);
-                      }} style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:8,
+                      }} style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"6px 14px", borderRadius:2,
                         border:`1px solid rgba(52,199,89,0.5)`, background:"rgba(52,199,89,0.1)", color:"#34C759", cursor:"pointer" }}>
                         ↓ Export Arrangement
                       </button>
