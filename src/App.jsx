@@ -5734,10 +5734,10 @@ export default function App() {
               </p>
             </div>
             <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-              <div style={{ width:5, height:5, borderRadius:"50%", background: isPlaying ? "#D4351C" : "#888888" }} />
-              <span style={{ fontSize:9, color:"#888888", fontWeight:600,
+              <div style={{ width:5, height:5, borderRadius:"50%", background: looping ? "#D4351C" : "#888888" }} />
+              <span style={{ fontSize:9, color: looping ? "#D4351C" : "#888888", fontWeight:600,
                 letterSpacing:"0.08em", textTransform:"uppercase", fontFamily:MONO }}>
-                {isPlaying ? "LIVE" : "IDLE"}
+                {looping ? "LIVE" : "IDLE"}
               </span>
             </div>
           </div>
