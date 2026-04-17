@@ -2022,6 +2022,139 @@ function energyScale(energy) {
   return { velMult, densityOffset };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// ─── SONG GENERATOR — part templates & transform helpers ─────────────────
+// ═══════════════════════════════════════════════════════════════════════════
+
+const SONG_PART_TEMPLATES = [
+  { key:"intro",   name:"Intro",    energy:30,  drumDensity:0.3, bassDensity:0.4, melodyDensity:0.5, chordKeep:0.35, useStemChords:true,  drumVariant:"thin",     bassVariant:"root",    melodyVariant:"sparse"   },
+  { key:"verse1a", name:"Vers 1a",  energy:55,  drumDensity:0.7, bassDensity:0.8, melodyDensity:0.7, chordKeep:1.0,  useStemChords:true,  drumVariant:"normal",   bassVariant:"stem",    melodyVariant:"stem"     },
+  { key:"verse1b", name:"Vers 1b",  energy:65,  drumDensity:0.8, bassDensity:0.85,melodyDensity:0.8, chordKeep:1.0,  useStemChords:true,  drumVariant:"busier",   bassVariant:"stem",    melodyVariant:"stem"     },
+  { key:"hook",    name:"Hook",     energy:95,  drumDensity:1.0, bassDensity:1.0, melodyDensity:1.0, chordKeep:1.0,  useStemChords:true,  drumVariant:"full",     bassVariant:"stem",    melodyVariant:"full"     },
+  { key:"bridge",  name:"Bridge",   energy:40,  drumDensity:0.2, bassDensity:0.3, melodyDensity:0.6, chordKeep:1.0,  useStemChords:false, drumVariant:"halftime", bassVariant:"minimal", melodyVariant:"contrast" },
+  { key:"verse2a", name:"Vers 2a",  energy:60,  drumDensity:0.75,bassDensity:0.8, melodyDensity:0.75,chordKeep:1.0,  useStemChords:true,  drumVariant:"normal",   bassVariant:"stem",    melodyVariant:"varied"   },
+  { key:"verse2b", name:"Vers 2b",  energy:70,  drumDensity:0.85,bassDensity:0.9, melodyDensity:0.85,chordKeep:1.0,  useStemChords:true,  drumVariant:"busier",   bassVariant:"stem",    melodyVariant:"varied"   },
+  { key:"hook2",   name:"Hook 2",   energy:100, drumDensity:1.0, bassDensity:1.0, melodyDensity:1.0, chordKeep:1.0,  useStemChords:true,  drumVariant:"full",     bassVariant:"stem",    melodyVariant:"full"     },
+  { key:"outro",   name:"Outro",    energy:25,  drumDensity:0.2, bassDensity:0.3, melodyDensity:0.4, chordKeep:0.35, useStemChords:true,  drumVariant:"thin",     bassVariant:"minimal", melodyVariant:"sparse"   },
+];
+
+// Core tracks to keep in "thin" variant — everything else is stripped
+const CORE_DRUM_TRACKS = new Set(["kick","snare","hatC"]);
+
+// Thin drum pattern: remove hits based on importance + variant
+function songThinDrums(pattern, density, variant) {
+  if (!pattern) return null;
+  const out = {};
+  const trackIds = Object.keys(pattern);
+  for (const tid of trackIds) {
+    const src = pattern[tid];
+    if (!src) { out[tid] = src; continue; }
+    const arr = [...src];
+    for (let s = 0; s < arr.length; s++) {
+      if (arr[s] === 0) continue;
+      // Variant-specific removals
+      if (variant === "thin" && !CORE_DRUM_TRACKS.has(tid)) { arr[s] = 0; continue; }
+      if (variant === "halftime" && tid === "snare" && (s % 32) >= 16) { arr[s] = 0; continue; }
+      if (variant === "halftime" && tid === "hatC" && s % 4 !== 0) { arr[s] = 0; continue; }
+      // Importance-based thinning
+      const imp = drumImportance(tid, s);
+      if (imp < (1 - density)) arr[s] = 0;
+    }
+    // "busier": add ghost hits
+    if (variant === "busier" && (tid === "ghost" || tid === "ghostKick")) {
+      for (let s = 0; s < arr.length; s += 2) {
+        if (arr[s] === 0 && Math.random() < 0.2) arr[s] = 30 + Math.floor(Math.random() * 25);
+      }
+    }
+    // "full": add crash on beat 1 of bar 1
+    if (variant === "full" && tid === "crash" && arr.length > 0) {
+      arr[0] = Math.max(arr[0], 100);
+    }
+    out[tid] = arr;
+  }
+  return out;
+}
+
+// Thin bass line
+function songThinBass(bass, density, variant) {
+  return bass.map(note => {
+    const n = { ...note };
+    if (variant === "root" && (note.startSlot % 16 !== 0)) { n.muted = true; return n; }
+    if (variant === "minimal" && (note.startSlot % 16 !== 0)) { n.muted = true; return n; }
+    if (variant === "varied" && Math.random() < 0.15) { n.muted = !n.muted; return n; }
+    const imp = bassImportance(note.startSlot, note.lengthSlots);
+    if (imp < (1 - density)) n.muted = true;
+    return n;
+  });
+}
+
+// Thin melody line
+function songThinMelody(melody, density, variant) {
+  return melody.map(note => {
+    const n = { ...note };
+    if (variant === "sparse" && (note.startSlot % 8 !== 0)) { n.muted = true; return n; }
+    if (variant === "contrast") { n.midi = (n.midi || 60) + 12; } // octave up for bridge
+    if (variant === "varied" && Math.random() < 0.15) { n.muted = !n.muted; return n; }
+    if (variant === "full") { n.velocity = Math.min(127, Math.round((n.velocity || 100) * 1.1)); return n; }
+    const imp = melodyImportance(note.startSlot, note.lengthSlots, note.velocity);
+    if (imp < (1 - density)) n.muted = true;
+    return n;
+  });
+}
+
+// Scale velocities by energy level
+function songScaleVelocity(val, energy) {
+  const mult = 0.5 + (energy / 100) * 0.6; // 0.5 at energy=0, 1.1 at energy=100
+  return Math.max(1, Math.min(127, Math.round(val * mult)));
+}
+function songScaleDrumVelocities(pattern, energy) {
+  if (!pattern) return null;
+  const out = {};
+  for (const tid of Object.keys(pattern)) {
+    out[tid] = pattern[tid].map(v => v > 0 ? songScaleVelocity(v, energy) : 0);
+  }
+  return out;
+}
+function songScaleNoteVelocities(notes, energy) {
+  return notes.map(n => ({ ...n, velocity: n.muted ? n.velocity : songScaleVelocity(n.velocity || 100, energy) }));
+}
+
+// Generate bridge chords — borrow from relative major/minor
+function generateBridgeChords(stemChords, scaleKey, rootIdx, chordOctave, TIMELINE_SLOTS) {
+  if (stemChords.length === 0) return stemChords;
+  const scaleObj = SCALES[scaleKey];
+  if (!scaleObj) return stemChords;
+  // Relative key: minor→+3 (relative major), major→-3+12 (relative minor)
+  const relativeShift = (scaleKey === "minor" || scaleKey === "dorian" || scaleKey === "phrygian") ? 3 : 9;
+  const bridgeRoot = (rootIdx + relativeShift) % 12;
+  const bridgeScale = relativeShift === 3 ? "major" : "minor";
+  const bs = SCALES[bridgeScale];
+  // Pick first 2 scale degrees — I and IV of the relative key
+  const degrees = [0, 3]; // I, IV
+  const seventhList = bridgeScale === "major" ? SEVENTHS_MAJOR : SEVENTHS_MINOR;
+  const suffixOf = q =>
+    q==="maj"?"": q==="min"?"m": q==="dim"?"\u00B0":
+    q==="maj7"?"maj7": q==="m7"?"m7": q==="7"?"7":
+    q==="m7b5"?"m7b5": q==="maj9"?"maj9": q==="m9"?"m9": q==="9"?"9":
+    q==="sus2"?"sus2": q==="sus4"?"sus4": q==="5"?"5": q;
+  const chords = degrees.map(d => {
+    const i = d % 7;
+    const noteIdx = (bridgeRoot + bs.intervals[i]) % 12;
+    let quality = bs.qualities[i];
+    // 50% chance to extend to 7th for richness
+    if (quality !== "dim" && Math.random() < 0.5) quality = seventhList[i];
+    return { noteIdx, quality, degree: bs.degrees[i], display: NOTES[noteIdx] + suffixOf(quality) };
+  });
+  // Spread evenly
+  const slotsPer = Math.floor(TIMELINE_SLOTS / chords.length);
+  return chords.map((chord, i) => ({
+    id: Date.now() + Math.random() + i,
+    chord,
+    startSlot: i * slotsPer,
+    lengthSlots: i < chords.length - 1 ? slotsPer : TIMELINE_SLOTS - i * slotsPer,
+  }));
+}
+
 // ── Pad Map Presets ──
 const PAD_MAP_PRESETS = [
   { id:"default", label:"Fiskaturet Default (GM)", desc:"General MIDI drum map",
@@ -6518,6 +6651,97 @@ export default function App() {
     setMode("chords");
   }, [looping, stopLoop, chordOctave, bassOctaveOffset, melodyOctaveOffset, SLOTS_PER_BAR, resizeDrumPattern]);
 
+  // ── Generate Song — create full arrangement from current stem ──────────
+  const generateSong = useCallback(() => {
+    if (looping) stopLoop();
+    if (timelineItems.length === 0) { alert("Legg til akkorder først!"); return; }
+
+    // Deep clone the current "stem"
+    const stemChords = JSON.parse(JSON.stringify(timelineItems));
+    const stemDrums  = drumPattern ? JSON.parse(JSON.stringify(drumPattern)) : null;
+    const stemBass   = JSON.parse(JSON.stringify(bassLine));
+    const stemMelody = JSON.parse(JSON.stringify(melodyLine));
+    const currentRootIdx = NOTE_DISPLAY.indexOf(rootDisplay);
+
+    const newSections = [];
+    const newArrangement = [];
+
+    SONG_PART_TEMPLATES.forEach((tmpl, idx) => {
+      // ── 1. Chords ──
+      let chords;
+      if (tmpl.useStemChords) {
+        chords = JSON.parse(JSON.stringify(stemChords));
+        // Reduce chord count for intro/outro
+        if (tmpl.chordKeep < 1.0 && chords.length > 1) {
+          const keep = Math.max(1, Math.ceil(chords.length * tmpl.chordKeep));
+          chords = chords.slice(0, keep);
+          // Redistribute to fill all slots
+          const slotsPer = Math.floor(TIMELINE_SLOTS / chords.length);
+          chords = chords.map((c, i) => ({
+            ...c,
+            startSlot: i * slotsPer,
+            lengthSlots: i < chords.length - 1 ? slotsPer : TIMELINE_SLOTS - i * slotsPer,
+          }));
+        }
+      } else {
+        // Bridge — borrow from relative key
+        chords = generateBridgeChords(stemChords, scaleKey, currentRootIdx, chordOctave, TIMELINE_SLOTS);
+      }
+
+      // ── 2. Drums ──
+      let drums = null;
+      if (stemDrums) {
+        drums = JSON.parse(JSON.stringify(stemDrums));
+        drums = songThinDrums(drums, tmpl.drumDensity, tmpl.drumVariant);
+        drums = songScaleDrumVelocities(drums, tmpl.energy);
+      }
+
+      // ── 3. Bass ──
+      let bass;
+      if (tmpl.bassVariant === "stem" || tmpl.bassVariant === "varied") {
+        bass = JSON.parse(JSON.stringify(stemBass));
+      } else {
+        // Regenerate for this section's chords
+        const seed = Math.floor(Math.random() * 10000);
+        bass = generateBassLine(chords, scaleKey, currentRootIdx, chordOctave,
+          tmpl.bassVariant === "root" ? "root" : bassPattern, TIMELINE_SLOTS, bassOctaveOffset, seed);
+      }
+      bass = songThinBass(bass, tmpl.bassDensity, tmpl.bassVariant);
+      bass = songScaleNoteVelocities(bass, tmpl.energy);
+
+      // ── 4. Melody ──
+      let melody;
+      if (tmpl.melodyVariant === "stem" || tmpl.melodyVariant === "full" || tmpl.melodyVariant === "varied") {
+        melody = JSON.parse(JSON.stringify(stemMelody));
+      } else {
+        // Regenerate (sparse/contrast)
+        melody = generateMelody(chords, scaleKey, currentRootIdx, chordOctave,
+          melodyPattern, TIMELINE_SLOTS, melodyOctaveOffset);
+      }
+      melody = songThinMelody(melody, tmpl.melodyDensity, tmpl.melodyVariant);
+      melody = songScaleNoteVelocities(melody, tmpl.energy);
+
+      // ── 5. Create section ──
+      const sec = {
+        id: Date.now() + Math.random() + idx * 0.01,
+        name: tmpl.name,
+        timelineItems: chords,
+        drumPattern: drums,
+        bassLine: bass,
+        melodyLine: melody,
+      };
+      newSections.push(sec);
+      newArrangement.push(sec.id);
+    });
+
+    setSections(newSections);
+    setArrangement(newArrangement);
+    setSongModeOpen(true);
+    setEditingSectionId(null);
+  }, [timelineItems, drumPattern, bassLine, melodyLine, scaleKey, rootDisplay,
+      chordOctave, bassOctaveOffset, melodyOctaveOffset, bassPattern, melodyPattern,
+      TIMELINE_SLOTS, looping, stopLoop]);
+
   // Velocity cycle: click cycles 127→90→60→35→0 for natural dynamics
   const DRUM_VEL_CYCLE = [127, 90, 60, 35, 0];
   const toggleDrumStep = useCallback((trackId, step) => {
@@ -9739,6 +9963,15 @@ export default function App() {
                         }} style={{ fontFamily:SF, fontSize:12, fontWeight:600, padding:"7px 16px", borderRadius:2,
                           border:`1px solid ${t.accentBorder}`, background:t.accentBg, color:t.accent, cursor:"pointer" }}>
                           + Save current as section
+                        </button>
+                        <button onClick={() => {
+                          if (sections.length > 0 && !window.confirm("Dette erstatter alle eksisterende sections og arrangement. Fortsett?")) return;
+                          if (timelineItems.length === 0) { alert("Legg til akkorder først!"); return; }
+                          generateSong();
+                        }} style={{ fontFamily:SF, fontSize:12, fontWeight:700, padding:"7px 16px", borderRadius:2,
+                          border:"none", background:"linear-gradient(135deg, #5C7C8A 0%, #3D5A66 100%)",
+                          color:"#fff", cursor:"pointer", letterSpacing:"0.03em" }}>
+                          Generate Song
                         </button>
                         {editingSectionId && (
                           <button onClick={() => updateSection(editingSectionId)}
