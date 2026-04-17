@@ -4939,20 +4939,31 @@ export default function App() {
   useEffect(() => { tapSelectedTrackRef.current = tapSelectedTrack; }, [tapSelectedTrack]);
 
   useEffect(() => {
-    if (!padMapperOpen || !midiReady || !midiAccess.current) return;
+    console.log("[PadWizard] Effect running. padMapperOpen:", padMapperOpen, "midiReady:", midiReady, "midiAccess:", !!midiAccess.current);
+    if (!padMapperOpen || !midiReady || !midiAccess.current) {
+      console.log("[PadWizard] Skipping — conditions not met");
+      return;
+    }
     const mode = padMapModeRef.current;
-    if (mode !== "wizard" && mode !== "tap") return;
+    console.log("[PadWizard] Mode:", mode);
+    if (mode !== "wizard" && mode !== "tap") {
+      console.log("[PadWizard] Skipping — mode is", mode);
+      return;
+    }
+
+    const inputs = [...midiAccess.current.inputs.values()];
+    console.log("[PadWizard] Attaching to", inputs.length, "MIDI inputs:", inputs.map(i => i.name));
 
     const handler = (e) => {
       if (!e.data || e.data.length < 3) return;
       const status = e.data[0];
       const note = e.data[1];
       const velocity = e.data[2];
+      console.log("[PadWizard] MIDI message:", status.toString(16), "note:", note, "vel:", velocity);
       // Accept note-on on any channel (0x90-0x9F with velocity > 0)
       if ((status & 0xF0) !== 0x90 || velocity === 0) return;
-      // Filter out clock/system messages
-      if (status >= 0xF0) return;
 
+      console.log("[PadWizard] Note-on! note:", note, "pad:", midiToPadLabel(note));
       setLastMidiNote(note);
       setTimeout(() => setLastMidiNote(null), 300);
 
@@ -4960,6 +4971,7 @@ export default function App() {
       if (curMode === "wizard" && !wizardDoneRef.current) {
         const step = wizardStepRef.current;
         const track = DRUM_TRACKS[step];
+        console.log("[PadWizard] Wizard step", step, "track:", track?.id, "→ mapping note", note);
         if (track) {
           const padLabel = midiToPadLabel(note);
           setWizardMap(prev => {
@@ -4977,15 +4989,17 @@ export default function App() {
         const track = DRUM_TRACKS[idx];
         if (track) {
           const padLabel = midiToPadLabel(note);
+          console.log("[PadWizard] Tap assign:", track.id, "→", padLabel, note);
           setPadMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
         }
       }
     };
 
-    // Attach to ALL MIDI inputs
-    const inputs = [...midiAccess.current.inputs.values()];
     inputs.forEach(input => input.addEventListener("midimessage", handler));
-    return () => inputs.forEach(input => input.removeEventListener("midimessage", handler));
+    return () => {
+      console.log("[PadWizard] Cleaning up listeners");
+      inputs.forEach(input => input.removeEventListener("midimessage", handler));
+    };
   }, [padMapperOpen, padMapMode, midiReady]);
 
   // ── Pad-to-chord MIDI input listener ──────────────────────────────────────
