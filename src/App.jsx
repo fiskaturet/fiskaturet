@@ -4568,9 +4568,9 @@ export default function App() {
   const [bassSound, setBassSound] = useState("808"); // "piano" | "808"
   const [bassOctaveOffset, setBassOctaveOffset] = useState(0); // -2..+2
   const [melodyOctaveOffset, setMelodyOctaveOffset] = useState(0); // -2..+2
-  // ── Bridge ──
-  const [bridgeActive, setBridgeActive] = useState(false);
-  const preBridgeSnapshot = useRef(null);
+  // ── Bridge (ref-based, like fills) ──
+  const bridgeNextRef = useRef(false);        // true = next loop plays as bridge
+  const bridgeActiveRef = useRef(false);      // true = currently in a bridge loop (for UI)
   // ── Mute controls ──
   const [muteChords, setMuteChords] = useState(false);
   const [muteBass, setMuteBass] = useState(false);
@@ -5377,42 +5377,7 @@ export default function App() {
     return out;
   };
 
-  // ── Bridge toggle ──
-  const activateBridge = useCallback(() => {
-    if (bridgeActive) {
-      const snap = preBridgeSnapshot.current;
-      if (snap) {
-        setTimelineItems(snap.timelineItems);
-        setDrumPattern(snap.drumPattern);
-        setBassLine(snap.bassLine);
-        setMelodyLine(snap.melodyLine);
-        setBarCount(snap.barCount);
-      }
-      setBridgeActive(false);
-      preBridgeSnapshot.current = null;
-    } else {
-      preBridgeSnapshot.current = {
-        timelineItems: JSON.parse(JSON.stringify(timelineItems)),
-        drumPattern: drumPattern ? JSON.parse(JSON.stringify(drumPattern)) : null,
-        bassLine: JSON.parse(JSON.stringify(bassLine)),
-        melodyLine: JSON.parse(JSON.stringify(melodyLine)),
-        barCount,
-      };
-      const bridgeSlots = 32;
-      setTimelineItems(items => items
-        .filter(it => it.startSlot < bridgeSlots)
-        .map(it => ({
-          ...it,
-          lengthSlots: Math.min(it.lengthSlots, bridgeSlots - it.startSlot)
-        }))
-      );
-      setDrumPattern(null);
-      setBassLine([]);
-      setMelodyLine(prev => prev.filter(n => n.startSlot < bridgeSlots));
-      setBarCount(2);
-      setBridgeActive(true);
-    }
-  }, [bridgeActive, timelineItems, drumPattern, bassLine, melodyLine, barCount]);
+  // Bridge is ref-based (bridgeNextRef) — triggered directly from button onClick
 
   // ── Drum generator ──
   const generateDrumPattern = useCallback(() => {
@@ -5690,14 +5655,59 @@ export default function App() {
     const midiDrum   = midiOut ? (msg, ms) => scheduleMidi(muteDrumsRef,  midiOut, msg, ms) : null;
 
     // Humanize: timing jitter (ms) + velocity scale — reads live ref
+    // Generic version (drums etc.) — pure random
     const hz = () => {
       const h = humanizeRef.current / 100; // 0..1
       if (h === 0) return { tMs: 0, vScale: 1 };
-      const maxJitterMs = h * slotSec * 1000 * 0.45; // up to ~45% of a slot at full humanize
+      const maxJitterMs = h * slotSec * 1000 * 0.45;
       const tMs = (Math.random() - 0.5) * 2 * maxJitterMs;
-      const maxVelVar = h * 0.3; // up to ±30% velocity variation
+      const maxVelVar = h * 0.3;
       const vScale = 1 + (Math.random() - 0.5) * 2 * maxVelVar;
       return { tMs, vScale };
+    };
+
+    // Musical humanize for bass/melody — position-aware timing + velocity shaping
+    const hzMusical = (slotPos, midi, totalSlots, isBass) => {
+      const h = humanizeRef.current / 100;
+      if (h === 0) return { tMs: 0, vScale: 1 };
+      const slotMs = slotSec * 1000;
+
+      // 1) Positional timing: downbeats slightly early (push), upbeats slightly late (laid back)
+      const beat = slotPos % 16;
+      let timingBias = 0;
+      if (beat === 0)           timingBias = -0.08;  // beat 1: push forward
+      else if (beat === 4)      timingBias = -0.04;  // beat 2: slight push
+      else if (beat === 8)      timingBias = -0.06;  // beat 3: push
+      else if (beat === 12)     timingBias = -0.02;  // beat 4: almost on grid
+      else if (beat % 2 === 1)  timingBias = 0.06;   // upbeats: laid back
+      else                      timingBias = 0.02;   // in-between: slightly late
+
+      // Scale by humanize amount + add small random jitter on top
+      const biasMs = timingBias * slotMs * h;
+      const jitterMs = (Math.random() - 0.5) * slotMs * h * 0.15; // small random on top
+      const tMs = biasMs + jitterMs;
+
+      // 2) Velocity shaping
+      let vScale = 1;
+      // Phrasing: notes on strong beats slightly louder
+      if (beat === 0)       vScale *= 1 + 0.08 * h;   // beat 1 accent
+      else if (beat === 8)  vScale *= 1 + 0.04 * h;   // beat 3 slight accent
+      else if (beat % 4 !== 0) vScale *= 1 - 0.06 * h; // off-beats softer
+
+      // Melodic contour: higher notes slightly louder (natural expression)
+      if (!isBass && midi > 60) {
+        vScale *= 1 + (midi - 60) * 0.003 * h; // subtle boost for high notes
+      }
+
+      // Bass: root notes (on beat 1) get a slight accent
+      if (isBass && beat === 0) {
+        vScale *= 1 + 0.05 * h;
+      }
+
+      // Small random velocity variation on top
+      vScale *= 1 + (Math.random() - 0.5) * 0.12 * h;
+
+      return { tMs, vScale: Math.max(0.5, Math.min(1.4, vScale)) };
     };
 
     const style = STYLES[playStyle] || STYLES.normal;
@@ -5733,6 +5743,15 @@ export default function App() {
       const curDrumPattern = drumPatternRef.current;
       const curBassLine = bassLineRef.current;
       const curMelodyLine = melodyLineRef.current;
+
+      // ── Bridge: skip drums + bass for this loop iteration ──
+      const isBridgeLoop = bridgeNextRef.current;
+      if (isBridgeLoop) {
+        bridgeNextRef.current = false;
+        bridgeActiveRef.current = true;
+      } else {
+        bridgeActiveRef.current = false;
+      }
 
       // Chords — always schedule, check mute ref at fire time
       curTimeline.forEach(item => {
@@ -5877,8 +5896,9 @@ export default function App() {
       // ── Drum scheduling (with swing, half-time, solo, triplets) ──
       // Reads live refs so changes to swing/halftime/solo/mute take effect on next loop
       // Works with MIDI out OR built-in drum synths (no MPC needed)
+      // Bridge loop: skip drums entirely
       const liveHasDrums = curDrumPattern && DRUM_TRACKS.some(t => curDrumPattern[t.id]?.some(v => v > 0));
-      if (liveHasDrums) {
+      if (liveHasDrums && !isBridgeLoop) {
         if (!midiOut) initDrumSynths();
         const drumCh = drumChannel - 1;
         const curSwing     = drumSwingRef.current;
@@ -5971,8 +5991,8 @@ export default function App() {
         }
       }
 
-      // ── Bass line scheduling ──
-      if (curBassLine.length > 0) {
+      // ── Bass line scheduling (skipped during bridge) ──
+      if (curBassLine.length > 0 && !isBridgeLoop) {
         const bassInst = midiOut ? null : getBassInstrument(bassSound);
         curBassLine.forEach((note, nIdx) => {
           if (note.muted) return;
@@ -5990,9 +6010,11 @@ export default function App() {
             mutMidi = Math.max(24, Math.min(96, note.midi + octShift));
             mutVel = varMelodyVelocity(varSeed, note.startSlot + 1000, note.velocity, varAmt);
           }
-          const { tMs: hzT, vScale: hzV } = hz();
+          const { tMs: hzT, vScale: hzV } = hzMusical(note.startSlot, mutMidi, TIMELINE_SLOTS, true);
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
+          // Legato: extend bass notes slightly for overlap (smoother feel)
+          const legatoExt = humanizeRef.current > 0 ? slotSec * 0.12 * (humanizeRef.current / 100) : 0;
           const vel = Math.max(0.02, Math.min(1, (mutVel / 127) * style.velMult * hzV * energyVel));
           const noteName = NOTES[mutMidi % 12] + Math.floor((mutMidi - 12) / 12);
           const onMs = Math.max(0, startSec * 1000 + hzT);
@@ -6000,10 +6022,10 @@ export default function App() {
             const bCh = (bassChannel - 1);
             const midiVelOut = Math.max(1, Math.min(127, Math.round(mutVel * hzV * energyVel)));
             midiBass([0x90 | bCh, mutMidi, midiVelOut], onMs);
-            midiBass([0x80 | bCh, mutMidi, 0], onMs + durSec * 1000);
+            midiBass([0x80 | bCh, mutMidi, 0], onMs + (durSec + legatoExt) * 1000);
           } else {
             scheduleBass(() => {
-              try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
+              try { bassInst.triggerAttackRelease(noteName, durSec + legatoExt, Tone.now(), vel); } catch(e) {}
             }, onMs);
           }
         });
@@ -6026,7 +6048,7 @@ export default function App() {
           if (varAmt > 0) {
             mutVel = varMelodyVelocity(varSeed, note.startSlot, note.velocity, varAmt);
           }
-          const { tMs: hzT, vScale: hzV } = hz();
+          const { tMs: hzT, vScale: hzV } = hzMusical(note.startSlot, note.midi, TIMELINE_SLOTS, false);
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
           const vel = Math.max(0.02, Math.min(1, (mutVel / 127) * style.velMult * cpatMelVel * hzV * energyVel));
@@ -6172,6 +6194,11 @@ export default function App() {
     const doScheduleArrangement = () => {
       const { velMult: energyVel, densityOffset: energyDensOff } = energyScale(energyRef.current);
 
+      // ── Bridge: skip drums + bass for this arrangement pass ──
+      const isBridgeLoopA = bridgeNextRef.current;
+      if (isBridgeLoopA) { bridgeNextRef.current = false; bridgeActiveRef.current = true; }
+      else { bridgeActiveRef.current = false; }
+
       // ── Fill overlay: replace last bar of last section with fill pattern ──
       const isFillLoopA = fillNextRef.current;
       const addCrashOn1A = fillJustPlayedRef.current;
@@ -6239,7 +6266,7 @@ export default function App() {
         }
 
         // Bass
-        if (sec.bassLine) {
+        if (sec.bassLine && !isBridgeLoopA) {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
@@ -6287,8 +6314,8 @@ export default function App() {
           });
         }
 
-        // Drums
-        if (sec.drumPattern) {
+        // Drums (skipped during bridge)
+        if (sec.drumPattern && !isBridgeLoopA) {
           if (!midiOut) initDrumSynths();
           const drumCh = drumChannel - 1;
           const isLastSec = secIdx === lastSecIdx;
@@ -6387,6 +6414,63 @@ export default function App() {
       <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}
         onClick={() => showToolsMenu && setShowToolsMenu(false)}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
+
+          {/* ── MIDI Output Bar ── */}
+          <div style={{ background:"#f5f5f4", padding:"6px 16px", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", borderBottom:"1px solid rgba(0,0,0,0.06)", marginBottom:8 }}>
+            <span style={{ fontSize:11, fontWeight:600, color:"rgba(0,0,0,0.45)", fontFamily:SF }}>MIDI</span>
+            {midiError ? (
+              <span style={{ fontSize:11, color:"#FF453A", fontFamily:SF }}>{midiError}</span>
+            ) : (
+              <>
+                <select
+                  value={midiOutputId}
+                  onChange={e => setMidiOutputId(e.target.value)}
+                  style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"3px 6px", borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", minWidth:160 }}
+                >
+                  <option value="off">Off (browser audio)</option>
+                  {midiOutputs.map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+                {midiOutputId !== "off" && (
+                  <span style={{ color:"#30D158", fontWeight:700, fontSize:11, fontFamily:SF }}>● Connected</span>
+                )}
+                {midiOutputId !== "off" && (
+                  <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"3px 6px", borderRadius:2,
+                      border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                      background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
+                      color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
+                      whiteSpace:"nowrap" }}>
+                    <option value="off">Clock Off</option>
+                    <option value="send">App er master (sender clock + start/stop)</option>
+                    <option value="receive">MPC er master (mottar clock)</option>
+                  </select>
+                )}
+                {midiOutputId !== "off" && (
+                  <>
+                    <div style={{ width:1, height:14, background:"rgba(0,0,0,0.10)" }} />
+                    {[
+                      { label:"Chords", value:midiChannel, set:setMidiChannel },
+                      { label:"Bass",   value:bassChannel, set:setBassChannel },
+                      { label:"Melody", value:melodyChannel2, set:setMelodyChannel2 },
+                      { label:"Drums",  value:drumChannel, set:setDrumChannel },
+                    ].map(({label, value, set}) => (
+                      <div key={label} style={{ display:"flex", alignItems:"center", gap:3 }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", textTransform:"uppercase", letterSpacing:"0.05em", fontFamily:SF }}>{label}</span>
+                        <select value={value} onChange={e => set(Number(e.target.value))}
+                          style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"2px 4px", borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", width:48 }}>
+                          {Array.from({length:16},(_,i)=>i+1).map(ch => (
+                            <option key={ch} value={ch}>{ch}</option>
+                          ))}
+                        </select>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </div>
 
           {/* ── Header ── */}
           <div style={{
@@ -6531,65 +6615,6 @@ export default function App() {
                 />
               </div>}
 
-              {/* MIDI Output */}
-              <div>
-                <label style={labelStyle}>
-                  MIDI Out
-                  {midiOutputId !== "off" && (
-                    <span style={{ marginLeft:6, color:"#30D158", fontWeight:700 }}>● Connected</span>
-                  )}
-                </label>
-                <div style={{ display:"flex", gap:8, alignItems:"center" }}>
-                  {midiError ? (
-                    <span style={{ fontSize:12, color:"#FF453A" }}>{midiError}</span>
-                  ) : (
-                    <>
-                      <select
-                        value={midiOutputId}
-                        onChange={e => setMidiOutputId(e.target.value)}
-                        style={{ ...selectStyle, minWidth:180 }}
-                      >
-                        <option value="off">Off (browser audio)</option>
-                        {midiOutputs.map(o => (
-                          <option key={o.id} value={o.id}>{o.name}</option>
-                        ))}
-                      </select>
-                      {midiOutputId !== "off" && (
-                        <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
-                          style={{ fontFamily:SF, fontSize:10, fontWeight:600, padding:"4px 6px", borderRadius:2,
-                            border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                            background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
-                            color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
-                            whiteSpace:"nowrap" }}>
-                          <option value="off">Clock Off</option>
-                          <option value="send">App er master (sender clock + start/stop)</option>
-                          <option value="receive">MPC er master (mottar clock)</option>
-                        </select>
-                      )}
-                    </>
-                  )}
-                </div>
-                {midiOutputId !== "off" && (
-                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", marginTop:6 }}>
-                    {[
-                      { label:"Chords", value:midiChannel, set:setMidiChannel },
-                      { label:"Bass",   value:bassChannel, set:setBassChannel },
-                      { label:"Melody", value:melodyChannel2, set:setMelodyChannel2 },
-                      { label:"Drums",  value:drumChannel, set:setDrumChannel },
-                    ].map(({label, value, set}) => (
-                      <div key={label} style={{ display:"flex", alignItems:"center", gap:3 }}>
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.05em", fontFamily:SF }}>{label}</span>
-                        <select value={value} onChange={e => set(Number(e.target.value))}
-                          style={{ ...selectStyle, width:58, fontSize:11, padding:"3px 4px" }}>
-                          {Array.from({length:16},(_,i)=>i+1).map(ch => (
-                            <option key={ch} value={ch}>{ch}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>}
 
@@ -7806,6 +7831,15 @@ export default function App() {
                     Suggest
                   </button>
 
+                  <select value={chordPlayPattern}
+                    onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 8px", borderRadius:2,
+                      border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
+                    {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
+                      <option key={key} value={key}>{cfg.label}</option>
+                    ))}
+                  </select>
+
                   <div style={{ width:1, height:18, background:t.border }} />
 
                   {/* Arp */}
@@ -7851,13 +7885,15 @@ export default function App() {
                     <option value="auto4">Every 4</option>
                     <option value="auto8">Every 8</option>
                   </select>
-                  <button onClick={activateBridge}
+                  <button onClick={() => { bridgeNextRef.current = true; }}
+                    disabled={!looping}
                     style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"4px 10px", borderRadius:2,
-                      border:`1px solid ${bridgeActive ? "#E5484D" : "rgba(0,0,0,0.12)"}`,
-                      color: bridgeActive ? "#E5484D" : "rgba(0,0,0,0.50)",
-                      background: bridgeActive ? "rgba(229,72,77,0.08)" : "transparent",
-                      cursor:"pointer" }}>
-                    {bridgeActive ? "Exit Bridge" : "Bridge"}
+                      border:`1px solid rgba(0,0,0,0.12)`,
+                      color: "rgba(0,0,0,0.50)",
+                      background: "transparent",
+                      cursor: !looping ? "default" : "pointer",
+                      opacity: !looping ? 0.35 : 1 }}>
+                    Bridge
                   </button>
 
                   <div style={{ width:1, height:18, background:t.border }} />
@@ -7872,6 +7908,11 @@ export default function App() {
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
                 </div>
+                {timelineItems.length > 0 && (
+                  <div style={{ fontSize:10, color:t.textTertiary, fontFamily:SF, padding:"2px 0 4px", letterSpacing:"0.02em" }}>
+                    {timelineItems.map(it => it.chord.display).join(" \u2192 ")}
+                  </div>
+                )}
               </div>
 
               <div style={card}>
@@ -8076,23 +8117,6 @@ export default function App() {
               </div>
 
               <div style={card}>
-                {/* ── Chord Pattern ── */}
-                <div style={{ marginBottom: 12 }}>
-                  <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:4 }}>
-                    <span style={{ fontFamily:SF, fontSize:11, fontWeight:600, color:t.labelColor, letterSpacing:"0.06em", textTransform:"uppercase", opacity:0.8 }}>
-                      Chord Rhythm
-                    </span>
-                    <select value={chordPlayPattern}
-                      onChange={e => { if(looping) stopLoop(); setChordPlayPattern(e.target.value); setChordRhythmMutes({}); }}
-                      style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 10px", borderRadius:2,
-                        border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.textPrimary, cursor:"pointer" }}>
-                      {Object.entries(CHORD_PLAY_PATTERNS).map(([key, cfg]) => (
-                        <option key={key} value={key}>{cfg.label} — {cfg.desc}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
                 {/* ── Piano Roll ── */}
                 <div style={{ marginBottom: 12 }}>
                   <button onClick={() => setPianoRollOpen(o => !o)}
