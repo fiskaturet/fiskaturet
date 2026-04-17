@@ -6814,6 +6814,13 @@ export default function App() {
                       })}
                     </div>
 
+                    {/* ── DEBUG: MIDI status ── */}
+                    <div style={{ background:"#1a1a1a", color:"#0f0", fontFamily:MONO, fontSize:10, padding:"8px 10px", borderRadius:3, marginBottom:10 }}>
+                      <div>midiReady: {String(midiReady)} | inputs: {midiAccess.current ? [...midiAccess.current.inputs.values()].length : "no access"} | padMapperOpen: {String(padMapperOpen)} | mode: {padMapMode}</div>
+                      <div>lastMidiNote: {lastMidiNote !== null ? `${lastMidiNote} (${midiToPadLabel(lastMidiNote)})` : "ingen"} | wizardStep: {wizardStep} | wizardDone: {String(wizardDone)}</div>
+                      {midiAccess.current && <div>inputs: {[...midiAccess.current.inputs.values()].map(i => i.name).join(", ") || "INGEN MIDI INPUTS FUNNET"}</div>}
+                    </div>
+
                     {/* ── WIZARD MODE ── */}
                     {padMapMode === "wizard" && !wizardDone && (() => {
                       const currentTrack = DRUM_TRACKS[wizardStep];
