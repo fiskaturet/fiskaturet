@@ -4179,8 +4179,8 @@ export default function App() {
   const [soundType,    setSoundType]    = useState("rhodes"); // "piano" | "rhodes"
   const [mode,         setMode]         = useState("chords"); // "chords" | "scales" | "detect"
   const [showToolsMenu, setShowToolsMenu] = useState(false);
-  const [rootDisplay,  setRootDisplay]  = useState("C");
-  const [scaleKey,     setScaleKey]     = useState("major");
+  const [rootDisplay,  setRootDisplay]  = useState("D");
+  const [scaleKey,     setScaleKey]     = useState("minor");
   const [chordType,    setChordType]    = useState("triad");
   const [timelineItems, setTimelineItems] = useState([]); // { id, chord, startSlot, lengthSlots }
   const timelineItemsRef = useRef([]);
@@ -4190,6 +4190,7 @@ export default function App() {
   const [looping,      setLooping]      = useState(false);
   const [loopEnabled,  setLoopEnabled]  = useState(true);  // repeat vs one-shot
   const loopEnabledRef = useRef(true);
+  const [barCount,     setBarCount]     = useState(4);     // 2, 4, or 8 bars
   const [lastAutoSave, setLastAutoSave] = useState(null);
   const fileInputRef = useRef(null);
   const autoSaveTimerRef = useRef(null);
@@ -4209,11 +4210,11 @@ export default function App() {
   const [bassChannel,  setBassChannel]  = useState(2);
   const [melodyChannel2, setMelodyChannel2] = useState(3); // "melodyChannel2" to avoid collision with "melodyChannel" in SheetMusicTab
   const [midiError,    setMidiError]    = useState(null);
-  const [midiSyncMode, setMidiSyncMode] = useState("receive"); // "off" | "send" | "receive"
+  const [midiSyncMode, setMidiSyncMode] = useState("send"); // "off" | "send" | "receive"
   const midiClockEnabled = midiSyncMode === "send"; // backward compat
   const midiClockRef = useRef(null); // interval ID for clock ticks
   // ── Drum state ──
-  const [drumGenre,      setDrumGenre]      = useState("boombap_classic");
+  const [drumGenre,      setDrumGenre]      = useState("griselda");
   const [drumPattern,    setDrumPattern]    = useState(null); // { kick:[64], snare:[64], ... }
   const drumPatternRef = useRef(null);
   const [drumChannel,    setDrumChannel]    = useState(10);
@@ -4347,9 +4348,9 @@ export default function App() {
     // MIDI config
     midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
     // Other
-    pianoRollEdits, humanize, loopEnabled,
+    pianoRollEdits, humanize, loopEnabled, barCount,
   }), [
-    rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType,
+    rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType, barCount,
     drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
     sections, arrangement,
     melodySound, bassSound, bassOctaveOffset, melodyOctaveOffset,
@@ -4433,6 +4434,7 @@ export default function App() {
     if (data.pianoRollEdits !== undefined) setPianoRollEdits(data.pianoRollEdits);
     if (data.humanize !== undefined) setHumanize(data.humanize);
     if (data.loopEnabled !== undefined) { setLoopEnabled(data.loopEnabled); loopEnabledRef.current = data.loopEnabled; }
+    if (data.barCount !== undefined) setBarCount(data.barCount);
   }, []);
 
   // Auto-load from localStorage on mount
@@ -4672,8 +4674,9 @@ export default function App() {
   const highlightedNotes = displayChord ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality) : [];
 
   // ── Timeline helpers ──────────────────────────────────────────────────────────
-  const TIMELINE_SLOTS     = 64;  // 4 bars × 16 sixteenth-notes per bar
   const SLOTS_PER_BAR      = 16;  // 16 sixteenth-notes per bar
+  const TIMELINE_SLOTS     = barCount * SLOTS_PER_BAR;  // dynamic: barCount bars
+  const DRUM_STEPS_LIVE    = TIMELINE_SLOTS;             // drum grid matches timeline
   const DEFAULT_CHORD_LEN  = 16;  // one bar by default
 
   // Playing styles — affect duration, velocity, attack character, sustain and tremolo
@@ -4769,6 +4772,38 @@ export default function App() {
   useEffect(() => { if (bassLine.length > 0) regenerateBass(); }, [bassOctaveOffset]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (melodyLine.length > 0) regenerateMelody(); }, [melodyOctaveOffset]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Bar count change: resize all data ────────────────────────────────────
+  const prevBarCountRef = useRef(barCount);
+  useEffect(() => {
+    const prev = prevBarCountRef.current;
+    if (prev === barCount) return;
+    prevBarCountRef.current = barCount;
+    const newSlots = barCount * SLOTS_PER_BAR;
+    // Stop playback if running
+    if (looping) stopLoop();
+    // Resize timeline items: truncate items past new length, clip items that extend past
+    setTimelineItems(items => {
+      return items
+        .filter(it => it.startSlot < newSlots)
+        .map(it => {
+          if (it.startSlot + it.lengthSlots > newSlots) {
+            return { ...it, lengthSlots: newSlots - it.startSlot };
+          }
+          return it;
+        });
+    });
+    // Resize drum pattern
+    if (drumPattern) {
+      setDrumPattern(p => resizeDrumPattern(p, newSlots));
+    }
+    // Regenerate bass and melody at new length (they depend on timeline items + TIMELINE_SLOTS)
+    // We use a small timeout so the timelineItems state has updated
+    setTimeout(() => {
+      if (bassLine.length > 0) regenerateBass();
+      if (melodyLine.length > 0) regenerateMelody();
+    }, 0);
+  }, [barCount]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Section (arrangement) helpers ─────────────────────────────────────────
   const saveSection = useCallback((name) => {
     const sec = {
@@ -4825,7 +4860,7 @@ export default function App() {
     a.download = "fiskaturet-export.mid";
     a.click();
     URL.revokeObjectURL(url);
-  }, [timelineItems, drumPattern, bassLine, bpm, chordOctave, padMap, pianoRollEdits, sections, arrangement]);
+  }, [timelineItems, drumPattern, bassLine, bpm, chordOctave, padMap, pianoRollEdits, barCount, sections, arrangement]);
 
   // ── MPC drum program download ─────────────────────────────────────────────
   const downloadDrumProgram = useCallback(() => {
@@ -4910,11 +4945,33 @@ export default function App() {
     }
   };
 
+  // ── Drum pattern resize helper ──
+  // Tile or truncate a single track array to targetLen
+  const resizeDrumTrackArray = (arr, targetLen) => {
+    if (!arr) return new Array(targetLen).fill(0);
+    if (arr.length === targetLen) return arr;
+    const out = new Array(targetLen).fill(0);
+    for (let i = 0; i < targetLen; i++) out[i] = arr[i % arr.length] || 0;
+    return out;
+  };
+  // Resize all tracks in a drum pattern object
+  const resizeDrumPattern = (pattern, targetLen) => {
+    if (!pattern) return null;
+    const out = {};
+    Object.keys(pattern).forEach(tid => {
+      out[tid] = resizeDrumTrackArray(pattern[tid], targetLen);
+    });
+    DRUM_TRACKS.forEach(t => { if (!out[t.id]) out[t.id] = new Array(targetLen).fill(0); });
+    return out;
+  };
+
   // ── Drum generator ──
   const generateDrumPattern = useCallback(() => {
     const genre = DRUM_GENRES[drumGenre];
     if (!genre) return;
-    const fresh = genre.generate();
+    let fresh = genre.generate(); // always produces 64-step (4 bar) pattern
+    // Resize to current bar count
+    fresh = resizeDrumPattern(fresh, DRUM_STEPS_LIVE);
     // Honor locked tracks: keep existing data
     if (drumPattern) {
       Object.keys(lockedTracks).forEach(tid => {
@@ -4922,9 +4979,9 @@ export default function App() {
       });
     }
     // Ensure every track exists (empty for unused)
-    DRUM_TRACKS.forEach(t => { if (!fresh[t.id]) fresh[t.id] = emptyDrumTrack(); });
+    DRUM_TRACKS.forEach(t => { if (!fresh[t.id]) fresh[t.id] = new Array(DRUM_STEPS_LIVE).fill(0); });
     setDrumPattern(fresh);
-  }, [drumGenre, drumPattern, lockedTracks]);
+  }, [drumGenre, drumPattern, lockedTracks, DRUM_STEPS_LIVE]);
 
   // Velocity cycle: click cycles 127→90→60→35→0 for natural dynamics
   const DRUM_VEL_CYCLE = [127, 90, 60, 35, 0];
@@ -4973,7 +5030,97 @@ export default function App() {
     setDrumStep(-1);
   };
 
-  // ── Timeline drag/resize ───────────────────────────────────────────────────
+  // ── Timeline drag/resize with push/swap ─────────────────────────────────────
+  // Given items array, move draggedId to newStart and push overlapping items out of the way
+  const resolveOverlaps = useCallback((items, draggedId, newStart) => {
+    const dragged = items.find(it => it.id === draggedId);
+    if (!dragged) return items;
+    const dragLen = dragged.lengthSlots;
+    // Clamp to timeline bounds
+    const clampedStart = Math.max(0, Math.min(TIMELINE_SLOTS - dragLen, newStart));
+    // Build new array with dragged item at new position
+    let result = items.map(it => it.id === draggedId ? { ...it, startSlot: clampedStart } : { ...it });
+    // Iteratively push overlapping items — up to 20 passes to settle
+    for (let pass = 0; pass < 20; pass++) {
+      let moved = false;
+      const dragIt = result.find(it => it.id === draggedId);
+      const dragEnd = dragIt.startSlot + dragIt.lengthSlots;
+      for (let i = 0; i < result.length; i++) {
+        const it = result[i];
+        if (it.id === draggedId) continue;
+        const itEnd = it.startSlot + it.lengthSlots;
+        // Check overlap with dragged item
+        if (it.startSlot < dragEnd && itEnd > dragIt.startSlot) {
+          // Decide push direction: push right if dragged moved right (or same), left otherwise
+          const origDragged = items.find(o => o.id === draggedId);
+          const movedRight = clampedStart >= origDragged.startSlot;
+          if (movedRight) {
+            // Push this item to the right of dragged
+            const pushTo = dragEnd;
+            if (pushTo + it.lengthSlots <= TIMELINE_SLOTS) {
+              result[i] = { ...it, startSlot: pushTo };
+              moved = true;
+            } else {
+              // No room on right, push to left of dragged
+              const pushLeft = dragIt.startSlot - it.lengthSlots;
+              if (pushLeft >= 0) {
+                result[i] = { ...it, startSlot: pushLeft };
+                moved = true;
+              }
+            }
+          } else {
+            // Push left
+            const pushTo = dragIt.startSlot - it.lengthSlots;
+            if (pushTo >= 0) {
+              result[i] = { ...it, startSlot: pushTo };
+              moved = true;
+            } else {
+              // No room on left, push right
+              const pushRight = dragEnd;
+              if (pushRight + it.lengthSlots <= TIMELINE_SLOTS) {
+                result[i] = { ...it, startSlot: pushRight };
+                moved = true;
+              }
+            }
+          }
+        }
+      }
+      // Also resolve non-dragged items overlapping each other (chain pushes)
+      for (let i = 0; i < result.length; i++) {
+        for (let j = i + 1; j < result.length; j++) {
+          if (result[i].id === draggedId || result[j].id === draggedId) continue;
+          const a = result[i], b = result[j];
+          const aEnd = a.startSlot + a.lengthSlots;
+          const bEnd = b.startSlot + b.lengthSlots;
+          if (a.startSlot < bEnd && aEnd > b.startSlot) {
+            // Push the one that was displaced (higher startSlot likely pushed)
+            if (b.startSlot >= a.startSlot) {
+              const ns = aEnd;
+              if (ns + b.lengthSlots <= TIMELINE_SLOTS) { result[j] = { ...b, startSlot: ns }; moved = true; }
+            } else {
+              const ns = bEnd;
+              if (ns + a.lengthSlots <= TIMELINE_SLOTS) { result[i] = { ...a, startSlot: ns }; moved = true; }
+            }
+          }
+        }
+      }
+      if (!moved) break;
+    }
+    // Validate: no overlaps and all in bounds — if invalid, return original
+    for (const it of result) {
+      if (it.startSlot < 0 || it.startSlot + it.lengthSlots > TIMELINE_SLOTS) return items;
+    }
+    for (let i = 0; i < result.length; i++) {
+      for (let j = i + 1; j < result.length; j++) {
+        const a = result[i], b = result[j];
+        if (a.startSlot < b.startSlot + b.lengthSlots && a.startSlot + a.lengthSlots > b.startSlot) return items;
+      }
+    }
+    return result;
+  }, [TIMELINE_SLOTS]);
+
+  const [dragGhost, setDragGhost] = useState(null); // { id, slot } — visual preview during drag
+
   useEffect(() => {
     const onMouseMove = (e) => {
       if (!dragRef.current || !trackRef.current) return;
@@ -4981,22 +5128,24 @@ export default function App() {
       const slotW = rect.width / TIMELINE_SLOTS;
       const dSlots = Math.round((e.clientX - dragRef.current.startX) / slotW);
       const { type, id, origStart, origLength } = dragRef.current;
-      setTimelineItems(prev => prev.map(item => {
-        if (item.id !== id) return item;
-        if (type === "move") {
-          const ns = Math.max(0, Math.min(TIMELINE_SLOTS - item.lengthSlots, origStart + dSlots));
-          return isSlotFree(prev, ns, item.lengthSlots, id) ? { ...item, startSlot: ns } : item;
-        } else {
+      if (type === "move") {
+        const ns = Math.max(0, Math.min(TIMELINE_SLOTS - origLength, origStart + dSlots));
+        setDragGhost({ id, slot: ns });
+        setTimelineItems(prev => resolveOverlaps(prev, id, ns));
+      } else {
+        // Resize — keep existing behavior (don't push, just clamp)
+        setTimelineItems(prev => prev.map(item => {
+          if (item.id !== id) return item;
           const nl = Math.max(1, Math.min(TIMELINE_SLOTS - item.startSlot, origLength + dSlots));
           return isSlotFree(prev, item.startSlot, nl, id) ? { ...item, lengthSlots: nl } : item;
-        }
-      }));
+        }));
+      }
     };
-    const onMouseUp = () => { dragRef.current = null; };
+    const onMouseUp = () => { dragRef.current = null; setDragGhost(null); };
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup",   onMouseUp);
     return () => { document.removeEventListener("mousemove", onMouseMove); document.removeEventListener("mouseup", onMouseUp); };
-  }, []);
+  }, [resolveOverlaps]);
 
   // ── Timeline playback ──────────────────────────────────────────────────────
   const playTimeline = async () => {
@@ -5019,7 +5168,7 @@ export default function App() {
     const chordEnd  = timelineItems.reduce((m,it) => Math.max(m, it.startSlot + it.lengthSlots), 0);
     const bassEnd   = bassLine.reduce((m,n) => Math.max(m, n.startSlot + n.lengthSlots), 0);
     const melEnd    = melodyLine.reduce((m,n) => Math.max(m, n.startSlot + n.lengthSlots), 0);
-    const loopSlots = Math.max(chordEnd, bassEnd, melEnd, hasDrums ? DRUM_STEPS : 0);
+    const loopSlots = Math.max(chordEnd, bassEnd, melEnd, hasDrums ? DRUM_STEPS_LIVE : 0);
     if (loopSlots === 0) return;
     const totalSec  = loopSlots * slotSec;
     const totalMs   = totalSec * 1000;
@@ -5270,15 +5419,16 @@ export default function App() {
         } else {
           fillJustPlayedRef.current = false;
         }
-        for (let step = 0; step < DRUM_STEPS; step++) {
+        for (let step = 0; step < DRUM_STEPS_LIVE; step++) {
           DRUM_TRACKS.forEach(track => {
             if (curSolo && curSolo !== track.id) return;
             if (!curSolo && curMuted[track.id]) return;
             const vel = curDrumPattern?.[track.id]?.[step] || 0;
-            // Fill overlay: replace velocity in last bar (steps 48-63)
+            // Fill overlay: replace velocity in last bar
             let effectiveVel = vel;
-            if (fillOverlay && step >= 48) {
-              const fillStep = step - 48;
+            const fillBarStart = DRUM_STEPS_LIVE - 16;
+            if (fillOverlay && step >= fillBarStart) {
+              const fillStep = step - fillBarStart;
               const fillVel = fillOverlay[track.id]?.[fillStep];
               if (fillVel !== undefined) effectiveVel = fillVel;
             }
@@ -5317,7 +5467,7 @@ export default function App() {
         const varSeed2 = densitySeedRef.current;
         if (varAmt2 >= 30) {
           const prevHit = {}; // track whether previous step had a hit (original or ghost)
-          for (let step = 0; step < DRUM_STEPS; step++) {
+          for (let step = 0; step < DRUM_STEPS_LIVE; step++) {
             DRUM_TRACKS.forEach(track => {
               const existingVel = curDrumPattern?.[track.id]?.[step] || 0;
               if (existingVel > 0) { prevHit[track.id] = true; return; }
@@ -5439,7 +5589,7 @@ export default function App() {
       setPlayheadPct(raw * (loopSlots / TIMELINE_SLOTS));
       // Drum step marker
       if (hasDrums) {
-        const step = Math.floor((loopElapsed / 1000) / slotSec) % DRUM_STEPS;
+        const step = Math.floor((loopElapsed / 1000) / slotSec) % DRUM_STEPS_LIVE;
         setDrumStep(step);
       }
       rafRef.current = requestAnimationFrame(animate);
@@ -5661,10 +5811,11 @@ export default function App() {
             const steps = sec.drumPattern[track.id];
             if (!steps) return;
             steps.forEach((vel, step) => {
-              // Fill overlay: replace velocity in last bar (steps 48-63) of last section
+              // Fill overlay: replace velocity in last bar of last section
               let effectiveVelA = vel;
-              if (fillOverlayA && isLastSec && step >= 48) {
-                const fillStep = step - 48;
+              const fillBarStartA = Math.max(0, steps.length - 16);
+              if (fillOverlayA && isLastSec && step >= fillBarStartA) {
+                const fillStep = step - fillBarStartA;
                 const fillVel = fillOverlayA[track.id]?.[fillStep];
                 if (fillVel !== undefined) effectiveVelA = fillVel;
               }
@@ -5925,9 +6076,9 @@ export default function App() {
                             background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
                             color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
                             whiteSpace:"nowrap" }}>
-                          <option value="off">Sync Off</option>
-                          <option value="send">Sync → MPC</option>
-                          <option value="receive">Sync ← MPC</option>
+                          <option value="off">Clock Off</option>
+                          <option value="send">App er master (sender clock + start/stop)</option>
+                          <option value="receive">MPC er master (mottar clock)</option>
                         </select>
                       )}
                     </>
@@ -6170,7 +6321,7 @@ export default function App() {
 
                 {/* Action buttons */}
                 <button onClick={generateDrumPattern} style={dawToolBtn(true)}>Generate</button>
-                <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { const fresh = genre.generate(); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = emptyDrumTrack(); }); setDrumPattern(fresh); }}}}
+                <button onClick={() => { if (drumPattern) { const genre = DRUM_GENRES[drumGenre]; if (genre) { let fresh = genre.generate(); fresh = resizeDrumPattern(fresh, DRUM_STEPS_LIVE); Object.keys(lockedTracks).forEach(tid => { if (lockedTracks[tid] && drumPattern[tid]) fresh[tid] = drumPattern[tid]; }); DRUM_TRACKS.forEach(tr => { if (!fresh[tr.id]) fresh[tr.id] = new Array(DRUM_STEPS_LIVE).fill(0); }); setDrumPattern(fresh); }}}}
                   disabled={!drumPattern}
                   style={{ ...dawToolBtn(false), opacity:drumPattern?1:0.35, cursor:drumPattern?"pointer":"default" }}>
                   Variation
@@ -6267,8 +6418,8 @@ export default function App() {
                     <div style={{ padding:"3px 8px", background:"rgba(0,0,0,0.02)" }}>
                       <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:SF }}>Track</span>
                     </div>
-                    <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)" }}>
-                      {Array.from({length:4},(_,i) => (
+                    <div style={{ display:"grid", gridTemplateColumns:`repeat(${barCount},1fr)` }}>
+                      {Array.from({length:barCount},(_,i) => (
                         <div key={i} style={{ padding:"3px 4px", borderLeft:`1px solid rgba(0,0,0,${i>0?"0.10":"0"})`, background:"rgba(0,0,0,0.02)" }}>
                           <span style={{ fontSize:8, fontWeight:700, color:"rgba(0,0,0,0.40)", letterSpacing:"0.1em", textTransform:"uppercase", fontFamily:MONO }}>{i+1}</span>
                         </div>
@@ -6321,9 +6472,9 @@ export default function App() {
                           </span>
                         </div>
                         {/* Steps */}
-                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS},1fr)`, gap:0,
+                        <div style={{ display:"grid", gridTemplateColumns:`repeat(${DRUM_STEPS_LIVE},1fr)`, gap:0,
                           background: isEvenRow ? "rgba(0,0,0,0.015)" : "transparent" }}>
-                          {drumPattern[track.id].map((vel, step) => {
+                          {(drumPattern[track.id] || []).slice(0, DRUM_STEPS_LIVE).map((vel, step) => {
                             const isPlayhead = drumStep === step;
                             const isBeatLine = step > 0 && step % 4 === 0;
                             const isBarLine  = step > 0 && step % DRUM_BAR_STEPS === 0;
@@ -6444,6 +6595,297 @@ export default function App() {
           {/* ════════════════ CHORDS MODE ════════════════ */}
           {mode === "chords" && (
             <>
+              {/* Chord grid */}
+              <div style={card}>
+                <div style={{ ...labelStyle, marginBottom:14 }}>Scale chords</div>
+                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
+                  {chords.map((c, i) => {
+                    const isActive  = activeChord  && activeChord.noteIdx===c.noteIdx  && activeChord.quality===c.quality;
+                    const isHovered = hoveredChord && hoveredChord.noteIdx===c.noteIdx && hoveredChord.quality===c.quality;
+                    const accent = isActive || isHovered;
+                    return (
+                      <div key={i}
+                        onClick={() => addChord(c)}
+                        onMouseEnter={() => {
+                          setHoveredChord(c);
+                          if (!looping) {
+                            const names = getChordNoteNames(c.noteIdx, c.quality, chordOctave);
+                            playChord(names, soundType);
+                          }
+                        }}
+                        onMouseLeave={() => setHoveredChord(null)}
+                        style={{
+                          border: accent ? `1px solid rgba(92,124,138,0.50)` : `1px solid rgba(0,0,0,0.08)`,
+                          borderRadius:2, padding:"10px 6px 8px",
+                          background: isActive ? "rgba(92,124,138,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
+                          cursor:"pointer", textAlign:"center", userSelect:"none",
+                          transition:"all 0.08s",
+                        }}>
+                        <div style={{ fontSize:10, color:accent?t.accent:t.textTertiary, marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
+                          {c.degree}
+                        </div>
+                        <div style={{ fontSize:15, fontWeight:700, color:accent?t.accent:t.chordNameColor, letterSpacing:"0.03em" }}>
+                          {c.display}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Piano */}
+              <div style={card}>
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+                  <div style={labelStyle}>Piano</div>
+                  <div style={{ fontSize:12, color:t.textSecondary, fontWeight:400 }}>
+                    {displayChord
+                      ? <span><span style={{ color:t.accent, fontWeight:600 }}>{displayChord.display}</span> · click a key to play single notes</span>
+                      : "hover over a chord to see notes"}
+                  </div>
+                </div>
+
+                <div style={{ display:"flex", gap:6, alignItems:"center", height:44, marginBottom:14, flexWrap:"nowrap" }}>
+                  {displayChord
+                    ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality).map((ni, i) => (
+                        <span key={i} style={{
+                          background:t.accentBg, color:t.accent, border:`1px solid ${t.accentBorder}`,
+                          borderRadius:2, padding:"4px 12px", fontSize:13, fontWeight:600,
+                          letterSpacing:"-0.01em", fontFamily:SF,
+                        }}>
+                          {NOTES[ni]}
+                        </span>
+                      ))
+                    : <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Hover over a chord to see notes</span>
+                  }
+                </div>
+
+                <div style={{ background:t.pianoRailBg, borderRadius:2, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
+                  <div style={{ background:t.pianoKeysBg, borderRadius:2, overflow:"hidden" }}>
+                    <Piano highlightedNotes={highlightedNotes} scaleNoteIndices={scaleNoteIndices} t={t} onNoteClick={note => { if (!sendMIDISingleNote(note)) playSingleNote(note, soundType); }} />
+                  </div>
+                </div>
+
+                <div style={{ display:"flex", gap:16, marginTop:12, fontSize:12, color:t.textSecondary }}>
+                  <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendChord, display:"inline-block", flexShrink:0 }} />
+                    Chord tones
+                  </span>
+                  <span style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendScale, border:`1px solid ${t.legendScaleBdr}`, display:"inline-block", flexShrink:0 }} />
+                    Scale tones
+                  </span>
+                </div>
+              </div>
+
+              {/* ── Timeline ── */}
+              <div style={card}>
+                {/* Header row */}
+                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
+                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                    <div style={labelStyle}>Timeline — {barCount} bars</div>
+                    {looping && (
+                      <span style={{ fontSize:11, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
+                        display:"flex", alignItems:"center", gap:5 }}>
+                        <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
+                          display:"inline-block",
+                          animation:"pulse 1.2s ease-in-out infinite" }} />
+                        LOOPING
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
+                    {/* BPM */}
+                    <span style={{ fontSize:11, fontWeight:600, color: externalBpm ? "#30D158" : t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>
+                      {externalBpm ? "BPM ← MPC" : "BPM"}
+                    </span>
+                    {clockDebug && midiSyncMode === "receive" && (
+                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:MONO, opacity:0.7 }}>{clockDebug}</span>
+                    )}
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
+                      readOnly={!!externalBpm}
+                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
+                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
+                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
+                      style={{ fontFamily:MONO, fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
+                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.35)"}`,
+                        background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
+                        color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
+                        cursor: externalBpm ? "default" : "text" }}
+                    />
+                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
+                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
+                    {/* Octave */}
+                    <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
+                    <span style={{ fontSize:14, fontWeight:700, color:t.textPrimary, minWidth:16, textAlign:"center" }}>{chordOctave}</span>
+                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
+                  </div>
+                </div>
+
+                {/* Timeline track */}
+                <div style={{ borderRadius:2, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
+                  {/* Bar labels */}
+                  <div style={{ display:"grid", gridTemplateColumns:`repeat(4,1fr)`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
+                    {Array.from({length:4}, (_,i) => (
+                      <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
+                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Track area */}
+                  <div ref={trackRef} style={{ position:"relative", height:76, background:t.slotBg, userSelect:"none" }}>
+                    {/* Slot lines — bar (prominent), half-bar (medium), beat (faint) */}
+                    {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
+                      if (i===0) return null;
+                      let bg;
+                      if (i%SLOTS_PER_BAR===0)            bg = t.border;                // bar
+                      else if (i%(SLOTS_PER_BAR/2)===0)   bg = "rgba(0,0,0,0.09)";   // half-bar
+                      else if (i%(SLOTS_PER_BAR/4)===0)   bg = "rgba(0,0,0,0.04)";   // beat
+                      else                                return null;                  // skip eighth/sixteenth
+                      return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
+                    })}
+                    {/* Chord blocks */}
+                    {timelineItems.map(item => {
+                      const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
+                      const hits = cpat.generate(item.lengthSlots);
+                      const isSustained = chordPlayPattern === "sustained";
+                      const itemMutes = chordRhythmMutes[item.id] || {};
+                      const isDragging = dragGhost && dragGhost.id === item.id;
+
+                      return (
+                      <div key={item.id}
+                        onMouseDown={e => { if(e.target.dataset.resize || e.target.dataset.rhythmhit) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                        onDoubleClick={e => {
+                          if (e.target.dataset.rhythmhit) return;
+                          e.preventDefault(); e.stopPropagation();
+                          dragRef.current = null;
+                          setTimelineItems(prev => {
+                            const origEnd = item.startSlot + item.lengthSlots;
+                            const maxLen = Math.min(item.lengthSlots, TIMELINE_SLOTS - origEnd);
+                            if (maxLen < 1) return prev;
+                            if (isSlotFree(prev, origEnd, maxLen)) {
+                              return [...prev, { id: Date.now()+Math.random(), chord: item.chord, startSlot: origEnd, lengthSlots: maxLen }];
+                            }
+                            return prev;
+                          });
+                        }}
+                        style={{
+                          position:"absolute",
+                          left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
+                          width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
+                          top:6, height:"calc(100% - 12px)",
+                          background: isSustained ? t.accentCardBg : "transparent",
+                          border: isSustained ? `1px solid ${t.accentBorder}` : "none",
+                          borderRadius:2, cursor: isDragging ? "grabbing" : "grab",
+                          overflow:"hidden",
+                          zIndex: isDragging ? 10 : 1,
+                          opacity: isDragging ? 0.92 : 1,
+                          boxShadow: isDragging ? "0 2px 12px rgba(0,0,0,0.18)" : "none",
+                          transition: isDragging ? "none" : "left 0.12s ease-out, box-shadow 0.15s",
+                        }}>
+                        {/* Sustained mode — original look */}
+                        {isSustained && (
+                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", height:"100%", padding:"0 4px 0 8px" }}>
+                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
+                              {item.chord.display}
+                            </span>
+                            <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
+                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
+                              <div data-resize="1"
+                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                                style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
+                            </div>
+                          </div>
+                        )}
+                        {/* Rhythm pattern mode — show hits as sub-blocks */}
+                        {!isSustained && (
+                          <div style={{ position:"relative", width:"100%", height:"100%" }}>
+                            {/* Chord label floating top-left */}
+                            <span style={{ position:"absolute", top:1, left:4, fontSize:9, fontWeight:700, color:t.accent, fontFamily:SF, opacity:0.7, zIndex:2, pointerEvents:"none" }}>
+                              {item.chord.display}
+                            </span>
+                            {/* Hit sub-blocks */}
+                            {hits.map((hit, hIdx) => {
+                              const isMuted = !!itemMutes[hIdx];
+                              const leftPct = hit.offset * 100;
+                              const widthPct = Math.max(hit.duration * 100, 2); // min 2% so it's visible
+                              return (
+                                <div key={hIdx}
+                                  data-rhythmhit="1"
+                                  onClick={e => {
+                                    e.stopPropagation();
+                                    setChordRhythmMutes(prev => {
+                                      const cur = prev[item.id] || {};
+                                      const next = { ...cur };
+                                      if (next[hIdx]) delete next[hIdx];
+                                      else next[hIdx] = true;
+                                      return { ...prev, [item.id]: next };
+                                    });
+                                  }}
+                                  title={isMuted ? `Hit ${hIdx+1} — muted (click to unmute)` : `Hit ${hIdx+1} — vel ${Math.round(hit.velMult*100)}% (click to mute)`}
+                                  style={{
+                                    position:"absolute",
+                                    left:`${leftPct}%`,
+                                    width:`${widthPct}%`,
+                                    top:2, bottom:2,
+                                    background: isMuted
+                                      ? "rgba(128,128,128,0.15)"
+                                      : `rgba(92,124,138,${0.25 + hit.velMult * 0.45})`,
+                                    border: isMuted
+                                      ? "1px dashed rgba(128,128,128,0.3)"
+                                      : `1px solid rgba(92,124,138,${0.3 + hit.velMult * 0.3})`,
+                                    borderRadius:2,
+                                    cursor:"pointer",
+                                    transition:"all 0.1s",
+                                    boxShadow: "none",
+                                  }}
+                                />
+                              );
+                            })}
+                            {/* Controls: delete + resize handle */}
+                            <div style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:1, zIndex:3 }}>
+                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
+                              <div data-resize="1"
+                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
+                                style={{ width:5, height:20, borderRadius:2, background:"rgba(92,124,138,0.2)", cursor:"ew-resize", flexShrink:0 }} />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );})}
+
+                    {/* Playhead */}
+                    {looping && (
+                      <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none" }} />
+                    )}
+                    {/* Empty state */}
+                    {timelineItems.length===0 && (
+                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Click a chord above to add it to the timeline ↑</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Loop toggle — right below timeline */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
+                  <button onClick={() => setLoopEnabled(e => !e)}
+                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
+                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
+                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
+                      cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
+                    {loopEnabled ? "LOOP" : "1×"}
+                  </button>
+                  {!loopEnabled && (
+                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>Stops after one pass</span>
+                  )}
+                </div>
+              </div>
+
               <div style={card}>
                 {/* ═══ ZONE 1: TRANSPORT ═══ */}
                 <div style={{ display:"flex", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${t.border}`, marginBottom:8, flexWrap:"wrap" }}>
@@ -6496,6 +6938,23 @@ export default function App() {
                       color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)", cursor:"pointer", letterSpacing:"0.04em" }}>
                     {loopEnabled ? "LOOP" : "1×"}
                   </button>
+
+                  <div style={{ width:1, height:22, background:t.border }} />
+
+                  {/* Bar count selector */}
+                  <div style={{ display:"flex", alignItems:"center", gap:3 }}>
+                    <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.50)", letterSpacing:"0.08em", fontFamily:SF }}>BARS</span>
+                    {[2, 4, 8].map(n => (
+                      <button key={n} onClick={() => setBarCount(n)}
+                        style={{ fontFamily:MONO, fontSize:11, fontWeight:700, width:24, height:22, borderRadius:2,
+                          border:`1px solid ${barCount === n ? t.accentBorder : "rgba(0,0,0,0.12)"}`,
+                          background: barCount === n ? t.accentBg : "transparent",
+                          color: barCount === n ? t.accent : "rgba(0,0,0,0.45)",
+                          cursor:"pointer", lineHeight:1, padding:0, transition:"all 0.08s" }}>
+                        {n}
+                      </button>
+                    ))}
+                  </div>
 
                   {looping && (
                     <span style={{ fontSize:9, fontWeight:700, color:"#2B9A3E", letterSpacing:"0.06em", fontFamily:MONO,
@@ -6675,292 +7134,8 @@ export default function App() {
                   </>}
                 </div>
               </div>
-              {/* Chord grid */}
+
               <div style={card}>
-                <div style={{ ...labelStyle, marginBottom:14 }}>Scale chords</div>
-                <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:8 }}>
-                  {chords.map((c, i) => {
-                    const isActive  = activeChord  && activeChord.noteIdx===c.noteIdx  && activeChord.quality===c.quality;
-                    const isHovered = hoveredChord && hoveredChord.noteIdx===c.noteIdx && hoveredChord.quality===c.quality;
-                    const accent = isActive || isHovered;
-                    return (
-                      <div key={i}
-                        onClick={() => addChord(c)}
-                        onMouseEnter={() => {
-                          setHoveredChord(c);
-                          if (!looping) {
-                            const names = getChordNoteNames(c.noteIdx, c.quality, chordOctave);
-                            playChord(names, soundType);
-                          }
-                        }}
-                        onMouseLeave={() => setHoveredChord(null)}
-                        style={{
-                          border: accent ? `1px solid rgba(92,124,138,0.50)` : `1px solid rgba(0,0,0,0.08)`,
-                          borderRadius:2, padding:"10px 6px 8px",
-                          background: isActive ? "rgba(92,124,138,0.08)" : isHovered ? "#FAFAFA" : "#FFFFFF",
-                          cursor:"pointer", textAlign:"center", userSelect:"none",
-                          transition:"all 0.08s",
-                        }}>
-                        <div style={{ fontSize:10, color:accent?t.accent:t.textTertiary, marginBottom:4, fontWeight:700, letterSpacing:"0.12em", textTransform:"uppercase" }}>
-                          {c.degree}
-                        </div>
-                        <div style={{ fontSize:15, fontWeight:700, color:accent?t.accent:t.chordNameColor, letterSpacing:"0.03em" }}>
-                          {c.display}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Piano */}
-              <div style={card}>
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-                  <div style={labelStyle}>Piano</div>
-                  <div style={{ fontSize:12, color:t.textSecondary, fontWeight:400 }}>
-                    {displayChord
-                      ? <span><span style={{ color:t.accent, fontWeight:600 }}>{displayChord.display}</span> · click a key to play single notes</span>
-                      : "hover over a chord to see notes"}
-                  </div>
-                </div>
-
-                <div style={{ display:"flex", gap:6, alignItems:"center", height:44, marginBottom:14, flexWrap:"nowrap" }}>
-                  {displayChord
-                    ? getChordNoteIndices(displayChord.noteIdx, displayChord.quality).map((ni, i) => (
-                        <span key={i} style={{
-                          background:t.accentBg, color:t.accent, border:`1px solid ${t.accentBorder}`,
-                          borderRadius:2, padding:"4px 12px", fontSize:13, fontWeight:600,
-                          letterSpacing:"-0.01em", fontFamily:SF,
-                        }}>
-                          {NOTES[ni]}
-                        </span>
-                      ))
-                    : <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Hover over a chord to see notes</span>
-                  }
-                </div>
-
-                <div style={{ background:t.pianoRailBg, borderRadius:2, padding:"10px 12px 12px", boxShadow:t.pianoRailShadow }}>
-                  <div style={{ background:t.pianoKeysBg, borderRadius:2, overflow:"hidden" }}>
-                    <Piano highlightedNotes={highlightedNotes} scaleNoteIndices={scaleNoteIndices} t={t} onNoteClick={note => { if (!sendMIDISingleNote(note)) playSingleNote(note, soundType); }} />
-                  </div>
-                </div>
-
-                <div style={{ display:"flex", gap:16, marginTop:12, fontSize:12, color:t.textSecondary }}>
-                  <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendChord, display:"inline-block", flexShrink:0 }} />
-                    Chord tones
-                  </span>
-                  <span style={{ display:"flex", alignItems:"center", gap:6 }}>
-                    <span style={{ width:14, height:14, borderRadius:2, background:t.legendScale, border:`1px solid ${t.legendScaleBdr}`, display:"inline-block", flexShrink:0 }} />
-                    Scale tones
-                  </span>
-                </div>
-              </div>
-
-              {/* ── Timeline ── */}
-              <div style={card}>
-                {/* Header row */}
-                <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:12, flexWrap:"wrap", gap:8 }}>
-                  <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-                    <div style={labelStyle}>Timeline — 4 bars</div>
-                    {looping && (
-                      <span style={{ fontSize:11, fontWeight:600, color:"#30D158", letterSpacing:"0.05em",
-                        display:"flex", alignItems:"center", gap:5 }}>
-                        <span style={{ width:7, height:7, borderRadius:"50%", background:"#30D158",
-                          display:"inline-block",
-                          animation:"pulse 1.2s ease-in-out infinite" }} />
-                        LOOPING
-                      </span>
-                    )}
-                  </div>
-                  <div style={{ display:"flex", gap:6, alignItems:"center", flexWrap:"wrap" }}>
-                    {/* BPM */}
-                    <span style={{ fontSize:11, fontWeight:600, color: externalBpm ? "#30D158" : t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>
-                      {externalBpm ? "BPM ← MPC" : "BPM"}
-                    </span>
-                    {clockDebug && midiSyncMode === "receive" && (
-                      <span style={{ fontSize:8, color:t.textTertiary, fontFamily:MONO, opacity:0.7 }}>{clockDebug}</span>
-                    )}
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.max(40, b-1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>}
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" value={bpm}
-                      readOnly={!!externalBpm}
-                      onChange={e => { if (externalBpm) return; const raw = e.target.value.replace(/\D/g,""); if(raw===""){setBpm("");return;} const v=parseInt(raw); if(v>=1&&v<=999) setBpm(v); }}
-                      onBlur={e => { if (externalBpm) return; const v=parseInt(e.target.value); setBpm(isNaN(v)?90:Math.min(240,Math.max(40,v))); }}
-                      onKeyDown={e => { if (externalBpm) return; if(e.key==="ArrowUp") {e.preventDefault();setBpm(b=>Math.min(240,(parseInt(b)||90)+1));} if(e.key==="ArrowDown") {e.preventDefault();setBpm(b=>Math.max(40,(parseInt(b)||90)-1));} if(e.key==="Enter") e.target.blur(); }}
-                      style={{ fontFamily:MONO, fontSize:17, fontWeight:700, textAlign:"center", width:54, padding:"4px 4px", borderRadius:2,
-                        border:`1.5px solid ${externalBpm ? "rgba(48,209,88,0.5)" : "rgba(92,124,138,0.35)"}`,
-                        background: externalBpm ? "rgba(48,209,88,0.08)" : t.inputBg,
-                        color: externalBpm ? "#30D158" : t.accent, outline:"none", letterSpacing:"0.08em", caretColor:t.accent,
-                        cursor: externalBpm ? "default" : "text" }}
-                    />
-                    {!externalBpm && <button onClick={() => setBpm(b => Math.min(240, b+1))} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>}
-                    <div style={{ width:1, height:20, background:t.border, margin:"0 2px" }} />
-                    {/* Octave */}
-                    <span style={{ fontSize:11, fontWeight:600, color:t.labelColor, textTransform:"uppercase", letterSpacing:"0.07em" }}>Oct</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.max(2,o-1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>−</button>
-                    <span style={{ fontSize:14, fontWeight:700, color:t.textPrimary, minWidth:16, textAlign:"center" }}>{chordOctave}</span>
-                    <button onClick={() => { if(looping) stopLoop(); setChordOctave(o=>Math.min(6,o+1)); }} style={{ fontFamily:SF, fontSize:13, fontWeight:600, width:26, height:26, borderRadius:2, border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor, cursor:"pointer", lineHeight:1 }}>+</button>
-                  </div>
-                </div>
-
-                {/* Timeline track */}
-                <div style={{ borderRadius:2, overflow:"hidden", border:`1px solid ${t.border}`, marginBottom:12 }}>
-                  {/* Bar labels */}
-                  <div style={{ display:"grid", gridTemplateColumns:`repeat(4,1fr)`, background:t.elevatedBg, borderBottom:`1px solid ${t.border}` }}>
-                    {Array.from({length:4}, (_,i) => (
-                      <div key={i} style={{ padding:"4px 6px", borderLeft: i>0 ? `1px solid ${t.border}` : "none" }}>
-                        <span style={{ fontSize:9, fontWeight:700, color:t.textTertiary, letterSpacing:"0.08em", textTransform:"uppercase" }}>Bar {i+1}</span>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Track area */}
-                  <div ref={trackRef} style={{ position:"relative", height:76, background:t.slotBg, userSelect:"none" }}>
-                    {/* Slot lines — bar (prominent), half-bar (medium), beat (faint) */}
-                    {Array.from({length:TIMELINE_SLOTS}, (_,i) => {
-                      if (i===0) return null;
-                      let bg;
-                      if (i%SLOTS_PER_BAR===0)            bg = t.border;                // bar
-                      else if (i%(SLOTS_PER_BAR/2)===0)   bg = "rgba(0,0,0,0.09)";   // half-bar
-                      else if (i%(SLOTS_PER_BAR/4)===0)   bg = "rgba(0,0,0,0.04)";   // beat
-                      else                                return null;                  // skip eighth/sixteenth
-                      return <div key={i} style={{ position:"absolute", left:`${i/TIMELINE_SLOTS*100}%`, top:0, bottom:0, width:1, background:bg, pointerEvents:"none" }} />;
-                    })}
-                    {/* Chord blocks */}
-                    {timelineItems.map(item => {
-                      const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
-                      const hits = cpat.generate(item.lengthSlots);
-                      const isSustained = chordPlayPattern === "sustained";
-                      const itemMutes = chordRhythmMutes[item.id] || {};
-
-                      return (
-                      <div key={item.id}
-                        onMouseDown={e => { if(e.target.dataset.resize || e.target.dataset.rhythmhit) return; e.preventDefault(); dragRef.current={type:"move",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                        onDoubleClick={e => {
-                          if (e.target.dataset.rhythmhit) return;
-                          e.preventDefault(); e.stopPropagation();
-                          dragRef.current = null;
-                          setTimelineItems(prev => {
-                            const origEnd = item.startSlot + item.lengthSlots;
-                            const maxLen = Math.min(item.lengthSlots, TIMELINE_SLOTS - origEnd);
-                            if (maxLen < 1) return prev;
-                            if (isSlotFree(prev, origEnd, maxLen)) {
-                              return [...prev, { id: Date.now()+Math.random(), chord: item.chord, startSlot: origEnd, lengthSlots: maxLen }];
-                            }
-                            return prev;
-                          });
-                        }}
-                        style={{
-                          position:"absolute",
-                          left:`${(item.startSlot/TIMELINE_SLOTS)*100}%`,
-                          width:`calc(${(item.lengthSlots/TIMELINE_SLOTS)*100}% - 4px)`,
-                          top:6, height:"calc(100% - 12px)",
-                          background: isSustained ? t.accentCardBg : "transparent",
-                          border: isSustained ? `1px solid ${t.accentBorder}` : "none",
-                          borderRadius:2, cursor:"grab",
-                          overflow:"hidden",
-                          boxShadow: "none",
-                        }}>
-                        {/* Sustained mode — original look */}
-                        {isSustained && (
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", height:"100%", padding:"0 4px 0 8px" }}>
-                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em" }}>
-                              {item.chord.display}
-                            </span>
-                            <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
-                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
-                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
-                              <div data-resize="1"
-                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:6, height:24, borderRadius:2, background:"rgba(255,255,255,0.15)", cursor:"ew-resize", flexShrink:0 }} />
-                            </div>
-                          </div>
-                        )}
-                        {/* Rhythm pattern mode — show hits as sub-blocks */}
-                        {!isSustained && (
-                          <div style={{ position:"relative", width:"100%", height:"100%" }}>
-                            {/* Chord label floating top-left */}
-                            <span style={{ position:"absolute", top:1, left:4, fontSize:9, fontWeight:700, color:t.accent, fontFamily:SF, opacity:0.7, zIndex:2, pointerEvents:"none" }}>
-                              {item.chord.display}
-                            </span>
-                            {/* Hit sub-blocks */}
-                            {hits.map((hit, hIdx) => {
-                              const isMuted = !!itemMutes[hIdx];
-                              const leftPct = hit.offset * 100;
-                              const widthPct = Math.max(hit.duration * 100, 2); // min 2% so it's visible
-                              return (
-                                <div key={hIdx}
-                                  data-rhythmhit="1"
-                                  onClick={e => {
-                                    e.stopPropagation();
-                                    setChordRhythmMutes(prev => {
-                                      const cur = prev[item.id] || {};
-                                      const next = { ...cur };
-                                      if (next[hIdx]) delete next[hIdx];
-                                      else next[hIdx] = true;
-                                      return { ...prev, [item.id]: next };
-                                    });
-                                  }}
-                                  title={isMuted ? `Hit ${hIdx+1} — muted (click to unmute)` : `Hit ${hIdx+1} — vel ${Math.round(hit.velMult*100)}% (click to mute)`}
-                                  style={{
-                                    position:"absolute",
-                                    left:`${leftPct}%`,
-                                    width:`${widthPct}%`,
-                                    top:2, bottom:2,
-                                    background: isMuted
-                                      ? "rgba(128,128,128,0.15)"
-                                      : `rgba(92,124,138,${0.25 + hit.velMult * 0.45})`,
-                                    border: isMuted
-                                      ? "1px dashed rgba(128,128,128,0.3)"
-                                      : `1px solid rgba(92,124,138,${0.3 + hit.velMult * 0.3})`,
-                                    borderRadius:2,
-                                    cursor:"pointer",
-                                    transition:"all 0.1s",
-                                    boxShadow: "none",
-                                  }}
-                                />
-                              );
-                            })}
-                            {/* Controls: delete + resize handle */}
-                            <div style={{ position:"absolute", top:0, right:0, bottom:0, display:"flex", alignItems:"center", gap:1, zIndex:3 }}>
-                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
-                                style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:12, padding:"0 2px", lineHeight:1, fontFamily:SF }}>×</button>
-                              <div data-resize="1"
-                                onMouseDown={e => { e.preventDefault(); e.stopPropagation(); dragRef.current={type:"resize",id:item.id,startX:e.clientX,origStart:item.startSlot,origLength:item.lengthSlots}; }}
-                                style={{ width:5, height:20, borderRadius:2, background:"rgba(92,124,138,0.2)", cursor:"ew-resize", flexShrink:0 }} />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );})}
-
-                    {/* Playhead */}
-                    {looping && (
-                      <div style={{ position:"absolute", left:`${playheadPct*100}%`, top:0, bottom:0, width:2, background:t.accent, opacity:0.9, pointerEvents:"none" }} />
-                    )}
-                    {/* Empty state */}
-                    {timelineItems.length===0 && (
-                      <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        <span style={{ fontSize:13, color:t.textTertiary, fontFamily:SF }}>Click a chord above to add it to the timeline ↑</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Loop toggle — right below timeline */}
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:10 }}>
-                  <button onClick={() => setLoopEnabled(e => !e)}
-                    style={{ fontFamily:MONO, fontSize:10, fontWeight:700, padding:"3px 8px", borderRadius:2,
-                      border:`1px solid ${loopEnabled ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                      background: loopEnabled ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: loopEnabled ? "#2B9A3E" : "rgba(0,0,0,0.50)",
-                      cursor:"pointer", transition:"all 0.08s", letterSpacing:"0.04em" }}>
-                    {loopEnabled ? "LOOP" : "1×"}
-                  </button>
-                  {!loopEnabled && (
-                    <span style={{ fontSize:10, color:t.textTertiary, fontFamily:SF }}>Stops after one pass</span>
-                  )}
-                </div>
-
                 {/* ── Chord Pattern ── */}
                 <div style={{ marginBottom: 12 }}>
                   <div style={{ display:"flex", gap:8, alignItems:"center", marginBottom:4 }}>
@@ -7571,6 +7746,7 @@ export default function App() {
                     setFillMode("off"); fillModeRef.current = "off"; fillNextRef.current = false; fillJustPlayedRef.current = false; loopCountRef.current = 0;
                     setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
                     setPianoRollEdits({}); setHumanize(0); setLoopEnabled(true); loopEnabledRef.current = true;
+                    setBarCount(4); prevBarCountRef.current = 4;
                     localStorage.removeItem("fiskaturet_project");
                   }}
                     style={{ fontFamily:SF, fontSize:10, fontWeight:500, padding:"3px 8px", borderRadius:2,
