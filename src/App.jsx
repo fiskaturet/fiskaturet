@@ -4939,31 +4939,19 @@ export default function App() {
   useEffect(() => { tapSelectedTrackRef.current = tapSelectedTrack; }, [tapSelectedTrack]);
 
   useEffect(() => {
-    console.log("[PadWizard] Effect running. padMapperOpen:", padMapperOpen, "midiReady:", midiReady, "midiAccess:", !!midiAccess.current);
-    if (!padMapperOpen || !midiReady || !midiAccess.current) {
-      console.log("[PadWizard] Skipping — conditions not met");
-      return;
-    }
+    if (!padMapperOpen || !midiReady || !midiAccess.current) return;
     const mode = padMapModeRef.current;
-    console.log("[PadWizard] Mode:", mode);
-    if (mode !== "wizard" && mode !== "tap") {
-      console.log("[PadWizard] Skipping — mode is", mode);
-      return;
-    }
+    if (mode !== "wizard" && mode !== "tap") return;
 
     const inputs = [...midiAccess.current.inputs.values()];
-    console.log("[PadWizard] Attaching to", inputs.length, "MIDI inputs:", inputs.map(i => i.name));
 
     const handler = (e) => {
       if (!e.data || e.data.length < 3) return;
       const status = e.data[0];
       const note = e.data[1];
       const velocity = e.data[2];
-      console.log("[PadWizard] MIDI message:", status.toString(16), "note:", note, "vel:", velocity);
-      // Accept note-on on any channel (0x90-0x9F with velocity > 0)
       if ((status & 0xF0) !== 0x90 || velocity === 0) return;
 
-      console.log("[PadWizard] Note-on! note:", note, "pad:", midiToPadLabel(note));
       setLastMidiNote(note);
       setTimeout(() => setLastMidiNote(null), 300);
 
@@ -4971,7 +4959,6 @@ export default function App() {
       if (curMode === "wizard" && !wizardDoneRef.current) {
         const step = wizardStepRef.current;
         const track = DRUM_TRACKS[step];
-        console.log("[PadWizard] Wizard step", step, "track:", track?.id, "→ mapping note", note);
         if (track) {
           const padLabel = midiToPadLabel(note);
           setWizardMap(prev => {
@@ -4989,18 +4976,13 @@ export default function App() {
         const track = DRUM_TRACKS[idx];
         if (track) {
           const padLabel = midiToPadLabel(note);
-          console.log("[PadWizard] Tap assign:", track.id, "→", padLabel, note);
           setPadMap(prev => ({ ...prev, [track.id]: { padId: padLabel, midiNote: note } }));
         }
       }
     };
 
-    // Use onmidimessage property (more reliable) + addEventListener as backup
-    const prevHandlers = inputs.map(input => input.onmidimessage);
-    inputs.forEach(input => { input.onmidimessage = handler; });
     inputs.forEach(input => input.addEventListener("midimessage", handler));
     return () => {
-      inputs.forEach((input, i) => { input.onmidimessage = prevHandlers[i] || null; });
       inputs.forEach(input => input.removeEventListener("midimessage", handler));
     };
   }, [padMapperOpen, padMapMode, midiReady]);
@@ -6817,13 +6799,6 @@ export default function App() {
                       })}
                     </div>
 
-                    {/* ── DEBUG: MIDI status ── */}
-                    <div style={{ background:"#1a1a1a", color:"#0f0", fontFamily:MONO, fontSize:10, padding:"8px 10px", borderRadius:3, marginBottom:10 }}>
-                      <div>midiReady: {String(midiReady)} | inputs: {midiAccess.current ? [...midiAccess.current.inputs.values()].length : "no access"} | padMapperOpen: {String(padMapperOpen)} | mode: {padMapMode}</div>
-                      <div>lastMidiNote: {lastMidiNote !== null ? `${lastMidiNote} (${midiToPadLabel(lastMidiNote)})` : "ingen"} | wizardStep: {wizardStep} | wizardDone: {String(wizardDone)}</div>
-                      {midiAccess.current && <div>inputs: {[...midiAccess.current.inputs.values()].map(i => i.name).join(", ") || "INGEN MIDI INPUTS FUNNET"}</div>}
-                    </div>
-
                     {/* ── WIZARD MODE ── */}
                     {padMapMode === "wizard" && !wizardDone && (() => {
                       const currentTrack = DRUM_TRACKS[wizardStep];
@@ -6840,9 +6815,21 @@ export default function App() {
                           </div>
 
                           <div style={{ display:"flex", gap:20, alignItems:"flex-start" }}>
-                            {/* Pad grid */}
+                            {/* Pad grid — click a pad to assign */}
                             <div style={{ flexShrink:0 }}>
-                              {renderPadGrid("A", { highlightMidi: currentMapping?.midiNote })}
+                              {renderPadGrid("A", {
+                                highlightMidi: currentMapping?.midiNote,
+                                onPadClick: (pad) => {
+                                  setWizardMap(prev => {
+                                    const base = prev || {};
+                                    return { ...base, [currentTrack.id]: { padId: pad.label, midiNote: pad.midi } };
+                                  });
+                                  setLastMidiNote(pad.midi);
+                                  setTimeout(() => setLastMidiNote(null), 300);
+                                  if (wizardStep < DRUM_TRACKS.length - 1) setWizardStep(s => s + 1);
+                                  else setWizardDone(true);
+                                },
+                              })}
                             </div>
 
                             {/* Right side: sound info + instructions */}
@@ -6851,7 +6838,7 @@ export default function App() {
                                 {currentTrack.label}
                               </div>
                               <div style={{ fontSize:12, fontFamily:SF, color:t.textSecondary, marginBottom:20, lineHeight:1.5 }}>
-                                Trykk på paden for <strong style={{ color:t.textPrimary }}>{currentTrack.label}</strong> på MPC-en din
+                                Klikk på paden for <strong style={{ color:t.textPrimary }}>{currentTrack.label}</strong> i gridet
                               </div>
 
                               {currentMapping && currentMapping.midiNote != null && currentMapping.midiNote >= 0 && (
@@ -7055,9 +7042,19 @@ export default function App() {
                               {DRUM_TRACKS[tapSelectedTrack]?.label}
                             </div>
                             <div style={{ fontSize:11, fontFamily:SF, color:t.textSecondary, marginBottom:12, lineHeight:1.5 }}>
-                              Trykk på paden for <strong style={{ color:t.textPrimary }}>{DRUM_TRACKS[tapSelectedTrack]?.label}</strong> på MPC-en din
+                              Klikk på paden for <strong style={{ color:t.textPrimary }}>{DRUM_TRACKS[tapSelectedTrack]?.label}</strong>
                             </div>
-                            {renderPadGrid("A")}
+                            {renderPadGrid("A", {
+                              highlightMidi: padMap[DRUM_TRACKS[tapSelectedTrack]?.id]?.midiNote,
+                              onPadClick: (pad) => {
+                                const track = DRUM_TRACKS[tapSelectedTrack];
+                                if (track) {
+                                  setPadMap(prev => ({ ...prev, [track.id]: { padId: pad.label, midiNote: pad.midi } }));
+                                  setLastMidiNote(pad.midi);
+                                  setTimeout(() => setLastMidiNote(null), 300);
+                                }
+                              },
+                            })}
                             {(() => {
                               const mapping = padMap[DRUM_TRACKS[tapSelectedTrack]?.id];
                               const hasPad = mapping && mapping.midiNote != null && mapping.midiNote >= 0;
