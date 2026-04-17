@@ -1556,6 +1556,73 @@ function densityPass(seed, trackId, step, density, importance) {
   return (importance + jitter) >= threshold;
 }
 
+// ── Loop Variation: deterministic mutations applied at schedule time ──
+// Deterministic variation hash — same seed+step always gives same mutation
+function variationHash(seed, id, step) {
+  let h = seed ^ 0x3c6ef372;
+  for (let i = 0; i < id.length; i++) h = ((h << 5) - h + id.charCodeAt(i)) | 0;
+  h = ((h << 5) - h + step) | 0;
+  h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b); h ^= h >>> 16;
+  return (h >>> 0) / 0xffffffff; // 0..1
+}
+
+// Drum velocity variation: ±35% at full variation, biased toward subtle changes
+function varDrumVelocity(seed, trackId, step, originalVel, amount) {
+  if (amount <= 0 || originalVel <= 0) return originalVel;
+  const r = variationHash(seed, trackId, step);
+  const range = (amount / 100) * 0.35; // up to ±35% at max
+  const delta = (r - 0.5) * 2 * range;
+  return Math.max(1, Math.min(127, Math.round(originalVel * (1 + delta))));
+}
+
+// Drum ghost note: occasionally add a quiet hit where there was none
+// Returns velocity (0 = don't add) — only triggers when variation is high enough
+function varDrumGhost(seed, trackId, step, amount) {
+  if (amount < 20) return 0; // need at least 20% variation for ghosts
+  const r = variationHash(seed, trackId + "_ghost", step);
+  const threshold = 1 - ((amount - 20) / 80) * 0.12; // max 12% chance at full variation
+  if (r > threshold) return 0;
+  // Ghost velocity: 15-35
+  return Math.round(15 + variationHash(seed, trackId + "_gv", step) * 20);
+}
+
+// Drum rest: occasionally skip a note (replace with silence)
+function varDrumRest(seed, trackId, step, amount, importance) {
+  if (amount < 30) return false; // need 30% for occasional rests
+  // Never rest on highly important beats (kick on 1, snare on 5)
+  if (importance > 0.85) return false;
+  const r = variationHash(seed, trackId + "_rest", step);
+  const threshold = 1 - ((amount - 30) / 70) * 0.08; // max 8% chance
+  return r > threshold ? false : true;
+}
+
+// Bass octave variation: occasionally shift bass note up/down an octave
+function varBassOctave(seed, step, amount) {
+  if (amount < 25) return 0;
+  const r = variationHash(seed, "bass_oct", step);
+  const chance = ((amount - 25) / 75) * 0.15; // max 15% chance
+  if (r > chance) return 0;
+  // 70% chance up, 30% chance down
+  return variationHash(seed, "bass_dir", step) > 0.3 ? 12 : -12;
+}
+
+// Melody velocity variation
+function varMelodyVelocity(seed, step, originalVel, amount) {
+  if (amount <= 0) return originalVel;
+  const r = variationHash(seed, "mel_vel", step);
+  const range = (amount / 100) * 0.25;
+  const delta = (r - 0.5) * 2 * range;
+  return Math.max(1, Math.min(127, Math.round(originalVel * (1 + delta))));
+}
+
+// Chord strum variation: vary the strum offset timing
+function varStrumOffset(seed, step, noteIdx, amount) {
+  if (amount <= 0) return 0;
+  const r = variationHash(seed, "strum" + noteIdx, step);
+  const maxMs = (amount / 100) * 25; // up to 25ms strum variation
+  return (r - 0.5) * 2 * maxMs;
+}
+
 // ── MPC Pad ↔ MIDI note mapping ──
 // MPC banks: A=36-51, B=52-67, C=68-83, D=84-99
 const MPC_BANKS = ["A","B","C","D"];
@@ -1573,6 +1640,24 @@ const padLabelToMidi = (label) => {
   const entry = MPC_PADS.find(p => p.label === label);
   return entry ? entry.midi : 36;
 };
+
+// ── Energy scaling ──
+// Maps energy (0-100) to velocity multiplier and density offset.
+// At 75 (default): velMult = 1.0, densityOffset = 0 (neutral).
+function energyScale(energy) {
+  const t = energy / 100;
+  let velMult, densityOffset;
+  if (t <= 0.75) {
+    const s = t / 0.75; // 0..1 mapped to energy 0..75
+    velMult = 0.25 + s * 0.75; // 0.25 → 1.0
+    densityOffset = -50 * (1 - s); // -50 → 0
+  } else {
+    const s = (t - 0.75) / 0.25; // 0..1 mapped to energy 75..100
+    velMult = 1.0 + s * 0.2; // 1.0 → 1.2
+    densityOffset = s * 10; // 0 → 10
+  }
+  return { velMult, densityOffset };
+}
 
 // ── Pad Map Presets ──
 const PAD_MAP_PRESETS = [
@@ -1839,6 +1924,147 @@ const DRUM_GENRES = {
   experimental:    { label:"Eksperimentell",      bpm:88,  generate: genExperimental   },
   drumless:        { label:"Drumless",            bpm:88,  generate: genDrumless       },
   halftime:        { label:"Halftime",             bpm:75,  generate: genHalftime       },
+};
+
+// ── Drum Fill Generators ──
+
+function generateFill(genre) {
+  const fills = FILL_PATTERNS[genre] || FILL_PATTERNS._default;
+  return fills[Math.floor(Math.random() * fills.length)]();
+}
+
+const FILL_PATTERNS = {
+  _default: [
+    // Snare roll — building snare hits getting louder
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 80,0,80,0, 90,90,95,95, 100,105,110,115];
+      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
+      fill.crash = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]; // crash goes on beat 1 of NEXT bar
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0]; // silence hats during fill
+      fill.hatO = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+    // Tom descent — high to low toms with snare accents
+    () => {
+      const fill = {};
+      fill.tom = [0,0,0,0, 95,0,90,0, 85,0,80,0, 75,0,70,0];
+      fill.snare = [0,0,0,0, 0,100,0,100, 0,0,0,0, 110,0,110,115];
+      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+    // Rapid snare build
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 0,0,0,0, 85,0,90,0, 95,100,105,110];
+      fill.kick = [110,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,110];
+      fill.hatC = [70,0,70,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
+  boombap_classic: [
+    // Classic boom bap fill — snare flams and kick accents
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 95,0,0,90, 0,100,0,0, 95,100,105,110];
+      fill.kick = [110,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,100];
+      fill.ghost = [0,40,0,0, 0,35,40,0, 0,0,35,40, 0,0,0,0];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 100,0,95,0, 100,0,100,100, 105,105,110,115];
+      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
+      fill.hatC = [70,70,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
+  griselda: [
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 0,0,100,0, 0,100,0,100, 105,0,110,115];
+      fill.kick = [100,0,0,0, 0,0,0,0, 100,0,0,0, 0,0,0,0];
+      fill.rim = [0,0,0,70, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
+  trap_modern: [
+    // Trap fill — rapid hi-hat + snare rolls
+    () => {
+      const fill = {};
+      fill.hatC = [90,90,95,95, 100,100,105,105, 110,110,110,110, 115,115,115,115];
+      fill.snare = [0,0,0,0, 0,0,0,0, 0,0,100,0, 105,0,110,115];
+      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 110,0,0,0];
+      return fill;
+    },
+    () => {
+      const fill = {};
+      fill.hatC = [85,0,85,85, 90,0,90,90, 95,95,95,95, 100,100,105,110];
+      fill.snare = [0,0,0,0, 100,0,0,0, 0,0,100,0, 100,100,110,115];
+      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
+      return fill;
+    },
+  ],
+  drill: [
+    () => {
+      const fill = {};
+      fill.hatC = [95,95,100,100, 105,105,105,105, 110,110,110,110, 115,115,115,115];
+      fill.snare = [0,0,0,0, 0,0,0,0, 100,0,0,0, 105,105,110,115];
+      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
+      return fill;
+    },
+  ],
+  lofi: [
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 70,0,0,75, 0,80,0,0, 85,0,90,95];
+      fill.kick = [90,0,0,0, 0,0,0,0, 80,0,0,0, 0,0,0,0];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      fill.ghost = [0,30,0,30, 0,0,35,0, 0,0,30,35, 0,35,0,0];
+      return fill;
+    },
+  ],
+  memphis: [
+    () => {
+      const fill = {};
+      fill.hatC = [90,90,90,90, 95,95,95,95, 100,100,100,100, 110,110,110,110];
+      fill.snare = [0,0,0,0, 0,0,0,0, 100,0,0,0, 0,100,105,110];
+      fill.kick = [110,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,110];
+      return fill;
+    },
+  ],
+  detroit: [
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 90,0,85,0, 95,0,95,100, 105,105,110,110];
+      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
+      fill.hatC = [60,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
+  experimental: [
+    () => {
+      const fill = {};
+      fill.perc = [0,70,0,75, 80,0,85,0, 0,90,0,0, 95,0,100,105];
+      fill.snare = [0,0,0,0, 0,0,0,90, 0,0,100,0, 0,105,0,110];
+      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,100];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
+  halftime: [
+    () => {
+      const fill = {};
+      fill.snare = [0,0,0,0, 0,0,0,0, 85,0,0,0, 95,0,105,110];
+      fill.kick = [100,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      fill.tom = [0,0,0,0, 80,0,0,0, 0,0,70,0, 0,0,0,0];
+      fill.hatC = [0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0];
+      return fill;
+    },
+  ],
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -3987,6 +4213,12 @@ export default function App() {
   const [lockedTracks,   setLockedTracks]   = useState({});
   const [mutedTracks,    setMutedTracks]    = useState({});
   const [padMapperOpen,  setPadMapperOpen]  = useState(false);
+  // ── Fill state ──
+  const [fillMode, setFillMode] = useState("off"); // "off" | "manual" | "auto4" | "auto8"
+  const fillNextRef = useRef(false); // true = next loop iteration should have a fill
+  const fillJustPlayedRef = useRef(false); // true = last loop had fill, add crash on 1
+  const loopCountRef = useRef(0); // counts loop iterations for auto-fill
+  const fillModeRef = useRef("off");
   // ── Sheet Music state (lifted so it persists across tab switches) ──
   const [sheetParsedData,     setSheetParsedData]     = useState(null);
   const [sheetFileName,       setSheetFileName]       = useState(null);
@@ -4046,6 +4278,10 @@ export default function App() {
   const [densityBass,    setDensityBass]    = useState(100);
   const [densityMelody,  setDensityMelody]  = useState(100);
   const [densityChords,  setDensityChords]  = useState(100);
+  const [variationAmount, setVariationAmount] = useState(0); // 0-100: how much loops mutate
+  const variationAmountRef = useRef(0);
+  const [energy, setEnergy] = useState(75); // 0-100: overall intensity
+  const energyRef = useRef(75);
   const [densitySeed,    setDensitySeed]    = useState(1);    // changes each loop → new random pattern
   const [soloTrack,      setSoloTrack]      = useState(null);  // trackId or null
   const [tripletTracks,  setTripletTracks]  = useState({});    // { hatC: true, bell: true }
@@ -4089,6 +4325,12 @@ export default function App() {
     lockedTracks, mutedTracks, soloTrack, tripletTracks, drumSwing, drumHalfTime, drumFavorites, padMap,
     // Density
     densityDrums, densityBass, densityMelody, densityChords,
+    // Variation
+    variationAmount,
+    // Energy
+    energy,
+    // Fills
+    fillMode,
     // Mutes
     muteChords, muteBass, muteMelody, muteDrums,
     // MIDI config
@@ -4103,6 +4345,9 @@ export default function App() {
     playStyle, chordPlayPattern, chordRhythmMutes, arpOn, arpPattern, arpRate,
     lockedTracks, mutedTracks, soloTrack, tripletTracks, drumSwing, drumHalfTime, drumFavorites, padMap,
     densityDrums, densityBass, densityMelody, densityChords,
+    variationAmount,
+    energy,
+    fillMode,
     muteChords, muteBass, muteMelody, muteDrums,
     midiOutputId, midiChannel, bassChannel, melodyChannel2, drumChannel, midiSyncMode,
     pianoRollEdits, humanize, loopEnabled,
@@ -4155,6 +4400,12 @@ export default function App() {
     if (data.densityMelody !== undefined) { setDensityMelody(data.densityMelody); densityMelodyRef.current = data.densityMelody; }
     if (data.densityChords !== undefined) { setDensityChords(data.densityChords); densityChordsRef.current = data.densityChords; }
     setDensitySeed(1); densitySeedRef.current = 1;
+    // Variation
+    if (data.variationAmount !== undefined) { setVariationAmount(data.variationAmount); variationAmountRef.current = data.variationAmount; }
+    // Energy
+    if (data.energy !== undefined) { setEnergy(data.energy); energyRef.current = data.energy; }
+    // Fills
+    if (data.fillMode !== undefined) { setFillMode(data.fillMode); fillModeRef.current = data.fillMode; }
     // Mutes
     if (data.muteChords !== undefined) setMuteChords(data.muteChords);
     if (data.muteBass !== undefined) setMuteBass(data.muteBass);
@@ -4227,6 +4478,8 @@ export default function App() {
   useEffect(() => { densityMelodyRef.current = densityMelody; }, [densityMelody]);
   useEffect(() => { densityChordsRef.current = densityChords; }, [densityChords]);
   useEffect(() => { densitySeedRef.current = densitySeed; }, [densitySeed]);
+  useEffect(() => { variationAmountRef.current = variationAmount; }, [variationAmount]);
+  useEffect(() => { energyRef.current = energy; }, [energy]);
   useEffect(() => { soloTrackRef.current = soloTrack; }, [soloTrack]);
   useEffect(() => { mutedTracksRef.current = mutedTracks; }, [mutedTracks]);
   useEffect(() => { tripletTracksRef.current = tripletTracks; }, [tripletTracks]);
@@ -4731,6 +4984,7 @@ export default function App() {
       if (soundType === "piano") await Tone.loaded();
     }
     instRef.current = inst;
+    loopCountRef.current = 0;
     startMidiClock(bpm);
     const preroll = midiPrerollMs.current; // offset all notes by this much
 
@@ -4820,6 +5074,8 @@ export default function App() {
     };
 
     const doSchedule = () => {
+      const { velMult: energyVel, densityOffset: energyDensOff } = energyScale(energyRef.current);
+
       // Chords — always schedule, check mute ref at fire time
       timelineItems.forEach(item => {
         const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
@@ -4827,7 +5083,7 @@ export default function App() {
         let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
         if (noteNames.length === 0) return; // all muted, skip this chord
         // Density: thin chord voicing — deterministic (matches visual)
-        const density = densityChordsRef.current;
+        const density = Math.max(0, Math.min(100, densityChordsRef.current + energyDensOff));
         const seed = densitySeedRef.current;
         if (density < 100 && noteNames.length > 1) {
           const total = noteNames.length;
@@ -4854,7 +5110,7 @@ export default function App() {
               const n = nameToMidi(ordered[i%ordered.length]);
               const {offsetSec,vel} = arpHumanize(i,rateSec);
               const accentBoost = (i%ordered.length===0) ? style.accentMult : 1;
-              const midiVel = Math.max(1, Math.min(127, Math.round((vel*100*accentBoost + 15) * style.velMult)));
+              const midiVel = Math.max(1, Math.min(127, Math.round((vel*100*accentBoost + 15) * style.velMult * energyVel)));
               const onMs  = (startSec + i*rateSec + offsetSec) * 1000;
               const offMs = onMs + rateMs * style.durMult;
               midiChord([0x90|ch, n, midiVel], onMs);
@@ -4867,7 +5123,7 @@ export default function App() {
             for (let r=0;r<reps;r++) {
               noteNames.forEach((note,i) => {
                 const accentBoost = i===0 ? style.accentMult : 1;
-                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult)));
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100*accentBoost + 15) * style.velMult * energyVel)));
                 const n = nameToMidi(note);
                 const onMs  = (startSec + r*repSec + offsets[i]) * 1000;
                 const offMs = onMs + repSec * 0.7 * 1000;
@@ -4880,6 +5136,9 @@ export default function App() {
             const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
             const hits = cpat.generate(item.lengthSlots);
             const itemMutes = chordRhythmMutes[item.id] || {};
+            // Variation strum timing
+            const varAmtC = variationAmountRef.current;
+            const varSeedC = densitySeedRef.current;
             hits.forEach((hit, hIdx) => {
               if (itemMutes[hIdx]) return; // muted hit
               const hitStartSec = startSec + hit.offset * durSec;
@@ -4890,9 +5149,9 @@ export default function App() {
                 const { tMs: hzT, vScale: hzV } = hz();
                 const accentBoost = i === 0 ? style.accentMult : 1;
                 const prVel = getNoteVelScale(note, item.startSlot);
-                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i] * 100 * accentBoost + 15) * style.velMult * prVel * hit.velMult * hzV)));
+                const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i] * 100 * accentBoost + 15) * style.velMult * prVel * hit.velMult * hzV * energyVel)));
                 const n = nameToMidi(note);
-                const onMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT);
+                const onMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT + varStrumOffset(varSeedC, item.startSlot, i, varAmtC));
                 const offMs = onMs + hitDurSec * 1000;
                 midiChord([0x90 | ch, n, midiVel], onMs);
                 midiChord([0x80 | ch, n, 0], offMs);
@@ -4906,7 +5165,7 @@ export default function App() {
             for (let i=0;i<steps;i++) {
               const {offsetSec,vel} = arpHumanize(i,rateSec);
               const accentBoost = (i%ordered.length===0) ? style.accentMult : 1;
-              const v = Math.max(0.02, Math.min(1, vel*accentBoost*style.velMult));
+              const v = Math.max(0.02, Math.min(1, vel*accentBoost*style.velMult * energyVel));
               const noteDur = rateSec * style.durMult;
               const whenMs = (startSec + i*rateSec + offsetSec) * 1000;
               const note = ordered[i%ordered.length];
@@ -4921,7 +5180,7 @@ export default function App() {
             for (let r=0;r<reps;r++) {
               noteNames.forEach((note,i) => {
                 const accentBoost = i===0 ? style.accentMult : 1;
-                const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult));
+                const v = Math.max(0.02, Math.min(1, vels[i]*accentBoost*style.velMult * energyVel));
                 const whenMs = (startSec + r*repSec + offsets[i]) * 1000;
                 scheduleChord(() => {
                   try { inst.triggerAttackRelease(note, repSec*0.7, Tone.now(), v); } catch(e) {}
@@ -4933,6 +5192,9 @@ export default function App() {
             const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
             const hits = cpat.generate(item.lengthSlots);
             const itemMutes = chordRhythmMutes[item.id] || {};
+            // Variation strum timing
+            const varAmtC2 = variationAmountRef.current;
+            const varSeedC2 = densitySeedRef.current;
             hits.forEach((hit, hIdx) => {
               if (itemMutes[hIdx]) return; // muted hit
               const hitStartSec = startSec + hit.offset * durSec;
@@ -4943,8 +5205,8 @@ export default function App() {
                 const { tMs: hzT, vScale: hzV } = hz();
                 const accentBoost = i === 0 ? style.accentMult : 1;
                 const prVel = getNoteVelScale(note, item.startSlot);
-                const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult * hzV));
-                const whenMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT);
+                const v = Math.max(0.02, Math.min(1, vels[i] * accentBoost * style.velMult * prVel * hit.velMult * hzV * energyVel));
+                const whenMs = Math.max(0, (hitStartSec + offsets[i]) * 1000 + hzT + varStrumOffset(varSeedC2, item.startSlot, i, varAmtC2));
                 scheduleChord(() => {
                   try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {}
                 }, whenMs);
@@ -4966,21 +5228,49 @@ export default function App() {
         const curMuted     = mutedTracksRef.current;
         const curTriplets  = tripletTracksRef.current;
         const swingAmt = (curSwing / 100) * slotSec * 0.5;
+        // ── Fill overlay: replace last bar with fill pattern ──
+        const isFillLoop = fillNextRef.current;
+        const addCrashOn1 = fillJustPlayedRef.current;
+        let fillOverlay = null;
+        if (isFillLoop && hasDrums) {
+          fillOverlay = generateFill(drumGenre);
+          fillNextRef.current = false;
+          fillJustPlayedRef.current = true;
+        } else {
+          fillJustPlayedRef.current = false;
+        }
         for (let step = 0; step < DRUM_STEPS; step++) {
           DRUM_TRACKS.forEach(track => {
             if (curSolo && curSolo !== track.id) return;
             if (!curSolo && curMuted[track.id]) return;
             const vel = drumPattern[track.id]?.[step] || 0;
-            if (vel <= 0) return;
+            // Fill overlay: replace velocity in last bar (steps 48-63)
+            let effectiveVel = vel;
+            if (fillOverlay && step >= 48) {
+              const fillStep = step - 48;
+              const fillVel = fillOverlay[track.id]?.[fillStep];
+              if (fillVel !== undefined) effectiveVel = fillVel;
+            }
+            // Crash on beat 1 after a fill
+            if (addCrashOn1 && step === 0 && track.id === "crash") effectiveVel = 110;
+            if (effectiveVel <= 0) return;
             if (curHalfTime && !curTriplets[track.id] && step % 2 !== 0) return;
             // Density filter — deterministic (matches visual grid)
-            const density = densityDrumsRef.current;
+            const density = Math.max(0, Math.min(100, densityDrumsRef.current + energyDensOff));
             const seed = densitySeedRef.current;
             if (!densityPass(seed, track.id, step, density, drumImportance(track.id, step))) return;
+            // Loop variation mutations
+            const varAmt = variationAmountRef.current;
+            const varSeed = densitySeedRef.current;
+            let mutVel = effectiveVel;
+            if (varAmt > 0) {
+              if (varDrumRest(varSeed, track.id, step, varAmt, drumImportance(track.id, step))) return;
+              mutVel = varDrumVelocity(varSeed, track.id, step, effectiveVel, varAmt);
+            }
             const { tMs: hzT, vScale: hzV } = hz();
             const swingDelay = (step % 2 === 1) ? swingAmt : 0;
             const onMs  = Math.max(0, (step * slotSec + swingDelay) * 1000 + hzT);
-            const hzVel = Math.max(1, Math.min(127, Math.round(vel * hzV)));
+            const hzVel = Math.max(1, Math.min(127, Math.round(mutVel * hzV * energyVel)));
             if (midiOut) {
               const note  = padMap[track.id]?.midiNote ?? track.defaultNote;
               const offMs = onMs + slotSec * 0.9 * 1000;
@@ -4991,6 +5281,32 @@ export default function App() {
             }
           });
         }
+        // Ghost notes from variation
+        const varAmt2 = variationAmountRef.current;
+        const varSeed2 = densitySeedRef.current;
+        if (varAmt2 >= 20) {
+          for (let step = 0; step < DRUM_STEPS; step++) {
+            DRUM_TRACKS.forEach(track => {
+              const existingVel = drumPattern[track.id]?.[step] || 0;
+              if (existingVel > 0) return; // already has a note
+              if (curSolo && curSolo !== track.id) return;
+              if (!curSolo && curMuted[track.id]) return;
+              const ghostVelRaw = varDrumGhost(varSeed2, track.id, step, varAmt2);
+              if (ghostVelRaw <= 0) return;
+              const ghostVel = Math.max(1, Math.min(127, Math.round(ghostVelRaw * energyVel)));
+              const swingDelay = (step % 2 === 1) ? swingAmt : 0;
+              const onMs = Math.max(0, (step * slotSec + swingDelay) * 1000);
+              if (midiOut) {
+                const note = padMap[track.id]?.midiNote ?? track.defaultNote;
+                const offMs = onMs + slotSec * 0.9 * 1000;
+                midiDrum([0x90 | drumCh, note, ghostVel], onMs);
+                midiDrum([0x80 | drumCh, note, 0], offMs);
+              } else {
+                scheduleDrum(() => triggerDrumSynth(track.id, ghostVel, slotSec * 0.8), onMs);
+              }
+            });
+          }
+        }
       }
 
       // ── Bass line scheduling ──
@@ -4999,20 +5315,30 @@ export default function App() {
         bassLine.forEach((note, nIdx) => {
           if (note.muted) return;
           // Density: skip bass notes — deterministic (matches visual)
-          const density = densityBassRef.current;
+          const density = Math.max(0, Math.min(100, densityBassRef.current + energyDensOff));
           const seed = densitySeedRef.current;
           if (!densityPass(seed, "bass", note.startSlot, density, bassImportance(note.startSlot, note.lengthSlots))) return;
+          // Loop variation mutations
+          const varAmt = variationAmountRef.current;
+          const varSeed = densitySeedRef.current;
+          let mutMidi = note.midi;
+          let mutVel = note.velocity;
+          if (varAmt > 0) {
+            const octShift = varBassOctave(varSeed, note.startSlot, varAmt);
+            mutMidi = Math.max(24, Math.min(96, note.midi + octShift));
+            mutVel = varMelodyVelocity(varSeed, note.startSlot + 1000, note.velocity, varAmt);
+          }
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
-          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * hzV));
-          const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
+          const vel = Math.max(0.02, Math.min(1, (mutVel / 127) * style.velMult * hzV * energyVel));
+          const noteName = NOTES[mutMidi % 12] + Math.floor((mutMidi - 12) / 12);
           const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
             const bCh = (bassChannel - 1);
-            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hzV)));
-            midiBass([0x90 | bCh, note.midi, midiVel], onMs);
-            midiBass([0x80 | bCh, note.midi, 0], onMs + durSec * 1000);
+            const midiVelOut = Math.max(1, Math.min(127, Math.round(mutVel * hzV * energyVel)));
+            midiBass([0x90 | bCh, mutMidi, midiVelOut], onMs);
+            midiBass([0x80 | bCh, mutMidi, 0], onMs + durSec * 1000);
           } else {
             scheduleBass(() => {
               try { bassInst.triggerAttackRelease(noteName, durSec, Tone.now(), vel); } catch(e) {}
@@ -5028,18 +5354,25 @@ export default function App() {
         melodyLine.forEach(note => {
           if (note.muted) return;
           // Density: skip melody notes — deterministic (matches visual)
-          const density = densityMelodyRef.current;
+          const density = Math.max(0, Math.min(100, densityMelodyRef.current + energyDensOff));
           const seed = densitySeedRef.current;
           if (!densityPass(seed, "melody", note.startSlot, density, melodyImportance(note.startSlot, note.lengthSlots, note.velocity))) return;
+          // Loop variation mutations
+          const varAmt = variationAmountRef.current;
+          const varSeed = densitySeedRef.current;
+          let mutVel = note.velocity;
+          if (varAmt > 0) {
+            mutVel = varMelodyVelocity(varSeed, note.startSlot, note.velocity, varAmt);
+          }
           const { tMs: hzT, vScale: hzV } = hz();
           const startSec = note.startSlot * slotSec;
           const durSec = note.lengthSlots * slotSec * style.durMult;
-          const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVel * hzV));
+          const vel = Math.max(0.02, Math.min(1, (mutVel / 127) * style.velMult * cpatMelVel * hzV * energyVel));
           const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
           const onMs = Math.max(0, startSec * 1000 + hzT);
           if (midiOut) {
             const mCh = (melodyChannel2 - 1);
-            const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVel * hzV)));
+            const midiVel = Math.max(1, Math.min(127, Math.round(mutVel * cpatMelVel * hzV * energyVel)));
             midiMelody([0x90 | mCh, note.midi, midiVel], onMs);
             midiMelody([0x80 | mCh, note.midi, 0], onMs + durSec * 1000);
           } else {
@@ -5081,6 +5414,11 @@ export default function App() {
     rafRef.current = requestAnimationFrame(animate);
     loopRef.current = setInterval(() => {
       if (loopEnabledRef.current) {
+        loopCountRef.current++;
+        // Auto-fill: queue fill before scheduling
+        const fm = fillModeRef.current;
+        if (fm === "auto4" && loopCountRef.current % 4 === 3) fillNextRef.current = true;
+        if (fm === "auto8" && loopCountRef.current % 8 === 7) fillNextRef.current = true;
         // Bump density seed each loop iteration → new random pattern
         densitySeedRef.current = densitySeedRef.current + 1;
         setDensitySeed(densitySeedRef.current);
@@ -5164,6 +5502,25 @@ export default function App() {
     };
 
     const doScheduleArrangement = () => {
+      const { velMult: energyVel, densityOffset: energyDensOff } = energyScale(energyRef.current);
+
+      // ── Fill overlay: replace last bar of last section with fill pattern ──
+      const isFillLoopA = fillNextRef.current;
+      const addCrashOn1A = fillJustPlayedRef.current;
+      let fillOverlayA = null;
+      if (isFillLoopA) {
+        // Find the genre from the last section that has drums
+        const lastDrumSec = [...resolvedSecs].reverse().find(s => s.drumPattern);
+        if (lastDrumSec) {
+          fillOverlayA = generateFill(drumGenre);
+          fillNextRef.current = false;
+          fillJustPlayedRef.current = true;
+        }
+      } else {
+        fillJustPlayedRef.current = false;
+      }
+      const lastSecIdx = resolvedSecs.length - 1;
+
       resolvedSecs.forEach((sec, secIdx) => {
         const offset = secIdx * slotsPerSection;
 
@@ -5173,7 +5530,7 @@ export default function App() {
           sec.timelineItems.forEach(item => {
             let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
             // Density: thin chord voicing — deterministic
-            const density = densityChordsRef.current;
+            const density = Math.max(0, Math.min(100, densityChordsRef.current + energyDensOff));
             const seed = densitySeedRef.current;
             if (density < 100 && noteNames.length > 1) {
               const total = noteNames.length;
@@ -5194,7 +5551,7 @@ export default function App() {
                 const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
                 hitNotes.forEach((note, i) => {
                   const { tMs: ht, vScale: hv } = hzA();
-                  const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult * hv)));
+                  const midiVel = Math.max(1, Math.min(127, Math.floor((vels[i]*100 + 15) * style.velMult * hit.velMult * hv * energyVel)));
                   const n = nameToMidi(note);
                   const onMs = Math.max(0, (hitStartSec + offsets2[i]) * 1000 + ht);
                   midiChordA([0x90|ch, n, midiVel], onMs);
@@ -5204,7 +5561,7 @@ export default function App() {
                 const offsets2 = strumOffsets(hitNotes.length), vels = humanVelocities(hitNotes.length);
                 hitNotes.forEach((note, i) => {
                   const { tMs: ht, vScale: hv } = hzA();
-                  const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult * hv));
+                  const v = Math.max(0.02, Math.min(1, vels[i] * style.velMult * hit.velMult * hv * energyVel));
                   const whenMs = Math.max(0, (hitStartSec + offsets2[i]) * 1000 + ht);
                   scheduleChordA(() => { try { inst.triggerAttackRelease(note, hitDurSec, Tone.now(), v); } catch(e) {} }, whenMs);
                 });
@@ -5218,17 +5575,17 @@ export default function App() {
           const bassInst2 = midiOut ? null : getBassInstrument(bassSound);
           sec.bassLine.forEach(note => {
             if (note.muted) return;
-            const density = densityBassRef.current;
+            const density = Math.max(0, Math.min(100, densityBassRef.current + energyDensOff));
             const seed = densitySeedRef.current;
             if (!densityPass(seed, "bass", note.startSlot, density, bassImportance(note.startSlot, note.lengthSlots))) return;
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
-            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * hv));
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * hv * energyVel));
             const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
-              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hv)));
+              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * hv * energyVel)));
               midiBassA([0x90 | (bassChannel-1), note.midi, midiVel], onMs);
               midiBassA([0x80 | (bassChannel-1), note.midi, 0], onMs + durSec * 1000);
             } else {
@@ -5243,17 +5600,17 @@ export default function App() {
           const cpatMelVelA = (CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained).melodyVelMult || 1;
           sec.melodyLine.forEach(note => {
             if (note.muted) return;
-            const density = densityMelodyRef.current;
+            const density = Math.max(0, Math.min(100, densityMelodyRef.current + energyDensOff));
             const seed = densitySeedRef.current;
             if (!densityPass(seed, "melody", note.startSlot, density, melodyImportance(note.startSlot, note.lengthSlots, note.velocity))) return;
             const { tMs: ht, vScale: hv } = hzA();
             const startSec = (offset + note.startSlot) * slotSec;
             const durSec = note.lengthSlots * slotSec * style.durMult;
             const noteName = NOTES[note.midi % 12] + Math.floor((note.midi - 12) / 12);
-            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVelA * hv));
+            const vel = Math.max(0.02, Math.min(1, (note.velocity / 127) * style.velMult * cpatMelVelA * hv * energyVel));
             const onMs = Math.max(0, startSec * 1000 + ht);
             if (midiOut) {
-              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVelA * hv)));
+              const midiVel = Math.max(1, Math.min(127, Math.round(note.velocity * cpatMelVelA * hv * energyVel)));
               midiMelodyA([0x90 | (melodyChannel2-1), note.midi, midiVel], onMs);
               midiMelodyA([0x80 | (melodyChannel2-1), note.midi, 0], onMs + durSec * 1000);
             } else {
@@ -5266,18 +5623,28 @@ export default function App() {
         if (sec.drumPattern) {
           if (!midiOut) initDrumSynths();
           const drumCh = drumChannel - 1;
+          const isLastSec = secIdx === lastSecIdx;
           DRUM_TRACKS.forEach(track => {
             const steps = sec.drumPattern[track.id];
             if (!steps) return;
             steps.forEach((vel, step) => {
-              if (vel === 0) return;
+              // Fill overlay: replace velocity in last bar (steps 48-63) of last section
+              let effectiveVelA = vel;
+              if (fillOverlayA && isLastSec && step >= 48) {
+                const fillStep = step - 48;
+                const fillVel = fillOverlayA[track.id]?.[fillStep];
+                if (fillVel !== undefined) effectiveVelA = fillVel;
+              }
+              // Crash on beat 1 of first section after a fill
+              if (addCrashOn1A && secIdx === 0 && step === 0 && track.id === "crash") effectiveVelA = 110;
+              if (effectiveVelA === 0) return;
               // Density filter — deterministic (matches visual)
-              const density = densityDrumsRef.current;
+              const density = Math.max(0, Math.min(100, densityDrumsRef.current + energyDensOff));
               const seed = densitySeedRef.current;
               if (!densityPass(seed, track.id, step, density, drumImportance(track.id, step))) return;
               const { tMs: ht, vScale: hv } = hzA();
               const onMs = Math.max(0, (offset + step) * slotSec * 1000 + ht);
-              const hzVel = Math.max(1, Math.min(127, Math.round(vel * hv)));
+              const hzVel = Math.max(1, Math.min(127, Math.round(effectiveVelA * hv * energyVel)));
               const note = padMap[track.id]?.midiNote ?? track.defaultNote;
               if (midiOut) {
                 midiDrumA([0x90 | drumCh, note, hzVel], onMs);
@@ -5306,6 +5673,11 @@ export default function App() {
     };
     rafRef.current = requestAnimationFrame(animate);
     loopRef.current = setInterval(() => {
+      loopCountRef.current++;
+      // Auto-fill: queue fill before scheduling
+      const fm = fillModeRef.current;
+      if (fm === "auto4" && loopCountRef.current % 4 === 3) fillNextRef.current = true;
+      if (fm === "auto8" && loopCountRef.current % 8 === 7) fillNextRef.current = true;
       densitySeedRef.current = densitySeedRef.current + 1;
       setDensitySeed(densitySeedRef.current);
       doScheduleArrangement();
@@ -5324,7 +5696,7 @@ export default function App() {
       const t = setTimeout(() => playTimeline(), 50);
       return () => clearTimeout(t);
     }
-  }, [drumSwing, drumHalfTime, densityDrums, densityBass, densityMelody, densityChords, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
+  }, [drumSwing, drumHalfTime, densityDrums, densityBass, densityMelody, densityChords, variationAmount, soloTrack, JSON.stringify(mutedTracks), chordPlayPattern]);
 
   return (
     <>
@@ -6858,6 +7230,28 @@ export default function App() {
                       style={{ width:72, accentColor:t.accent, cursor:"pointer" }} />
                   </div>
                   <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Energy */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:10, fontWeight:600, color: energy !== 75 ? "#FF9F0A" : t.labelColor, textTransform:"uppercase",
+                      letterSpacing:"0.06em", fontFamily:SF, whiteSpace:"nowrap" }}>
+                      Energy {energy !== 75 ? `${energy}%` : ""}
+                    </span>
+                    <input type="range" min={0} max={100} value={energy}
+                      onChange={e => { const v = +e.target.value; setEnergy(v); energyRef.current = v; }}
+                      style={{ width:72, accentColor: energy !== 75 ? "#FF9F0A" : t.accent, cursor:"pointer" }} />
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
+                  {/* Loop Variation */}
+                  <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                    <span style={{ fontSize:10, fontWeight:600, color: variationAmount > 0 ? "#FF9F0A" : t.labelColor, textTransform:"uppercase",
+                      letterSpacing:"0.06em", fontFamily:SF, whiteSpace:"nowrap" }}>
+                      Variation {variationAmount > 0 ? `${variationAmount}%` : ""}
+                    </span>
+                    <input type="range" min={0} max={100} value={variationAmount}
+                      onChange={e => { const v = +e.target.value; setVariationAmount(v); variationAmountRef.current = v; }}
+                      style={{ width:72, accentColor: variationAmount > 0 ? "#FF9F0A" : t.accent, cursor:"pointer" }} />
+                  </div>
+                  <div style={{ width:1, height:20, background:t.border }} />
                   <button onClick={() => { if(looping) stopLoop(); setArpOn(a=>!a); }}
                     style={{ fontFamily:SF, fontSize:13, fontWeight:600, padding:"8px 18px", borderRadius:10,
                       border:`1px solid ${arpOn?t.accentBorder:t.btnBorder}`, background:arpOn?t.accentBg:t.btnBg,
@@ -6998,6 +7392,27 @@ export default function App() {
                   </button>
                   {chordInputErr && <span style={{ fontSize:12, color:"#FF453A", fontFamily:SF }}>Unknown chord</span>}
                 </div>
+                {/* Fills */}
+                <div style={{ display:"flex", alignItems:"center", gap:8, marginTop:6 }}>
+                  <span style={{ fontSize:10, fontWeight:700, color:t.textTertiary, textTransform:"uppercase", letterSpacing:"0.08em", width:70 }}>Fill</span>
+                  <button onClick={() => { fillNextRef.current = true; }}
+                    disabled={!drumPattern || !looping}
+                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"5px 12px", borderRadius:8,
+                      border:`1px solid ${fillNextRef.current ? "#FF9F0A" : t.btnBorder}`,
+                      background: fillNextRef.current ? "rgba(255,159,10,0.12)" : t.btnBg,
+                      color: fillNextRef.current ? "#FF9F0A" : t.btnColor,
+                      cursor: (!drumPattern || !looping) ? "not-allowed" : "pointer",
+                      opacity: (!drumPattern || !looping) ? 0.4 : 1 }}>
+                    Next Loop
+                  </button>
+                  <select value={fillMode} onChange={e => { setFillMode(e.target.value); fillModeRef.current = e.target.value; }}
+                    style={{ fontFamily:SF, fontSize:11, padding:"5px 8px", borderRadius:8,
+                      border:`1px solid ${t.btnBorder}`, background:t.btnBg, color:t.btnColor }}>
+                    <option value="off">Auto: Off</option>
+                    <option value="auto4">Auto: Every 4 loops</option>
+                    <option value="auto8">Auto: Every 8 loops</option>
+                  </select>
+                </div>
 
                 {/* ── Project Save/Load ── */}
                 <div style={{ display:"flex", gap:6, flexWrap:"wrap", alignItems:"center", marginTop:12, paddingTop:12, borderTop:`1px solid ${t.border}` }}>
@@ -7025,6 +7440,9 @@ export default function App() {
                     setDensityMelody(100); densityMelodyRef.current = 100;
                     setDensityChords(100); densityChordsRef.current = 100;
                     setDensitySeed(1); densitySeedRef.current = 1;
+                    setVariationAmount(0); variationAmountRef.current = 0;
+                    setEnergy(75); energyRef.current = 75;
+                    setFillMode("off"); fillModeRef.current = "off"; fillNextRef.current = false; fillJustPlayedRef.current = false; loopCountRef.current = 0;
                     setMuteChords(false); setMuteBass(false); setMuteMelody(false); setMuteDrums(false);
                     setPianoRollEdits({}); setHumanize(0); setLoopEnabled(true); loopEnabledRef.current = true;
                     localStorage.removeItem("fiskaturet_project");
