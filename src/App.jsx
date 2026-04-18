@@ -4038,6 +4038,104 @@ function pearson(a, b) {
   return da && db ? num/Math.sqrt(da*db) : 0;
 }
 
+// ─── FFT-based chromagram for polyphonic key detection ───────────────────────
+// Uses frequency-domain analysis — works on chords, loops, polyphonic material
+function computeChromagram(samples, sampleRate, fftSize = 4096) {
+  const chroma = new Float64Array(12);
+  const hopSize = Math.floor(fftSize / 2);
+  const numFrames = Math.floor((samples.length - fftSize) / hopSize);
+  if (numFrames <= 0) return Array.from(chroma);
+
+  // Hann window
+  const hann = new Float64Array(fftSize);
+  for (let i = 0; i < fftSize; i++) hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
+
+  // Pre-compute bin → pitch-class mapping
+  // Each FFT bin has frequency = binIndex * sampleRate / fftSize
+  // Map to nearest pitch class if within ±0.5 semitones
+  const binPC = new Int8Array(fftSize / 2 + 1).fill(-1);
+  const binFreqScale = sampleRate / fftSize;
+  for (let b = 1; b <= fftSize / 2; b++) {
+    const freq = b * binFreqScale;
+    if (freq < 60 || freq > 5000) continue; // musical range only
+    const midi = 12 * Math.log2(freq / 440) + 69;
+    const rounded = Math.round(midi);
+    if (Math.abs(midi - rounded) < 0.45) { // within ~half a semitone
+      binPC[b] = ((rounded % 12) + 12) % 12;
+    }
+  }
+
+  // Simple real-valued FFT using the AudioContext trick won't work here,
+  // so we do a DFT on the magnitudes via a real FFT approximation.
+  // For speed: use the split-radix approach with Float64Array.
+  // Actually, let's use the fast approach: compute magnitude spectrum via
+  // the efficient O(N log N) Cooley-Tukey in-place.
+  function fftMagnitude(frame) {
+    const N = frame.length;
+    const re = new Float64Array(N);
+    const im = new Float64Array(N);
+    for (let i = 0; i < N; i++) re[i] = frame[i];
+
+    // Bit-reversal permutation
+    for (let i = 1, j = 0; i < N; i++) {
+      let bit = N >> 1;
+      for (; j & bit; bit >>= 1) j ^= bit;
+      j ^= bit;
+      if (i < j) { const t = re[i]; re[i] = re[j]; re[j] = t; }
+    }
+
+    // Cooley-Tukey butterfly
+    for (let len = 2; len <= N; len <<= 1) {
+      const halfLen = len >> 1;
+      const angle = -2 * Math.PI / len;
+      const wRe = Math.cos(angle), wIm = Math.sin(angle);
+      for (let i = 0; i < N; i += len) {
+        let curRe = 1, curIm = 0;
+        for (let j = 0; j < halfLen; j++) {
+          const tRe = curRe * re[i + j + halfLen] - curIm * im[i + j + halfLen];
+          const tIm = curRe * im[i + j + halfLen] + curIm * re[i + j + halfLen];
+          re[i + j + halfLen] = re[i + j] - tRe;
+          im[i + j + halfLen] = im[i + j] - tIm;
+          re[i + j] += tRe;
+          im[i + j] += tIm;
+          const nextRe = curRe * wRe - curIm * wIm;
+          curIm = curRe * wIm + curIm * wRe;
+          curRe = nextRe;
+        }
+      }
+    }
+
+    // Return magnitudes for first half
+    const mag = new Float64Array(N / 2 + 1);
+    for (let i = 0; i <= N / 2; i++) mag[i] = Math.sqrt(re[i] * re[i] + im[i] * im[i]);
+    return mag;
+  }
+
+  for (let f = 0; f < numFrames; f++) {
+    const offset = f * hopSize;
+    // Apply window
+    const windowed = new Float64Array(fftSize);
+    for (let i = 0; i < fftSize; i++) windowed[i] = samples[offset + i] * hann[i];
+
+    // RMS gate
+    let rms = 0;
+    for (let i = 0; i < fftSize; i++) rms += windowed[i] * windowed[i];
+    if (Math.sqrt(rms / fftSize) < 0.008) continue;
+
+    const mag = fftMagnitude(windowed);
+
+    // Accumulate into chroma bins (weighted by magnitude)
+    for (let b = 1; b <= fftSize / 2; b++) {
+      if (binPC[b] >= 0) chroma[binPC[b]] += mag[b];
+    }
+  }
+
+  // Normalise
+  const max = Math.max(...chroma, 1e-8);
+  const norm = Array.from(chroma).map(v => (v / max) * 12);
+  return norm;
+}
+
 // Autocorrelation-based pitch detector (no external deps)
 function detectPitchAutocorr(buf, sampleRate) {
   const SIZE = buf.length;
@@ -5833,6 +5931,20 @@ export default function App() {
   const [sheetUserBpm,        setSheetUserBpm]        = useState(120);
   const [sheetDrumsEnabled,   setSheetDrumsEnabled]   = useState(false);
   const [sheetOctaveOffset,   setSheetOctaveOffset]   = useState(0);
+  // ── USB Listen (key detect from MPC) ──
+  const [usbListening,    setUsbListening]    = useState(false);
+  const [usbDevices,      setUsbDevices]      = useState([]);   // audio input devices
+  const [usbDeviceId,     setUsbDeviceId]     = useState("");   // selected device
+  const [usbProgress,     setUsbProgress]     = useState(0);    // 0-100
+  const [usbResult,       setUsbResult]       = useState(null); // { tonic, type, score }
+  const [usbError,        setUsbError]        = useState(null);
+  const [usbShowPicker,   setUsbShowPicker]   = useState(false);
+  const usbStreamRef      = useRef(null);
+  const usbRecorderRef    = useRef(null);
+  const usbChunksRef      = useRef([]);
+  const usbTimerRef       = useRef(null);
+  const usbCountdownRef   = useRef(null);
+  const [usbCountdown,    setUsbCountdown]    = useState(0);
   // ── Piano Roll state ──
   const [pianoRollOpen,  setPianoRollOpen]   = useState(false);
   const [pianoRollEdits, setPianoRollEdits]  = useState({}); // key: "noteNum-startSlot" → { velocity, lengthSlots, muted }
@@ -6086,6 +6198,161 @@ export default function App() {
     }, 2000);
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [serializeProject]);
+
+  // ── USB Listen (MPC audio capture → key detection) ──────────────────────────
+  const enumerateAudioInputs = useCallback(async () => {
+    try {
+      // Need a brief getUserMedia call to trigger permission prompt & populate labels
+      const tmpStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      tmpStream.getTracks().forEach(t => t.stop());
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(d => d.kind === "audioinput");
+      setUsbDevices(inputs);
+      // Auto-select MPC if found, else first non-default
+      const mpc = inputs.find(d => /mpc|akai/i.test(d.label));
+      const usb = inputs.find(d => /usb/i.test(d.label));
+      if (mpc) setUsbDeviceId(mpc.deviceId);
+      else if (usb) setUsbDeviceId(usb.deviceId);
+      else if (inputs.length > 0) setUsbDeviceId(inputs[0].deviceId);
+    } catch {
+      setUsbError("Could not access audio devices. Check browser permissions.");
+    }
+  }, []);
+
+  const stopUsbListen = useCallback(() => {
+    if (usbRecorderRef.current && usbRecorderRef.current.state !== "inactive") {
+      usbRecorderRef.current.stop();
+    }
+    if (usbStreamRef.current) {
+      usbStreamRef.current.getTracks().forEach(t => t.stop());
+      usbStreamRef.current = null;
+    }
+    if (usbTimerRef.current) clearTimeout(usbTimerRef.current);
+    if (usbCountdownRef.current) clearInterval(usbCountdownRef.current);
+    setUsbListening(false);
+    setUsbCountdown(0);
+  }, []);
+
+  const startUsbListen = useCallback(async (duration = 4) => {
+    setUsbError(null);
+    setUsbResult(null);
+    setUsbProgress(0);
+
+    if (!usbDeviceId) {
+      setUsbError("No audio device selected");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { deviceId: { exact: usbDeviceId } },
+        video: false,
+      });
+      usbStreamRef.current = stream;
+      usbChunksRef.current = [];
+
+      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"]
+        .find(m => MediaRecorder.isTypeSupported(m)) || "";
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
+      recorder.ondataavailable = e => { if (e.data.size > 0) usbChunksRef.current.push(e.data); };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        usbStreamRef.current = null;
+
+        const blob = new Blob(usbChunksRef.current, { type: recorder.mimeType });
+        if (blob.size < 1000) {
+          setUsbError("No audio captured. Is the MPC sending audio?");
+          setUsbListening(false);
+          return;
+        }
+
+        setUsbProgress(10);
+
+        try {
+          const arrayBuf = await blob.arrayBuffer();
+          const audioCtx = new AudioContext();
+          const decoded = await audioCtx.decodeAudioData(arrayBuf);
+          await audioCtx.close();
+
+          setUsbProgress(30);
+
+          // Mix to mono
+          let mono;
+          if (decoded.numberOfChannels === 1) {
+            mono = decoded.getChannelData(0);
+          } else {
+            const c0 = decoded.getChannelData(0), c1 = decoded.getChannelData(1);
+            mono = new Float32Array(c0.length);
+            for (let i = 0; i < c0.length; i++) mono[i] = (c0[i] + c1[i]) * 0.5;
+          }
+
+          setUsbProgress(50);
+
+          // FFT chromagram analysis
+          const chroma = computeChromagram(mono, decoded.sampleRate, 4096);
+
+          setUsbProgress(80);
+
+          // Match key using Krummenacher-Kessler profiles
+          const result = matchKey(chroma);
+          setUsbResult(result);
+          setUsbProgress(100);
+
+          // Auto-set root + scale if confident enough
+          if (result && result.score > 0.3) {
+            // Map NOTE_NAMES tonic to NOTE_DISPLAY format
+            const tonicMap = { "C":"C", "C#":"C#/Db", "D":"D", "D#":"D#/Eb", "E":"E",
+              "F":"F", "F#":"F#/Gb", "G":"G", "G#":"G#/Ab", "A":"A", "A#":"A#/Bb", "B":"B" };
+            const displayRoot = tonicMap[result.tonic] || result.tonic;
+            setRootDisplay(displayRoot);
+            setScaleKey(result.type === "minor" ? "minor" : "major");
+            setTimelineItems([]);
+            setActiveChord(null);
+          }
+        } catch (err) {
+          setUsbError("Could not analyse audio: " + (err.message || "unknown error"));
+        }
+
+        setUsbListening(false);
+      };
+
+      recorder.start(100);
+      usbRecorderRef.current = recorder;
+      setUsbListening(true);
+      setUsbCountdown(duration);
+
+      // Countdown timer
+      usbCountdownRef.current = setInterval(() => {
+        setUsbCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(usbCountdownRef.current);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Auto-stop after duration
+      usbTimerRef.current = setTimeout(() => {
+        if (usbRecorderRef.current && usbRecorderRef.current.state !== "inactive") {
+          usbRecorderRef.current.stop();
+        }
+      }, duration * 1000);
+
+    } catch (err) {
+      setUsbError("Could not open audio device: " + (err.message || "permission denied"));
+      setUsbListening(false);
+    }
+  }, [usbDeviceId, setRootDisplay, setScaleKey, setTimelineItems, setActiveChord]);
+
+  // Enumerate devices on first picker open
+  useEffect(() => {
+    if (usbShowPicker && usbDevices.length === 0) enumerateAudioInputs();
+  }, [usbShowPicker, usbDevices.length, enumerateAudioInputs]);
+
+  // Cleanup on unmount
+  useEffect(() => () => { stopUsbListen(); }, [stopUsbListen]);
 
   // ── MIDI init ──
   const [midiReady, setMidiReady] = useState(false);
@@ -8068,7 +8335,7 @@ export default function App() {
       `}</style>
 
       <div style={{ minHeight:"100vh", background:t.pageBg, padding:"20px 12px", fontFamily:SF }}
-        onClick={() => showToolsMenu && setShowToolsMenu(false)}>
+        onClick={() => { if (showToolsMenu) setShowToolsMenu(false); if (usbShowPicker) setUsbShowPicker(false); }}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
 
           {/* ── Header ── */}
@@ -8238,6 +8505,125 @@ export default function App() {
                   <option value="locrian">Locrian</option>
                 </select>
               </div>}
+
+              {/* ── USB Listen (detect key from MPC) ── */}
+              {mode !== "sheet" && mode !== "drums" && (
+                <div style={{ position:"relative" }}>
+                  <label style={labelStyle}>Listen</label>
+                  <div style={{ display:"flex", gap:4, alignItems:"center" }}>
+                    <button
+                      onClick={() => {
+                        if (usbListening) { stopUsbListen(); return; }
+                        if (!usbDeviceId || usbDevices.length === 0) {
+                          setUsbShowPicker(true);
+                          return;
+                        }
+                        startUsbListen(4);
+                      }}
+                      style={{
+                        fontFamily: SF, fontSize: 12, fontWeight: 600,
+                        padding: "5px 12px", borderRadius: 2, cursor: "pointer",
+                        border: `1px solid ${usbListening ? "#FF453A" : t.accent}`,
+                        background: usbListening ? "#FF453A" : t.accent,
+                        color: "#FFF",
+                        minHeight: 26,
+                        display: "flex", alignItems: "center", gap: 5,
+                        transition: "all 0.12s",
+                      }}
+                    >
+                      {usbListening ? (
+                        <>
+                          <span style={{ width:7, height:7, borderRadius:"50%", background:"#FFF",
+                            animation:"pulse 0.8s infinite", flexShrink:0 }} />
+                          {usbCountdown > 0 ? `${usbCountdown}s` : "Stop"}
+                        </>
+                      ) : usbProgress > 0 && usbProgress < 100 ? (
+                        "Analysing…"
+                      ) : (
+                        <>
+                          <span style={{ fontSize:13 }}>🎧</span> USB
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setUsbShowPicker(!usbShowPicker)}
+                      title="Select audio device"
+                      style={{
+                        fontFamily: SF, fontSize: 11, padding: "5px 6px", borderRadius: 2,
+                        cursor: "pointer", border: `1px solid ${t.border}`,
+                        background: usbShowPicker ? t.elevatedBg : t.inputBg,
+                        color: t.textSecondary, minHeight: 26,
+                      }}
+                    >▾</button>
+                  </div>
+
+                  {/* Device picker dropdown */}
+                  {usbShowPicker && (
+                    <div onClick={e => e.stopPropagation()} style={{
+                      position:"absolute", top:"100%", left:0, marginTop:4, zIndex:100,
+                      background:t.cardBg, border:`1px solid ${t.border}`,
+                      boxShadow:"0 4px 16px rgba(0,0,0,0.12)",
+                      padding:"8px 0", minWidth:260, maxWidth:340,
+                    }}>
+                      <div style={{ padding:"4px 12px 8px", fontSize:10, fontWeight:600,
+                        textTransform:"uppercase", letterSpacing:"0.06em", color:t.textTertiary }}>
+                        Audio Input Device
+                      </div>
+                      {usbDevices.length === 0 ? (
+                        <div style={{ padding:"8px 12px", fontSize:12, color:t.textSecondary }}>
+                          Loading devices…
+                        </div>
+                      ) : usbDevices.map(dev => (
+                        <button key={dev.deviceId}
+                          onClick={() => { setUsbDeviceId(dev.deviceId); setUsbShowPicker(false); }}
+                          style={{
+                            display:"block", width:"100%", textAlign:"left",
+                            fontFamily:SF, fontSize:12, padding:"6px 12px",
+                            background: dev.deviceId === usbDeviceId ? t.elevatedBg : "transparent",
+                            border:"none", cursor:"pointer",
+                            color: dev.deviceId === usbDeviceId ? t.textPrimary : t.textSecondary,
+                            fontWeight: dev.deviceId === usbDeviceId ? 600 : 400,
+                          }}
+                        >
+                          {dev.label || `Device ${dev.deviceId.slice(0,8)}`}
+                          {/mpc|akai/i.test(dev.label) && " ✦"}
+                        </button>
+                      ))}
+                      <div style={{ borderTop:`1px solid ${t.border}`, marginTop:4, paddingTop:4 }}>
+                        <button onClick={enumerateAudioInputs}
+                          style={{ display:"block", width:"100%", textAlign:"left",
+                            fontFamily:SF, fontSize:11, padding:"5px 12px",
+                            background:"transparent", border:"none", cursor:"pointer",
+                            color:t.accent }}>
+                          ↻ Refresh devices
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Result badge */}
+                  {usbResult && !usbListening && (
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, marginTop:4,
+                      fontSize:11, fontWeight:600, color:t.accent,
+                      whiteSpace:"nowrap",
+                    }}>
+                      → {usbResult.tonic} {usbResult.type} ({Math.round(((usbResult.score+1)/2)*100)}%)
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {usbError && (
+                    <div style={{
+                      position:"absolute", top:"100%", left:0, marginTop:4,
+                      fontSize:10, color:"#FF453A", maxWidth:200,
+                    }}>
+                      {usbError}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {mode === "chords" && (
                 <div>
                   <label style={labelStyle}>Type</label>
