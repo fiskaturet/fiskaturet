@@ -6258,19 +6258,27 @@ export default function App() {
     }
 
     try {
+      console.log("[USB Listen] Opening device:", usbDeviceId);
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: { deviceId: { exact: usbDeviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         video: false,
       });
+      console.log("[USB Listen] Stream active:", stream.active, "tracks:", stream.getAudioTracks().map(t => t.label));
       usbStreamRef.current = stream;
       usbChunksRef.current = [];
 
       // Set up real-time level meter via AnalyserNode
       const liveCtx = new AudioContext();
+      // Chrome may suspend AudioContext until user gesture — force resume
+      if (liveCtx.state === "suspended") await liveCtx.resume();
       const analyser = liveCtx.createAnalyser();
       analyser.fftSize = 256;
-      liveCtx.createMediaStreamSource(stream).connect(analyser);
+      analyser.smoothingTimeConstant = 0.3;
+      // Store source node ref to prevent garbage collection
+      const srcNode = liveCtx.createMediaStreamSource(stream);
+      srcNode.connect(analyser);
       usbAudioCtxRef.current = liveCtx;
+      usbAudioCtxRef.current._srcNode = srcNode; // prevent GC
       usbAnalyserRef.current = analyser;
       const lvlBuf = new Float32Array(analyser.fftSize);
       const meterLoop = () => {
