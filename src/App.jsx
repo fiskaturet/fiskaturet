@@ -104,7 +104,7 @@ function exportToMidi({ timelineItems, drumPattern, bassLine, melodyLine, bpm, c
     const items = sec.timelineItems || [];
     items.forEach(item => {
       const intervals = (CHORD_INTERVALS[item.chord.quality] || CHORD_INTERVALS["maj"]);
-      let octave = chordOctave;
+      let octave = chordOctave + (item.octaveOffset || 0);
       let prev = -1;
       intervals.forEach(iv => {
         const ni = (item.chord.noteIdx + iv) % 12;
@@ -6374,7 +6374,7 @@ export default function App() {
     const notes = [];
     timelineItems.forEach(item => {
       const intervals = CHORD_INTERVALS[item.chord.quality] || CHORD_INTERVALS["maj"];
-      let octave = chordOctave;
+      let octave = chordOctave + (item.octaveOffset || 0);
       let prev = -1;
       intervals.forEach(iv => {
         const ni = (item.chord.noteIdx + iv) % 12;
@@ -7375,7 +7375,7 @@ export default function App() {
 
       // Chords — always schedule, check mute ref at fire time
       curTimeline.forEach(item => {
-        const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+        const allNoteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave + (item.octaveOffset || 0));
         // Filter out muted notes from piano roll
         let noteNames = allNoteNames.filter(n => getNoteVelScale(n, item.startSlot) > 0);
         if (noteNames.length === 0) return; // all muted, skip this chord
@@ -7853,14 +7853,15 @@ export default function App() {
         if (sec.timelineItems) {
           const cpat = CHORD_PLAY_PATTERNS[chordPlayPattern] || CHORD_PLAY_PATTERNS.sustained;
           sec.timelineItems.forEach(item => {
-            let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+            const itemOct = chordOctave + (item.octaveOffset || 0);
+            let noteNames = getChordNoteNames(item.chord.noteIdx, item.chord.quality, itemOct);
             // Density: thin chord voicing — deterministic
             const density = Math.max(0, Math.min(100, densityChordsRef.current + energyDensOff));
             const seed = densitySeedRef.current;
             if (density < 100 && noteNames.length > 1) {
               const total = noteNames.length;
               noteNames = noteNames.filter((_, i) => i === 0 || densityPass(seed, "chord", item.startSlot * 100 + i, density, chordNoteImportance(i, total)));
-              if (noteNames.length === 0) noteNames = [getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave)[0]];
+              if (noteNames.length === 0) noteNames = [getChordNoteNames(item.chord.noteIdx, item.chord.quality, itemOct)[0]];
             }
             const chordStartSec = (offset + item.startSlot) * slotSec;
             const chordDurSec = item.lengthSlots * slotSec;
@@ -9304,19 +9305,78 @@ export default function App() {
                           boxShadow: isDragging ? "0 2px 12px rgba(0,0,0,0.18)" : "none",
                           transition: isDragging ? "none" : "left 0.12s ease-out, width 0.12s ease-out, box-shadow 0.15s",
                         }}>
-                        {/* Sustained mode — original look */}
+                        {/* Sustained mode — three octave zones */}
                         {isSustained && (
-                          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", width:"100%", height:"100%", padding:"0 4px 0 8px" }}>
-                            <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em", pointerEvents:"none" }}>
-                              {item.chord.display}
-                            </span>
-                            <div style={{ display:"flex", alignItems:"center", gap:2, flexShrink:0 }}>
-                              <button onClick={() => { stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
+                          <div style={{ display:"flex", alignItems:"stretch", width:"100%", height:"100%", position:"relative" }}>
+                            {/* Left zone: octave down */}
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (dragRef.current?.didDrag) return;
+                                const oct = chordOctave - 1;
+                                const names = getChordNoteNames(item.chord.noteIdx, item.chord.quality, oct);
+                                if (!sendMIDINotes(names, 1500)) playChord(names, soundType);
+                                setTimelineItems(prev => prev.map(it => it.id === item.id ? { ...it, octaveOffset: -1 } : it));
+                              }}
+                              style={{ width:"18%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                                background: item.octaveOffset === -1 ? "rgba(92,124,138,0.18)" : "transparent",
+                                borderRight:"1px solid rgba(92,124,138,0.15)", borderRadius:"2px 0 0 2px",
+                                transition:"background 0.1s" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(92,124,138,0.12)"}
+                              onMouseLeave={e => e.currentTarget.style.background = item.octaveOffset === -1 ? "rgba(92,124,138,0.18)" : "transparent"}
+                              title={`${item.chord.display} (octave ${chordOctave - 1})`}
+                            >
+                              <span style={{ fontSize:8, fontWeight:700, color:"rgba(92,124,138,0.5)", fontFamily:SF, pointerEvents:"none" }}>−1</span>
+                            </div>
+                            {/* Center zone: current octave (main) */}
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (dragRef.current?.didDrag) return;
+                                const names = getChordNoteNames(item.chord.noteIdx, item.chord.quality, chordOctave);
+                                if (!sendMIDINotes(names, 1500)) playChord(names, soundType);
+                                setTimelineItems(prev => prev.map(it => it.id === item.id ? { ...it, octaveOffset: 0 } : it));
+                              }}
+                              style={{ flex:1, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                                background: (!item.octaveOffset || item.octaveOffset === 0) ? "transparent" : "transparent",
+                                transition:"background 0.1s", position:"relative" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(92,124,138,0.06)"}
+                              onMouseLeave={e => e.currentTarget.style.background = "transparent"}
+                              title={`${item.chord.display} (octave ${chordOctave})`}
+                            >
+                              <span style={{ fontSize:13, fontWeight:700, color:t.accent, fontFamily:SF, whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", letterSpacing:"0.02em", pointerEvents:"none" }}>
+                                {item.chord.display}
+                              </span>
+                              {item.octaveOffset && item.octaveOffset !== 0 && (
+                                <span style={{ position:"absolute", bottom:1, right:4, fontSize:7, fontWeight:700, color:"rgba(92,124,138,0.5)", fontFamily:SF, pointerEvents:"none" }}>
+                                  oct{item.octaveOffset > 0 ? `+${item.octaveOffset}` : item.octaveOffset}
+                                </span>
+                              )}
+                            </div>
+                            {/* Right zone: octave up */}
+                            <div
+                              onClick={e => {
+                                e.stopPropagation();
+                                if (dragRef.current?.didDrag) return;
+                                const oct = chordOctave + 1;
+                                const names = getChordNoteNames(item.chord.noteIdx, item.chord.quality, oct);
+                                if (!sendMIDINotes(names, 1500)) playChord(names, soundType);
+                                setTimelineItems(prev => prev.map(it => it.id === item.id ? { ...it, octaveOffset: 1 } : it));
+                              }}
+                              style={{ width:"18%", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer",
+                                background: item.octaveOffset === 1 ? "rgba(92,124,138,0.18)" : "transparent",
+                                borderLeft:"1px solid rgba(92,124,138,0.15)", borderRadius:"0 2px 2px 0",
+                                transition:"background 0.1s" }}
+                              onMouseEnter={e => e.currentTarget.style.background = "rgba(92,124,138,0.12)"}
+                              onMouseLeave={e => e.currentTarget.style.background = item.octaveOffset === 1 ? "rgba(92,124,138,0.18)" : "transparent"}
+                              title={`${item.chord.display} (octave ${chordOctave + 1})`}
+                            >
+                              <span style={{ fontSize:8, fontWeight:700, color:"rgba(92,124,138,0.5)", fontFamily:SF, pointerEvents:"none" }}>+1</span>
+                            </div>
+                            {/* Delete + resize */}
+                            <div style={{ position:"absolute", top:0, right:0, display:"flex", alignItems:"center", gap:1, zIndex:3 }}>
+                              <button onClick={e => { e.stopPropagation(); stopLoop(); setTimelineItems(p => p.filter(it=>it.id!==item.id)); }}
                                 style={{ background:"none", border:"none", color:t.textTertiary, cursor:"pointer", fontSize:14, padding:"0 3px", lineHeight:1, fontFamily:SF }}>×</button>
-                              {/* Visual resize indicator — actual resize detected by parent mousedown via edge proximity */}
-                              <div style={{ width:12, height:24, borderRadius:2, background:"rgba(255,255,255,0.08)", cursor:"ew-resize", flexShrink:0, pointerEvents:"none", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                                <div style={{ width:3, height:14, borderLeft:"1px solid rgba(255,255,255,0.25)", borderRight:"1px solid rgba(255,255,255,0.25)" }} />
-                              </div>
                             </div>
                           </div>
                         )}
@@ -10356,7 +10416,10 @@ export default function App() {
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement("a");
                     a.href = url;
-                    a.download = `fiskaturet-${rootDisplay}-${scaleKey}-${bpm}bpm.json`;
+                    const prefix = selectedProducer && PRODUCER_PRESETS[selectedProducer]
+                      ? PRODUCER_PRESETS[selectedProducer].label.replace(/[^a-zA-Z0-9]/g, "_")
+                      : drumGenre.replace(/[^a-zA-Z0-9]/g, "_");
+                    a.download = `${prefix}-${rootDisplay}-${scaleKey}-${bpm}bpm.json`;
                     a.click();
                     URL.revokeObjectURL(url);
                   }}
