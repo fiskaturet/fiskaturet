@@ -6247,7 +6247,7 @@ export default function App() {
     setUsbLevel(0);
   }, []);
 
-  const startUsbListen = useCallback(async (duration = 4) => {
+  const startUsbListen = useCallback(async (duration = 5) => {
     setUsbError(null);
     setUsbResult(null);
     setUsbProgress(0);
@@ -6265,21 +6265,37 @@ export default function App() {
       });
       console.log("[USB Listen] Stream active:", stream.active, "tracks:", stream.getAudioTracks().map(t => t.label));
       usbStreamRef.current = stream;
-      usbChunksRef.current = [];
 
-      // Set up real-time level meter via AnalyserNode
+      // Set up AudioContext for both level meter AND raw PCM capture
+      // (MediaRecorder doesn't work reliably with USB audio devices)
       const liveCtx = new AudioContext();
-      // Chrome may suspend AudioContext until user gesture — force resume
       if (liveCtx.state === "suspended") await liveCtx.resume();
+      console.log("[USB Listen] AudioContext state:", liveCtx.state, "sampleRate:", liveCtx.sampleRate);
+
       const analyser = liveCtx.createAnalyser();
       analyser.fftSize = 256;
       analyser.smoothingTimeConstant = 0.3;
-      // Store source node ref to prevent garbage collection
+
       const srcNode = liveCtx.createMediaStreamSource(stream);
       srcNode.connect(analyser);
+
+      // Capture raw PCM via ScriptProcessorNode (deprecated but universally supported)
+      const bufSize = 4096;
+      const captureNode = liveCtx.createScriptProcessor(bufSize, 1, 1);
+      const pcmChunks = [];
+      captureNode.onaudioprocess = (e) => {
+        const input = e.inputBuffer.getChannelData(0);
+        pcmChunks.push(new Float32Array(input)); // copy
+      };
+      srcNode.connect(captureNode);
+      captureNode.connect(liveCtx.destination); // must connect to destination for it to process
+
       usbAudioCtxRef.current = liveCtx;
-      usbAudioCtxRef.current._srcNode = srcNode; // prevent GC
+      usbAudioCtxRef.current._srcNode = srcNode;
+      usbAudioCtxRef.current._captureNode = captureNode;
       usbAnalyserRef.current = analyser;
+
+      // Level meter loop
       const lvlBuf = new Float32Array(analyser.fftSize);
       const meterLoop = () => {
         if (!usbAnalyserRef.current) return;
@@ -6294,73 +6310,79 @@ export default function App() {
       };
       usbRafRef.current = requestAnimationFrame(meterLoop);
 
-      const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"]
-        .find(m => MediaRecorder.isTypeSupported(m)) || "";
-      console.log("[USB Listen] MediaRecorder mime:", mimeType || "(default)");
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-      recorder.ondataavailable = e => {
-        console.log("[USB Listen] chunk:", e.data.size, "bytes");
-        if (e.data.size > 0) usbChunksRef.current.push(e.data);
-      };
-      recorder.onerror = e => console.error("[USB Listen] recorder error:", e);
+      setUsbListening(true);
+      setUsbCountdown(duration);
 
-      recorder.onstop = async () => {
-        // Stop level meter
+      // Countdown timer
+      usbCountdownRef.current = setInterval(() => {
+        setUsbCountdown(prev => {
+          if (prev <= 1) { clearInterval(usbCountdownRef.current); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
+
+      // Auto-stop and analyse after duration
+      usbTimerRef.current = setTimeout(async () => {
+        // Stop capture
+        captureNode.onaudioprocess = null;
+        srcNode.disconnect();
+        captureNode.disconnect();
         if (usbRafRef.current) { cancelAnimationFrame(usbRafRef.current); usbRafRef.current = null; }
-        if (usbAudioCtxRef.current && usbAudioCtxRef.current.state !== "closed") {
-          usbAudioCtxRef.current.close().catch(() => {});
-          usbAudioCtxRef.current = null;
-        }
         usbAnalyserRef.current = null;
         setUsbLevel(0);
+
+        const sr = liveCtx.sampleRate;
+        liveCtx.close().catch(() => {});
+        usbAudioCtxRef.current = null;
         stream.getTracks().forEach(tr => tr.stop());
         usbStreamRef.current = null;
 
-        console.log("[USB Listen] chunks collected:", usbChunksRef.current.length,
-          "total bytes:", usbChunksRef.current.reduce((s, c) => s + c.size, 0));
-        const blob = new Blob(usbChunksRef.current, { type: recorder.mimeType });
-        console.log("[USB Listen] blob size:", blob.size, "type:", blob.type);
-        if (blob.size < 200) {
-          setUsbError("No audio captured (" + blob.size + " bytes, " + usbChunksRef.current.length + " chunks). Check device selection in ▾ menu.");
+        // Merge PCM chunks into single buffer
+        const totalSamples = pcmChunks.reduce((s, c) => s + c.length, 0);
+        console.log("[USB Listen] PCM captured:", pcmChunks.length, "chunks,", totalSamples, "samples,", (totalSamples / sr).toFixed(1), "sec");
+
+        if (totalSamples < sr * 0.5) { // less than 0.5 sec of audio
+          setUsbError("Too little audio captured. Play your sample and try again.");
           setUsbListening(false);
           return;
         }
 
-        setUsbProgress(10);
+        const mono = new Float32Array(totalSamples);
+        let offset = 0;
+        for (const chunk of pcmChunks) {
+          mono.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        // Check if there's actual signal (not just silence)
+        let rms = 0;
+        for (let i = 0; i < mono.length; i++) rms += mono[i] * mono[i];
+        rms = Math.sqrt(rms / mono.length);
+        console.log("[USB Listen] RMS level:", rms.toFixed(4));
+
+        if (rms < 0.003) {
+          setUsbError("No audio signal detected. Is the MPC playing?");
+          setUsbListening(false);
+          return;
+        }
+
+        setUsbProgress(30);
 
         try {
-          const arrayBuf = await blob.arrayBuffer();
-          const audioCtx = new AudioContext();
-          const decoded = await audioCtx.decodeAudioData(arrayBuf);
-          await audioCtx.close();
-
-          setUsbProgress(30);
-
-          // Mix to mono
-          let mono;
-          if (decoded.numberOfChannels === 1) {
-            mono = decoded.getChannelData(0);
-          } else {
-            const c0 = decoded.getChannelData(0), c1 = decoded.getChannelData(1);
-            mono = new Float32Array(c0.length);
-            for (let i = 0; i < c0.length; i++) mono[i] = (c0[i] + c1[i]) * 0.5;
-          }
-
-          setUsbProgress(50);
-
           // FFT chromagram analysis
-          const chroma = computeChromagram(mono, decoded.sampleRate, 4096);
+          const chroma = computeChromagram(mono, sr, 8192);
+          console.log("[USB Listen] Chroma:", chroma.map(v => v.toFixed(1)).join(", "));
 
           setUsbProgress(80);
 
           // Match key using Krummenacher-Kessler profiles
           const result = matchKey(chroma);
+          console.log("[USB Listen] Result:", result.tonic, result.type, "score:", result.score.toFixed(3));
           setUsbResult(result);
           setUsbProgress(100);
 
           // Auto-set root + scale if confident enough
           if (result && result.score > 0.3) {
-            // Map NOTE_NAMES tonic to NOTE_DISPLAY format
             const tonicMap = { "C":"C", "C#":"C#/Db", "D":"D", "D#":"D#/Eb", "E":"E",
               "F":"F", "F#":"F#/Gb", "G":"G", "G#":"G#/Ab", "A":"A", "A#":"A#/Bb", "B":"B" };
             const displayRoot = tonicMap[result.tonic] || result.tonic;
@@ -6370,33 +6392,10 @@ export default function App() {
             setActiveChord(null);
           }
         } catch (err) {
-          setUsbError("Could not analyse audio: " + (err.message || "unknown error"));
+          setUsbError("Analysis failed: " + (err.message || "unknown error"));
         }
 
         setUsbListening(false);
-      };
-
-      recorder.start(100);
-      usbRecorderRef.current = recorder;
-      setUsbListening(true);
-      setUsbCountdown(duration);
-
-      // Countdown timer
-      usbCountdownRef.current = setInterval(() => {
-        setUsbCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(usbCountdownRef.current);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      // Auto-stop after duration
-      usbTimerRef.current = setTimeout(() => {
-        if (usbRecorderRef.current && usbRecorderRef.current.state !== "inactive") {
-          usbRecorderRef.current.stop();
-        }
       }, duration * 1000);
 
     } catch (err) {
