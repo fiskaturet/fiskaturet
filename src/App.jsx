@@ -6483,7 +6483,14 @@ export default function App() {
   // ── MIDI Clock sync (hardware-timed) ──
   // Uses Web MIDI timestamps for precise clock ticks instead of setInterval.
   // Schedules ticks in batches ahead of time so the USB driver sends them at exact intervals.
-  // Preroll: 2 beats of clock before first note — gives MPC time to arm and start recording.
+  //
+  // Preroll strategy: send exactly 1 bar of MIDI clock before the first note.
+  // We also send Song Position Pointer (0xF2) = bar 1 BEFORE 0xFA Start, so the
+  // MPC's timeline starts counting from bar 2 (= our bar 1). This means:
+  // - Bar 1 on MPC = silent preroll (clock ticks only, no notes)
+  // - Bar 2 on MPC = bar 1 of our composition
+  // The preroll lets the MPC stabilize its clock PLL, and because it's exactly
+  // 1 bar, everything aligns to the MPC grid with zero manual adjustment.
   const midiPrerollMs = useRef(0);
   const midiClockState = useRef(null); // { out, bpm, startTimestamp, rafId, stopped }
 
@@ -6498,12 +6505,18 @@ export default function App() {
     if (midiClockRef.current) { clearInterval(midiClockRef.current); midiClockRef.current = null; }
 
     const tickMs = (60 / bpmVal / 24) * 1000; // ms per clock tick at 24 PPQ
-    const prerollBeats = 2;
+    // Preroll = exactly 1 bar (4 beats) — aligns to MPC's bar grid
+    const prerollBeats = 4;
     const prerollMs = (60 / bpmVal) * prerollBeats * 1000;
     midiPrerollMs.current = prerollMs;
 
-    // Send MIDI Start immediately
     const now = performance.now();
+
+    // Send Song Position Pointer = 0 (tells MPC we're at the very start)
+    // Format: 0xF2, LSB, MSB (position in MIDI beats = 6 clock ticks each)
+    try { out.send([0xF2, 0x00, 0x00]); } catch(e) {}
+
+    // Send MIDI Start
     try { out.send([0xFA]); } catch(e) {}
 
     // State for the clock pump
