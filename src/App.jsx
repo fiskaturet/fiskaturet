@@ -801,7 +801,7 @@ function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternTy
     return intervals.map(iv => {
       const ni = (item.chord.noteIdx + iv) % 12;
       let oct = melOctave;
-      if (ni + oct * 12 + 12 < 60) oct++; // keep in singable range
+      if (ni + oct * 12 + 12 < melBase) oct++; // keep in playable range
       return ni + oct * 12 + 12;
     });
   };
@@ -815,8 +815,9 @@ function generateMelody(timelineItems, scaleKey, rootIdx, chordOctave, patternTy
   // Helper: random pick
   const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
-  // Keep melody in a nice range
-  const clampMidi = (m) => Math.max(60, Math.min(84, m));
+  // Keep melody in a nice range — relative to the chosen octave
+  const melBase = melOctave * 12 + 12; // e.g. octave 4 → MIDI 60, octave 3 → MIDI 48
+  const clampMidi = (m) => Math.max(melBase, Math.min(melBase + 24, m));
 
   let lastMidi = null;
 
@@ -8069,63 +8070,6 @@ export default function App() {
         onClick={() => showToolsMenu && setShowToolsMenu(false)}>
         <div style={{ maxWidth:860, margin:"0 auto" }}>
 
-          {/* ── MIDI Output Bar ── */}
-          <div style={{ background:"#f5f5f4", padding:"6px 16px", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", borderBottom:"1px solid rgba(0,0,0,0.06)", marginBottom:8 }}>
-            <span style={{ fontSize:11, fontWeight:600, color:"rgba(0,0,0,0.45)", fontFamily:SF }}>MIDI</span>
-            {midiError ? (
-              <span style={{ fontSize:11, color:"#FF453A", fontFamily:SF }}>{midiError}</span>
-            ) : (
-              <>
-                <select
-                  value={midiOutputId}
-                  onChange={e => setMidiOutputId(e.target.value)}
-                  style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"3px 6px", borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", minWidth:160 }}
-                >
-                  <option value="off">Off (browser audio)</option>
-                  {midiOutputs.map(o => (
-                    <option key={o.id} value={o.id}>{o.name}</option>
-                  ))}
-                </select>
-                {midiOutputId !== "off" && (
-                  <span style={{ color:"#30D158", fontWeight:700, fontSize:11, fontFamily:SF }}>● Connected</span>
-                )}
-                {midiOutputId !== "off" && (
-                  <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
-                    style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"3px 6px", borderRadius:2,
-                      border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
-                      background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
-                      color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
-                      whiteSpace:"nowrap" }}>
-                    <option value="off">Clock Off</option>
-                    <option value="send">App er master (sender clock + start/stop)</option>
-                    <option value="receive">MPC er master (mottar clock)</option>
-                  </select>
-                )}
-                {midiOutputId !== "off" && (
-                  <>
-                    <div style={{ width:1, height:14, background:"rgba(0,0,0,0.10)" }} />
-                    {[
-                      { label:"Chords", value:midiChannel, set:setMidiChannel },
-                      { label:"Bass",   value:bassChannel, set:setBassChannel },
-                      { label:"Melody", value:melodyChannel2, set:setMelodyChannel2 },
-                      { label:"Drums",  value:drumChannel, set:setDrumChannel },
-                    ].map(({label, value, set}) => (
-                      <div key={label} style={{ display:"flex", alignItems:"center", gap:3 }}>
-                        <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", textTransform:"uppercase", letterSpacing:"0.05em", fontFamily:SF }}>{label}</span>
-                        <select value={value} onChange={e => set(Number(e.target.value))}
-                          style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"2px 4px", borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", width:48 }}>
-                          {Array.from({length:16},(_,i)=>i+1).map(ch => (
-                            <option key={ch} value={ch}>{ch}</option>
-                          ))}
-                        </select>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </>
-            )}
-          </div>
-
           {/* ── Header ── */}
           <div style={{
             background:"#FFFFFF",
@@ -10490,6 +10434,63 @@ export default function App() {
               </div>
             </>
           )}
+
+        {/* ── MIDI Output Bar (bottom) ── */}
+        <div style={{ background:"#f5f5f4", padding:"6px 16px", display:"flex", gap:10, alignItems:"center", flexWrap:"wrap", borderTop:"1px solid rgba(0,0,0,0.06)", marginTop:8 }}>
+          <span style={{ fontSize:11, fontWeight:600, color:"rgba(0,0,0,0.45)", fontFamily:SF }}>MIDI</span>
+          {midiError ? (
+            <span style={{ fontSize:11, color:"#FF453A", fontFamily:SF }}>{midiError}</span>
+          ) : (
+            <>
+              <select
+                value={midiOutputId}
+                onChange={e => setMidiOutputId(e.target.value)}
+                style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"0 6px", height:26, borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", minWidth:160 }}
+              >
+                <option value="off">Off (browser audio)</option>
+                {midiOutputs.map(o => (
+                  <option key={o.id} value={o.id}>{o.name}</option>
+                ))}
+              </select>
+              {midiOutputId !== "off" && (
+                <span style={{ color:"#30D158", fontWeight:700, fontSize:11, fontFamily:SF }}>● Connected</span>
+              )}
+              {midiOutputId !== "off" && (
+                <select value={midiSyncMode} onChange={e => setMidiSyncMode(e.target.value)}
+                  style={{ fontFamily:SF, fontSize:11, fontWeight:600, padding:"0 6px", height:26, borderRadius:2,
+                    border:`1px solid ${midiSyncMode !== "off" ? "rgba(48,209,88,0.5)" : t.btnBorder}`,
+                    background: midiSyncMode !== "off" ? "rgba(48,209,88,0.08)" : "transparent",
+                    color: midiSyncMode !== "off" ? "#2B9A3E" : t.btnColor, cursor:"pointer",
+                    whiteSpace:"nowrap" }}>
+                  <option value="off">Clock Off</option>
+                  <option value="send">App er master (sender clock + start/stop)</option>
+                  <option value="receive">MPC er master (mottar clock)</option>
+                </select>
+              )}
+              {midiOutputId !== "off" && (
+                <>
+                  <div style={{ width:1, height:14, background:"rgba(0,0,0,0.10)" }} />
+                  {[
+                    { label:"Chords", value:midiChannel, set:setMidiChannel },
+                    { label:"Bass",   value:bassChannel, set:setBassChannel },
+                    { label:"Melody", value:melodyChannel2, set:setMelodyChannel2 },
+                    { label:"Drums",  value:drumChannel, set:setDrumChannel },
+                  ].map(({label, value, set}) => (
+                    <div key={label} style={{ display:"flex", alignItems:"center", gap:3 }}>
+                      <span style={{ fontSize:9, fontWeight:700, color:"rgba(0,0,0,0.35)", textTransform:"uppercase", letterSpacing:"0.05em", fontFamily:SF }}>{label}</span>
+                      <select value={value} onChange={e => set(Number(e.target.value))}
+                        style={{ fontFamily:SF, fontSize:11, fontWeight:500, padding:"0 4px", height:26, borderRadius:2, border:`1px solid ${t.inputBorder}`, background:t.inputBg, color:t.inputColor, cursor:"pointer", width:48 }}>
+                        {Array.from({length:16},(_,i)=>i+1).map(ch => (
+                          <option key={ch} value={ch}>{ch}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </div>
 
         </div>
       </div>
