@@ -216,7 +216,7 @@ const PRODUCER_PRESETS = {
     label: "The Conductor",
     desc: "Griselda — dark, minimal, claustrophobic",
     bpm: [82, 88], scale: "minor", chordType: "triad",
-    drumGenre: "griselda", bassPattern: "root", melodyPattern: "minorDescent",
+    drumGenre: "griselda", drumKit: "griselda", bassPattern: "root", melodyPattern: "minorDescent",
     playStyle: "normal", chordRhythm: "sustained", soundType: "darkpad",
     bassSound: "piano", melodySound: "piano", energy: 60,
     humanize: 25, drumFeel: 10, barCount: [2, 4],
@@ -1569,12 +1569,95 @@ function initDrumSynths() {
   drumSynths.crash._type = "metal";
 }
 
+// ─── Sample-based drum kits ─────────────────────────────────────────────────
+
+const DRUM_KITS = {
+  synth: { label: "Synth (Default)", samples: null },
+  griselda: {
+    label: "Griselda",
+    basePath: "/samples/griselda/",
+    // Map each DRUM_TRACKS id to a sample file
+    map: {
+      kick:      "kick1.mp3",
+      ghostKick: "kick_ghost.mp3",
+      snare:     "snare1.mp3",
+      ghost:     "ghost_snare.mp3",
+      clap:      "clap.mp3",
+      hatC:      "hat_closed.mp3",
+      hatO:      "hat_open.mp3",
+      rim:       "rim.mp3",
+      tom:       "tom.mp3",
+      low808:    "kick2.mp3",    // 808 mapped to a heavier kick
+      shaker:    "shaker.mp3",
+      perc:      "perc.mp3",
+      ride:      "ride.mp3",
+      crash:     "crash.mp3",
+    },
+  },
+};
+
+// Cache loaded sample players per kit
+const samplePlayerCache = {};
+
+async function loadDrumKit(kitId) {
+  if (kitId === "synth" || !DRUM_KITS[kitId]) return null;
+  if (samplePlayerCache[kitId]) return samplePlayerCache[kitId];
+
+  const kit = DRUM_KITS[kitId];
+  const players = {};
+
+  const loadPromises = Object.entries(kit.map).map(async ([trackId, filename]) => {
+    const url = kit.basePath + filename;
+    const player = new Tone.Player({ url, volume: -6 }).toDestination();
+    players[trackId] = player;
+  });
+
+  await Promise.all(loadPromises);
+  await Tone.loaded();
+
+  samplePlayerCache[kitId] = players;
+  return players;
+}
+
+// Currently active sample kit players (null = use synth)
+let activeSamplePlayers = null;
+let activeDrumKitId = "synth";
+
+function setActiveDrumKit(kitId) {
+  activeDrumKitId = kitId;
+  if (kitId === "synth") {
+    activeSamplePlayers = null;
+  } else if (samplePlayerCache[kitId]) {
+    activeSamplePlayers = samplePlayerCache[kitId];
+  } else {
+    // Load async, will be ready next trigger
+    loadDrumKit(kitId).then(players => {
+      if (activeDrumKitId === kitId) activeSamplePlayers = players;
+    });
+  }
+}
+
 function triggerDrumSynth(trackId, velocity, duration) {
-  const s = drumSynths[trackId];
-  if (!s) return;
   const vel = Math.max(0.01, Math.min(1, velocity / 127));
   const dur = Math.max(0.02, duration || 0.1);
   const now = Tone.now();
+
+  // Try sample player first
+  if (activeSamplePlayers && activeSamplePlayers[trackId]) {
+    const player = activeSamplePlayers[trackId];
+    if (player.loaded) {
+      try {
+        player.volume.value = -6 + (vel - 0.5) * 16; // velocity → volume: -14 to +2
+        player.stop(now);
+        player.start(now);
+      } catch(e) {}
+      return;
+    }
+  }
+
+  // Fall back to synth
+  const s = drumSynths[trackId];
+  if (!s) return;
 
   if (s._type === "custom" && s.fire) {
     s.fire(dur, now, vel);
@@ -5722,6 +5805,7 @@ export default function App() {
   const midiClockRef = useRef(null); // interval ID for clock ticks
   // ── Drum state ──
   const [drumGenre,      setDrumGenre]      = useState("griselda");
+  const [drumKit,        setDrumKit]        = useState("synth"); // "synth" | "griselda" | future kits
   const [drumPattern,    setDrumPattern]    = useState(null); // { kick:[64], snare:[64], ... }
   const drumPatternRef = useRef(null);
   const [drumChannel,    setDrumChannel]    = useState(10);
@@ -5807,6 +5891,17 @@ export default function App() {
   const [drumFeel,       setDrumFeel]       = useState(0);    // 0-100 → drum timing jitter + velocity variation
   const drumFeelRef = useRef(0);
   useEffect(() => { drumFeelRef.current = drumFeel; }, [drumFeel]);
+
+  // Load sample kit when drumKit changes
+  useEffect(() => {
+    setActiveDrumKit(drumKit);
+    if (drumKit !== "synth") {
+      loadDrumKit(drumKit).then(players => {
+        if (players) setActiveDrumKit(drumKit); // re-set after loaded
+      });
+    }
+  }, [drumKit]);
+
   const [drumSwing,      setDrumSwing]      = useState(0);    // 0-100 → maps to 0–50% push on off-beats
   const [drumHalfTime,   setDrumHalfTime]   = useState(false);
   const [densityDrums,   setDensityDrums]   = useState(100);  // 0-100 per element
@@ -5848,7 +5943,7 @@ export default function App() {
     // Musical core
     rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType,
     // Patterns
-    drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
+    drumPattern, drumGenre, drumKit, bassLine, bassPattern, melodyLine, melodyPattern,
     // Sections/arrangement
     sections, arrangement,
     // Sound settings
@@ -5873,7 +5968,7 @@ export default function App() {
     pianoRollEdits, humanize, drumFeel, loopEnabled, barCount,
   }), [
     rootDisplay, scaleKey, chordType, chordOctave, bpm, timelineItems, soundType, barCount,
-    drumPattern, drumGenre, bassLine, bassPattern, melodyLine, melodyPattern,
+    drumPattern, drumGenre, drumKit, bassLine, bassPattern, melodyLine, melodyPattern,
     sections, arrangement,
     melodySound, bassSound, bassOctaveOffset, melodyOctaveOffset,
     playStyle, chordPlayPattern, chordRhythmMutes, arpOn, arpPattern, arpRate,
@@ -5900,6 +5995,7 @@ export default function App() {
     // Patterns
     if (data.drumPattern !== undefined) setDrumPattern(data.drumPattern);
     if (data.drumGenre !== undefined) setDrumGenre(data.drumGenre);
+    if (data.drumKit !== undefined) setDrumKit(data.drumKit);
     if (data.bassLine !== undefined) setBassLine(data.bassLine);
     if (data.bassPattern !== undefined) setBassPattern(data.bassPattern);
     if (data.melodyLine !== undefined) setMelodyLine(data.melodyLine);
@@ -6782,6 +6878,10 @@ export default function App() {
       setActiveChord(null);
       setMuteChords(true);
     }
+
+    // ── Drum kit (sample-based or synth) ──
+    const newDrumKit = p.drumKit || "synth";
+    setDrumKit(newDrumKit);
 
     // ── Drums — generate directly (bypass stale closure) ──
     if (!doSkipDrums) {
@@ -8416,6 +8516,16 @@ export default function App() {
               {/* ── Toolbar ── */}
               <div style={{ background:"#fff", border:"1px solid rgba(0,0,0,0.08)", marginBottom:1,
                 padding:"8px 12px", display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+                {/* Kit select */}
+                <select value={drumKit} onChange={e => setDrumKit(e.target.value)}
+                  style={{ fontFamily:SF, padding:"0 8px", height:26, fontSize:11, fontWeight:500,
+                    border:"1px solid rgba(0,0,0,0.12)", background:"#fff", color:t.textPrimary,
+                    cursor:"pointer", appearance:"auto", borderRadius:2, minWidth:80 }}>
+                  {Object.entries(DRUM_KITS).map(([k,kit]) => (
+                    <option key={k} value={k}>{kit.label}</option>
+                  ))}
+                </select>
+
                 {/* Genre select */}
                 <select value={drumGenre} onChange={e => setDrumGenre(e.target.value)}
                   style={{ fontFamily:SF, padding:"0 8px", height:26, fontSize:11, fontWeight:500,
@@ -10266,7 +10376,7 @@ export default function App() {
                     if (!window.confirm("Start a new project? All unsaved changes will be lost.")) return;
                     setRootDisplay("C"); setScaleKey("major"); setChordType("triad"); setChordOctave(4);
                     setBpm(90); setTimelineItems([]); setSoundType("rhodes");
-                    setDrumPattern(null); setDrumGenre("boombap_classic"); setBassLine([]); setBassPattern("root");
+                    setDrumPattern(null); setDrumGenre("boombap_classic"); setDrumKit("synth"); setBassLine([]); setBassPattern("root");
                     setMelodyLine([]); setMelodyPattern("chordTones");
                     setSections([]); setArrangement([]);
                     setMelodySound("bell"); setBassSound("808"); setBassOctaveOffset(0); setMelodyOctaveOffset(0);
