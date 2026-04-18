@@ -6296,8 +6296,13 @@ export default function App() {
 
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"]
         .find(m => MediaRecorder.isTypeSupported(m)) || "";
+      console.log("[USB Listen] MediaRecorder mime:", mimeType || "(default)");
       const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
-      recorder.ondataavailable = e => { if (e.data.size > 0) usbChunksRef.current.push(e.data); };
+      recorder.ondataavailable = e => {
+        console.log("[USB Listen] chunk:", e.data.size, "bytes");
+        if (e.data.size > 0) usbChunksRef.current.push(e.data);
+      };
+      recorder.onerror = e => console.error("[USB Listen] recorder error:", e);
 
       recorder.onstop = async () => {
         // Stop level meter
@@ -6311,9 +6316,12 @@ export default function App() {
         stream.getTracks().forEach(tr => tr.stop());
         usbStreamRef.current = null;
 
+        console.log("[USB Listen] chunks collected:", usbChunksRef.current.length,
+          "total bytes:", usbChunksRef.current.reduce((s, c) => s + c.size, 0));
         const blob = new Blob(usbChunksRef.current, { type: recorder.mimeType });
-        if (blob.size < 1000) {
-          setUsbError("No audio captured. Is the MPC sending audio?");
+        console.log("[USB Listen] blob size:", blob.size, "type:", blob.type);
+        if (blob.size < 200) {
+          setUsbError("No audio captured (" + blob.size + " bytes, " + usbChunksRef.current.length + " chunks). Check device selection in ▾ menu.");
           setUsbListening(false);
           return;
         }
