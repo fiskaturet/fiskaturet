@@ -4040,9 +4040,9 @@ function pearson(a, b) {
 
 // ─── FFT-based chromagram for polyphonic key detection ───────────────────────
 // Uses frequency-domain analysis — works on chords, loops, polyphonic material
-function computeChromagram(samples, sampleRate, fftSize = 4096) {
+function computeChromagram(samples, sampleRate, fftSize = 8192) {
   const chroma = new Float64Array(12);
-  const hopSize = Math.floor(fftSize / 2);
+  const hopSize = Math.floor(fftSize / 4);  // 75% overlap for smoother analysis
   const numFrames = Math.floor((samples.length - fftSize) / hopSize);
   if (numFrames <= 0) return Array.from(chroma);
 
@@ -4050,18 +4050,21 @@ function computeChromagram(samples, sampleRate, fftSize = 4096) {
   const hann = new Float64Array(fftSize);
   for (let i = 0; i < fftSize; i++) hann[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / (fftSize - 1)));
 
-  // Pre-compute bin → pitch-class mapping
-  // Each FFT bin has frequency = binIndex * sampleRate / fftSize
-  // Map to nearest pitch class if within ±0.5 semitones
+  // Pre-compute bin → pitch-class mapping with 1/f weighting
+  // Larger FFT (8192) gives ~5.4 Hz resolution at 44.1 kHz — resolves down to ~40 Hz
   const binPC = new Int8Array(fftSize / 2 + 1).fill(-1);
+  const binWeight = new Float64Array(fftSize / 2 + 1);
   const binFreqScale = sampleRate / fftSize;
   for (let b = 1; b <= fftSize / 2; b++) {
     const freq = b * binFreqScale;
-    if (freq < 60 || freq > 5000) continue; // musical range only
+    if (freq < 40 || freq > 5000) continue; // extended low range for bass fundamentals
     const midi = 12 * Math.log2(freq / 440) + 69;
     const rounded = Math.round(midi);
-    if (Math.abs(midi - rounded) < 0.45) { // within ~half a semitone
+    if (Math.abs(midi - rounded) < 0.4) {
       binPC[b] = ((rounded % 12) + 12) % 12;
+      // Weight lower octaves more — fundamental matters more than harmonics
+      // 1/sqrt(freq) gives gentle rolloff
+      binWeight[b] = 1 / Math.sqrt(freq / 100);
     }
   }
 
@@ -4124,9 +4127,9 @@ function computeChromagram(samples, sampleRate, fftSize = 4096) {
 
     const mag = fftMagnitude(windowed);
 
-    // Accumulate into chroma bins (weighted by magnitude)
+    // Accumulate into chroma bins (weighted by magnitude × octave weight)
     for (let b = 1; b <= fftSize / 2; b++) {
-      if (binPC[b] >= 0) chroma[binPC[b]] += mag[b];
+      if (binPC[b] >= 0) chroma[binPC[b]] += mag[b] * binWeight[b];
     }
   }
 
@@ -5945,6 +5948,10 @@ export default function App() {
   const usbTimerRef       = useRef(null);
   const usbCountdownRef   = useRef(null);
   const [usbCountdown,    setUsbCountdown]    = useState(0);
+  const [usbLevel,        setUsbLevel]        = useState(0);  // 0-1 audio level for VU meter
+  const usbAnalyserRef    = useRef(null);
+  const usbAudioCtxRef    = useRef(null);
+  const usbRafRef         = useRef(null);
   // ── Piano Roll state ──
   const [pianoRollOpen,  setPianoRollOpen]   = useState(false);
   const [pianoRollEdits, setPianoRollEdits]  = useState({}); // key: "noteNum-startSlot" → { velocity, lengthSlots, muted }
@@ -6224,13 +6231,20 @@ export default function App() {
       usbRecorderRef.current.stop();
     }
     if (usbStreamRef.current) {
-      usbStreamRef.current.getTracks().forEach(t => t.stop());
+      usbStreamRef.current.getTracks().forEach(tr => tr.stop());
       usbStreamRef.current = null;
     }
+    if (usbRafRef.current) { cancelAnimationFrame(usbRafRef.current); usbRafRef.current = null; }
+    if (usbAudioCtxRef.current && usbAudioCtxRef.current.state !== "closed") {
+      usbAudioCtxRef.current.close().catch(() => {});
+      usbAudioCtxRef.current = null;
+    }
+    usbAnalyserRef.current = null;
     if (usbTimerRef.current) clearTimeout(usbTimerRef.current);
     if (usbCountdownRef.current) clearInterval(usbCountdownRef.current);
     setUsbListening(false);
     setUsbCountdown(0);
+    setUsbLevel(0);
   }, []);
 
   const startUsbListen = useCallback(async (duration = 4) => {
@@ -6245,11 +6259,32 @@ export default function App() {
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { deviceId: { exact: usbDeviceId } },
+        audio: { deviceId: { exact: usbDeviceId }, echoCancellation: false, noiseSuppression: false, autoGainControl: false },
         video: false,
       });
       usbStreamRef.current = stream;
       usbChunksRef.current = [];
+
+      // Set up real-time level meter via AnalyserNode
+      const liveCtx = new AudioContext();
+      const analyser = liveCtx.createAnalyser();
+      analyser.fftSize = 256;
+      liveCtx.createMediaStreamSource(stream).connect(analyser);
+      usbAudioCtxRef.current = liveCtx;
+      usbAnalyserRef.current = analyser;
+      const lvlBuf = new Float32Array(analyser.fftSize);
+      const meterLoop = () => {
+        if (!usbAnalyserRef.current) return;
+        analyser.getFloatTimeDomainData(lvlBuf);
+        let peak = 0;
+        for (let i = 0; i < lvlBuf.length; i++) {
+          const abs = Math.abs(lvlBuf[i]);
+          if (abs > peak) peak = abs;
+        }
+        setUsbLevel(peak);
+        usbRafRef.current = requestAnimationFrame(meterLoop);
+      };
+      usbRafRef.current = requestAnimationFrame(meterLoop);
 
       const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg", "audio/mp4"]
         .find(m => MediaRecorder.isTypeSupported(m)) || "";
@@ -6257,7 +6292,15 @@ export default function App() {
       recorder.ondataavailable = e => { if (e.data.size > 0) usbChunksRef.current.push(e.data); };
 
       recorder.onstop = async () => {
-        stream.getTracks().forEach(t => t.stop());
+        // Stop level meter
+        if (usbRafRef.current) { cancelAnimationFrame(usbRafRef.current); usbRafRef.current = null; }
+        if (usbAudioCtxRef.current && usbAudioCtxRef.current.state !== "closed") {
+          usbAudioCtxRef.current.close().catch(() => {});
+          usbAudioCtxRef.current = null;
+        }
+        usbAnalyserRef.current = null;
+        setUsbLevel(0);
+        stream.getTracks().forEach(tr => tr.stop());
         usbStreamRef.current = null;
 
         const blob = new Blob(usbChunksRef.current, { type: recorder.mimeType });
@@ -8518,7 +8561,7 @@ export default function App() {
                           setUsbShowPicker(true);
                           return;
                         }
-                        startUsbListen(4);
+                        startUsbListen(5);
                       }}
                       style={{
                         fontFamily: SF, fontSize: 12, fontWeight: 600,
@@ -8556,6 +8599,26 @@ export default function App() {
                       }}
                     >▾</button>
                   </div>
+
+                  {/* ── Real-time audio level meter ── */}
+                  {usbListening && (
+                    <div style={{ marginTop:4, display:"flex", alignItems:"center", gap:6 }}>
+                      <div style={{
+                        width:80, height:6, background:"rgba(0,0,0,0.08)", borderRadius:3,
+                        overflow:"hidden", position:"relative",
+                      }}>
+                        <div style={{
+                          height:"100%", borderRadius:3,
+                          width: `${Math.min(100, Math.round(usbLevel * 300))}%`,
+                          background: usbLevel > 0.5 ? "#FF453A" : usbLevel > 0.15 ? "#FF9F0A" : "#30D158",
+                          transition: "width 0.06s linear, background 0.15s",
+                        }} />
+                      </div>
+                      <span style={{ fontSize:10, color: usbLevel > 0.02 ? "#30D158" : t.textTertiary, fontWeight:600 }}>
+                        {usbLevel > 0.02 ? "SIGNAL" : "NO SIGNAL"}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Device picker dropdown */}
                   {usbShowPicker && (
